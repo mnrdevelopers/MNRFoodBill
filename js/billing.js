@@ -1,10 +1,10 @@
-// Initialize with default values immediately to prevent undefined/NaN during initial load
+// Initialize empty state. No more hardcoded tax values.
 let cart = [];
 let products = [];
 let restaurantSettings = {
-    gstRate: 18,
-    serviceCharge: 5,
-    currency: '₹'
+    gstRate: 0,
+    serviceCharge: 0,
+    currency: ''
 };
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -18,20 +18,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Load restaurant settings
+    // Load restaurant settings from Firestore (Source of Truth)
     function loadRestaurantSettings() {
         const user = auth.currentUser;
         db.collection('restaurants').doc(user.uid).get()
             .then(doc => {
                 if (doc.exists) {
                     const data = doc.data();
-                    // Merge fetched settings with defaults to ensure no keys are missing
+                    const fetchedSettings = data.settings || {};
+                    
+                    // Assign from database or force 0/empty (no hardcoded defaults)
                     restaurantSettings = {
-                        ...restaurantSettings,
-                        ...(data.settings || {})
+                        gstRate: Number(fetchedSettings.gstRate) || 0,
+                        serviceCharge: Number(fetchedSettings.serviceCharge) || 0,
+                        currency: fetchedSettings.currency || '₹'
                     };
                     
-                    // Also check top-level name if available
                     if (data.name) {
                         const navName = document.getElementById('restaurantName');
                         if (navName) navName.textContent = data.name;
@@ -39,9 +41,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     renderCart();
                     updateTotals();
+                } else {
+                    // If no settings found, redirect to settings page to set them up
+                    showNotification('Please configure your settings first.', 'info');
+                    setTimeout(() => {
+                        window.location.href = 'settings.html';
+                    }, 2000);
                 }
             })
-            .catch(err => console.error("Error loading settings:", err));
+            .catch(err => {
+                console.error("Error loading settings:", err);
+                updateTotals();
+            });
     }
 
     // Load products
@@ -68,10 +79,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Render categories
     function renderCategories(categories) {
-        const activeTab = document.querySelector('.category-tab.active');
-        if (!activeTab) return;
+        const categoryTabs = document.querySelector('.category-tab');
+        if (!categoryTabs) return;
         
-        const container = activeTab.parentElement;
+        const container = categoryTabs.parentElement;
         container.innerHTML = `
             <button class="category-tab active px-4 py-2 bg-red-500 text-white rounded-lg whitespace-nowrap" data-category="all">All Items</button>
         `;
@@ -129,6 +140,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!container) return;
         container.innerHTML = '';
 
+        const currency = restaurantSettings.currency || '';
+
         productsToShow.forEach(product => {
             const card = document.createElement('div');
             card.className = 'bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer';
@@ -138,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <h3 class="font-bold text-gray-800">${product.name}</h3>
                         <p class="text-sm text-gray-600">${product.description || ''}</p>
                     </div>
-                    <span class="font-bold text-red-500">${restaurantSettings.currency}${product.price}</span>
+                    <span class="font-bold text-red-500">${currency}${Number(product.price || 0).toFixed(2)}</span>
                 </div>
                 <div class="flex items-center justify-between mt-3">
                     <span class="text-sm text-gray-500">${product.category}</span>
@@ -185,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function() {
             cart.push({
                 id: product.id,
                 name: product.name,
-                price: product.price,
+                price: Number(product.price) || 0,
                 quantity: 1
             });
         }
@@ -214,17 +227,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (emptyCart) emptyCart.classList.add('hidden');
         container.innerHTML = '';
 
+        const currency = restaurantSettings.currency || '';
+
         cart.forEach((item, index) => {
-            const itemTotal = item.price * item.quantity;
+            const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
             const itemElement = document.createElement('div');
             itemElement.className = 'flex items-center justify-between py-2 border-b';
             itemElement.innerHTML = `
                 <div class="flex-1">
                     <h4 class="font-medium text-gray-800">${item.name}</h4>
-                    <p class="text-sm text-gray-600">${restaurantSettings.currency}${item.price} × ${item.quantity}</p>
+                    <p class="text-sm text-gray-600">${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</p>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <span class="font-bold">${restaurantSettings.currency}${itemTotal.toFixed(2)}</span>
+                    <span class="font-bold">${currency}${itemTotal.toFixed(2)}</span>
                     <button class="remove-item text-red-500 hover:text-red-700" data-index="${index}">
                         <i class="fas fa-times"></i>
                     </button>
@@ -256,12 +271,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const subtotalElem = document.getElementById('subtotal');
         if (!subtotalElem) return;
 
-        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const subtotal = cart.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
         
-        // Use defaults if settings are invalid
-        const gstRate = parseFloat(restaurantSettings.gstRate) || 0;
-        const serviceRate = parseFloat(restaurantSettings.serviceCharge) || 0;
-        const currency = restaurantSettings.currency || '₹';
+        // Use database values
+        const gstRate = Number(restaurantSettings.gstRate) || 0;
+        const serviceRate = Number(restaurantSettings.serviceCharge) || 0;
+        const currency = restaurantSettings.currency || '';
 
         const gstAmount = subtotal * (gstRate / 100);
         const serviceCharge = subtotal * (serviceRate / 100);
@@ -271,6 +286,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('gstAmount').textContent = `${currency}${gstAmount.toFixed(2)}`;
         document.getElementById('serviceCharge').textContent = `${currency}${serviceCharge.toFixed(2)}`;
         document.getElementById('totalAmount').textContent = `${currency}${total.toFixed(2)}`;
+        
+        // Update the labels in the UI to show the rates dynamically
+        const gstLabel = document.querySelector('p:has(#gstAmount)');
+        if (gstLabel) gstLabel.childNodes[0].textContent = `GST (${gstRate}%): `;
+        
+        const serviceLabel = document.querySelector('p:has(#serviceCharge)');
+        if (serviceLabel) serviceLabel.childNodes[0].textContent = `Service Charge (${serviceRate}%): `;
     }
 
     // Clear cart
@@ -298,17 +320,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const user = auth.currentUser;
-            const currency = restaurantSettings.currency || '₹';
+            if (!user) return;
+
+            const currency = restaurantSettings.currency || '';
+            const subtotal = cart.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
+            const totalText = document.getElementById('totalAmount').textContent;
+            const total = parseFloat(totalText.replace(currency, '')) || 0;
             
             const orderData = {
                 restaurantId: user.uid,
-                items: cart,
+                items: JSON.parse(JSON.stringify(cart)), 
                 customerName: document.getElementById('customerName').value || 'Walk-in Customer',
                 customerPhone: document.getElementById('customerPhone').value || '',
-                subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                gstRate: restaurantSettings.gstRate || 0,
-                serviceChargeRate: restaurantSettings.serviceCharge || 0,
-                total: parseFloat(document.getElementById('totalAmount').textContent.replace(currency, '')),
+                subtotal: Number(subtotal) || 0,
+                gstRate: Number(restaurantSettings.gstRate) || 0,
+                serviceChargeRate: Number(restaurantSettings.serviceCharge) || 0,
+                total: Number(total) || 0,
                 status: 'saved',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
@@ -320,6 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('customerPhone').value = '';
                 })
                 .catch(error => {
+                    console.error("Firebase Error:", error);
                     showNotification('Error saving order: ' + error.message, 'error');
                 });
         });
@@ -334,8 +362,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            prepareReceipt();
-            document.getElementById('printModal').classList.remove('hidden');
+            if (typeof prepareReceipt === 'function') {
+                prepareReceipt();
+                document.getElementById('printModal').classList.remove('hidden');
+            } else {
+                showNotification('Printing module not loaded.', 'error');
+            }
         });
     }
 

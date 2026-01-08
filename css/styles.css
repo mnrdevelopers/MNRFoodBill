@@ -1,0 +1,135 @@
+/* Custom styles for thermal printer simulation */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    
+    #printContent, #printContent * {
+        visibility: visible;
+    }
+    
+    #printContent {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 58mm;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre-line;
+        line-height: 1.2;
+    }
+}
+
+/* Animation for notifications */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    table {
+        font-size: 14px;
+    }
+    
+    .sidebar {
+        height: auto;
+        margin-bottom: 1rem;
+    }
+}
+
+/* Thermal printer specific styles */
+.thermal-receipt {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1;
+    white-space: pre-line;
+    word-wrap: break-word;
+}
+
+/* Button hover effects */
+.btn-hover {
+    transition: all 0.3s ease;
+}
+
+.btn-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Loading animation */
+.loading-spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #ef4444;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Modal animations */
+.modal-enter {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

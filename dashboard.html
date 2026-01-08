@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - FastFood Billing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="js/dashboard.js" defer></script>
+    <style>
+        .sidebar {
+            height: calc(100vh - 64px);
+        }
+        .stat-card {
+            transition: transform 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-utensils text-red-500 text-2xl"></i>
+                    <span class="text-xl font-bold text-gray-800" id="restaurantName">FastFood Billing</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="hidden md:flex items-center space-x-4">
+                        <span class="text-gray-600" id="userEmail"></span>
+                        <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-red-500"></i>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow p-4 sidebar overflow-y-auto">
+                    <nav class="space-y-2">
+                        <a href="dashboard.html" class="flex items-center space-x-3 p-3 bg-red-50 text-red-600 rounded-lg">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span class="font-medium">Dashboard</span>
+                        </a>
+                        <a href="billing.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+                            <i class="fas fa-cash-register"></i>
+                            <span class="font-medium">Billing</span>
+                        </a>
+                        <a href="products.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+                            <i class="fas fa-hamburger"></i>
+                            <span class="font-medium">Products</span>
+                        </a>
+                        <a href="orders.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+                            <i class="fas fa-receipt"></i>
+                            <span class="font-medium">Orders</span>
+                        </a>
+                    </nav>
+
+                    <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+                        <h3 class="font-bold text-blue-800 mb-2">Quick Stats</h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-blue-600">Today's Sales</span>
+                                <span class="font-bold" id="todaySales">₹0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-blue-600">Today's Orders</span>
+                                <span class="font-bold" id="todayOrders">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="lg:col-span-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Stats Cards -->
+                    <div class="stat-card bg-white rounded-xl shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500">Total Revenue</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-2" id="totalRevenue">₹0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-rupee-sign text-green-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-white rounded-xl shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500">Total Orders</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-2" id="totalOrders">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-shopping-cart text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-white rounded-xl shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500">Products</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-2" id="totalProducts">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-hamburger text-purple-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Orders -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Orders</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-3 px-4">Order ID</th>
+                                    <th class="text-left py-3 px-4">Time</th>
+                                    <th class="text-left py-3 px-4">Items</th>
+                                    <th class="text-left py-3 px-4">Amount</th>
+                                    <th class="text-left py-3 px-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentOrders">
+                                <!-- Orders will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div class="bg-gradient-to-r from-red-500 to-orange-500 rounded-xl shadow p-6 text-white">
+                        <h3 class="text-xl font-bold mb-4">Create New Bill</h3>
+                        <p class="mb-6">Start a new order and print receipt</p>
+                        <a href="billing.html" class="bg-white text-red-600 px-6 py-3 rounded-lg font-bold inline-flex items-center hover:bg-gray-100 transition">
+                            <i class="fas fa-plus mr-2"></i> New Bill
+                        </a>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl shadow p-6 text-white">
+                        <h3 class="text-xl font-bold mb-4">Manage Products</h3>
+                        <p class="mb-6">Add, edit or remove menu items</p>
+                        <a href="products.html" class="bg-white text-blue-600 px-6 py-3 rounded-lg font-bold inline-flex items-center hover:bg-gray-100 transition">
+                            <i class="fas fa-edit mr-2"></i> Manage Menu
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Modal -->
+    <div id="printModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md">
+            <div class="p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Print Receipt</h3>
+                <div id="printContent" class="font-mono text-sm whitespace-pre-line mb-6 p-4 bg-gray-50 rounded">
+                    <!-- Print content will go here -->
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="printReceipt()" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                        <i class="fas fa-print mr-2"></i> Print Now
+                    </button>
+                    <button onclick="closePrintModal()" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

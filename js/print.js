@@ -1,9 +1,12 @@
 // Thermal printing functions
 function prepareReceipt() {
-    const subtotal = parseFloat(document.getElementById('subtotal').textContent.replace('₹', ''));
-    const gstAmount = parseFloat(document.getElementById('gstAmount').textContent.replace('₹', ''));
-    const serviceCharge = parseFloat(document.getElementById('serviceCharge').textContent.replace('₹', ''));
-    const total = parseFloat(document.getElementById('totalAmount').textContent.replace('₹', ''));
+    // Access global restaurantSettings and cart defined in billing.js
+    const currency = (typeof restaurantSettings !== 'undefined' && restaurantSettings.currency) ? restaurantSettings.currency : '₹';
+    
+    const subtotal = parseFloat(document.getElementById('subtotal').textContent.replace(currency, ''));
+    const gstAmount = parseFloat(document.getElementById('gstAmount').textContent.replace(currency, ''));
+    const serviceCharge = parseFloat(document.getElementById('serviceCharge').textContent.replace(currency, ''));
+    const total = parseFloat(document.getElementById('totalAmount').textContent.replace(currency, ''));
     
     const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
     const customerPhone = document.getElementById('customerPhone').value || '';
@@ -22,18 +25,19 @@ function prepareReceipt() {
         ${'-'.repeat(32)}
     `;
     
+    // cart is now accessible globally
     cart.forEach(item => {
         const itemTotal = item.price * item.quantity;
-        receipt += `${item.name.substring(0, 16).padEnd(16)} ${item.quantity.toString().padStart(3)}   ₹${itemTotal.toFixed(2).padStart(7)}\n`;
+        receipt += `${item.name.substring(0, 16).padEnd(16)} ${item.quantity.toString().padStart(3)}   ${currency}${itemTotal.toFixed(2).padStart(7)}\n`;
     });
     
     receipt += `
         ${'-'.repeat(32)}
-        Subtotal:        ₹${subtotal.toFixed(2).padStart(10)}
-        GST (18%):       ₹${gstAmount.toFixed(2).padStart(10)}
-        Service (5%):    ₹${serviceCharge.toFixed(2).padStart(10)}
+        Subtotal:        ${currency}${subtotal.toFixed(2).padStart(10)}
+        GST (${restaurantSettings.gstRate}%):       ${currency}${gstAmount.toFixed(2).padStart(10)}
+        Service (${restaurantSettings.serviceCharge}%):    ${currency}${serviceCharge.toFixed(2).padStart(10)}
         ${'-'.repeat(32)}
-        TOTAL:          ₹${total.toFixed(2).padStart(10)}
+        TOTAL:          ${currency}${total.toFixed(2).padStart(10)}
         ${'='.repeat(32)}
         Thank you for your visit!
         Please come again :)
@@ -126,6 +130,7 @@ async function printViaSerial(printContent) {
 
 function printViaBrowser(printContent) {
     const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
     printWindow.document.write(`
         <html>
             <head>
@@ -161,30 +166,39 @@ function printViaBrowser(printContent) {
 
 function saveOrderAndClearCart() {
     const user = auth.currentUser;
+    const currency = restaurantSettings.currency || '₹';
+    
     const orderData = {
         restaurantId: user.uid,
-        items: [...cart],
+        items: [...cart], // Use global cart
         customerName: document.getElementById('customerName').value || 'Walk-in Customer',
         customerPhone: document.getElementById('customerPhone').value || '',
-        subtotal: parseFloat(document.getElementById('subtotal').textContent.replace('₹', '')),
-        gstAmount: parseFloat(document.getElementById('gstAmount').textContent.replace('₹', '')),
-        serviceCharge: parseFloat(document.getElementById('serviceCharge').textContent.replace('₹', '')),
-        total: parseFloat(document.getElementById('totalAmount').textContent.replace('₹', '')),
+        subtotal: parseFloat(document.getElementById('subtotal').textContent.replace(currency, '')),
+        gstAmount: parseFloat(document.getElementById('gstAmount').textContent.replace(currency, '')),
+        serviceCharge: parseFloat(document.getElementById('serviceCharge').textContent.replace(currency, '')),
+        total: parseFloat(document.getElementById('totalAmount').textContent.replace(currency, '')),
         status: 'completed',
         orderId: generateOrderId(),
-        printedAt: firebase.firestore.FieldValue.serverTimestamp()
+        printedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
     db.collection('orders').add(orderData)
         .then(() => {
+            // Reset global cart
             cart = [];
-            renderCart();
-            updateTotals();
+            // Call UI update functions defined in billing.js
+            if (typeof renderCart === 'function') renderCart();
+            if (typeof updateTotals === 'function') updateTotals();
+            
             document.getElementById('customerName').value = '';
             document.getElementById('customerPhone').value = '';
+            closePrintModal();
+            showNotification('Order completed and saved.', 'success');
         })
         .catch(error => {
             console.error('Error saving order:', error);
+            showNotification('Order saved locally but failed to sync.', 'error');
         });
 }
 
@@ -196,9 +210,11 @@ function generateOrderId() {
 }
 
 function closePrintModal() {
-    document.getElementById('printModal').classList.add('hidden');
+    const modal = document.getElementById('printModal');
+    if (modal) modal.classList.add('hidden');
 }
 
 // Make functions available globally
+window.prepareReceipt = prepareReceipt;
 window.printReceipt = printReceipt;
 window.closePrintModal = closePrintModal;

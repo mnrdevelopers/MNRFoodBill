@@ -1,7 +1,11 @@
-// Move state to global scope so print.js can access them
+// Initialize with default values immediately to prevent undefined/NaN during initial load
 let cart = [];
 let products = [];
-let restaurantSettings = {};
+let restaurantSettings = {
+    gstRate: 18,
+    serviceCharge: 5,
+    currency: '₹'
+};
 
 document.addEventListener('DOMContentLoaded', function() {
     // Check auth
@@ -20,14 +24,24 @@ document.addEventListener('DOMContentLoaded', function() {
         db.collection('restaurants').doc(user.uid).get()
             .then(doc => {
                 if (doc.exists) {
-                    restaurantSettings = doc.data().settings || {
-                        gstRate: 18,
-                        serviceCharge: 5,
-                        currency: '₹'
+                    const data = doc.data();
+                    // Merge fetched settings with defaults to ensure no keys are missing
+                    restaurantSettings = {
+                        ...restaurantSettings,
+                        ...(data.settings || {})
                     };
+                    
+                    // Also check top-level name if available
+                    if (data.name) {
+                        const navName = document.getElementById('restaurantName');
+                        if (navName) navName.textContent = data.name;
+                    }
+
+                    renderCart();
                     updateTotals();
                 }
-            });
+            })
+            .catch(err => console.error("Error loading settings:", err));
     }
 
     // Load products
@@ -54,7 +68,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Render categories
     function renderCategories(categories) {
-        const container = document.querySelector('.category-tab.active').parentElement;
+        const activeTab = document.querySelector('.category-tab.active');
+        if (!activeTab) return;
+        
+        const container = activeTab.parentElement;
         container.innerHTML = `
             <button class="category-tab active px-4 py-2 bg-red-500 text-white rounded-lg whitespace-nowrap" data-category="all">All Items</button>
         `;
@@ -88,7 +105,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Filter products by category
     function filterProducts(category) {
-        const searchTerm = document.getElementById('productSearch').value.toLowerCase();
+        const searchInput = document.getElementById('productSearch');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
         let filtered = products;
         
         if (category !== 'all') {
@@ -98,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (searchTerm) {
             filtered = filtered.filter(p => 
                 p.name.toLowerCase().includes(searchTerm) ||
-                p.description?.toLowerCase().includes(searchTerm)
+                (p.description && p.description.toLowerCase().includes(searchTerm))
             );
         }
         
@@ -108,6 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Render products
     function renderProducts(productsToShow) {
         const container = document.getElementById('productsGrid');
+        if (!container) return;
         container.innerHTML = '';
 
         productsToShow.forEach(product => {
@@ -181,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('cartItems');
         const emptyCart = document.getElementById('emptyCart');
         
-        if (!container) return; // Guard for pages that don't have the cart UI
+        if (!container) return;
 
         if (cart.length === 0) {
             container.innerHTML = '';
@@ -238,14 +257,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!subtotalElem) return;
 
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const gstAmount = subtotal * (restaurantSettings.gstRate / 100);
-        const serviceCharge = subtotal * (restaurantSettings.serviceCharge / 100);
+        
+        // Use defaults if settings are invalid
+        const gstRate = parseFloat(restaurantSettings.gstRate) || 0;
+        const serviceRate = parseFloat(restaurantSettings.serviceCharge) || 0;
+        const currency = restaurantSettings.currency || '₹';
+
+        const gstAmount = subtotal * (gstRate / 100);
+        const serviceCharge = subtotal * (serviceRate / 100);
         const total = subtotal + gstAmount + serviceCharge;
 
-        subtotalElem.textContent = `${restaurantSettings.currency}${subtotal.toFixed(2)}`;
-        document.getElementById('gstAmount').textContent = `${restaurantSettings.currency}${gstAmount.toFixed(2)}`;
-        document.getElementById('serviceCharge').textContent = `${restaurantSettings.currency}${serviceCharge.toFixed(2)}`;
-        document.getElementById('totalAmount').textContent = `${restaurantSettings.currency}${total.toFixed(2)}`;
+        subtotalElem.textContent = `${currency}${subtotal.toFixed(2)}`;
+        document.getElementById('gstAmount').textContent = `${currency}${gstAmount.toFixed(2)}`;
+        document.getElementById('serviceCharge').textContent = `${currency}${serviceCharge.toFixed(2)}`;
+        document.getElementById('totalAmount').textContent = `${currency}${total.toFixed(2)}`;
     }
 
     // Clear cart
@@ -273,15 +298,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const user = auth.currentUser;
+            const currency = restaurantSettings.currency || '₹';
+            
             const orderData = {
                 restaurantId: user.uid,
                 items: cart,
                 customerName: document.getElementById('customerName').value || 'Walk-in Customer',
                 customerPhone: document.getElementById('customerPhone').value || '',
                 subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                gstRate: restaurantSettings.gstRate,
-                serviceChargeRate: restaurantSettings.serviceCharge,
-                total: parseFloat(document.getElementById('totalAmount').textContent.replace(restaurantSettings.currency, '')),
+                gstRate: restaurantSettings.gstRate || 0,
+                serviceChargeRate: restaurantSettings.serviceCharge || 0,
+                total: parseFloat(document.getElementById('totalAmount').textContent.replace(currency, '')),
                 status: 'saved',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
@@ -321,30 +348,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Logout
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function() {
-            auth.signOut().then(() => {
-                window.location.href = 'index.html';
-            });
-        });
-    }
-
     // Export helpers for other scripts
     window.renderCart = renderCart;
     window.updateTotals = updateTotals;
 });
 
 function showNotification(message, type) {
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white`;
     notification.textContent = message;
     
     document.body.appendChild(notification);
     
-    // Remove notification after 3 seconds
     setTimeout(() => {
         notification.style.opacity = '0';
         notification.style.transform = 'translateX(100%)';

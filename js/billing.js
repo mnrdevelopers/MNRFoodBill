@@ -1,8 +1,9 @@
-document.addEventListener('DOMContentLoaded', function() {
-    let cart = [];
-    let products = [];
-    let restaurantSettings = {};
+// Move state to global scope so print.js can access them
+let cart = [];
+let products = [];
+let restaurantSettings = {};
 
+document.addEventListener('DOMContentLoaded', function() {
     // Check auth
     auth.onAuthStateChanged(user => {
         if (!user) {
@@ -180,14 +181,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('cartItems');
         const emptyCart = document.getElementById('emptyCart');
         
+        if (!container) return; // Guard for pages that don't have the cart UI
+
         if (cart.length === 0) {
             container.innerHTML = '';
-            container.appendChild(emptyCart);
-            emptyCart.classList.remove('hidden');
+            if (emptyCart) {
+                container.appendChild(emptyCart);
+                emptyCart.classList.remove('hidden');
+            }
             return;
         }
 
-        emptyCart.classList.add('hidden');
+        if (emptyCart) emptyCart.classList.add('hidden');
         container.innerHTML = '';
 
         cart.forEach((item, index) => {
@@ -229,99 +234,124 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update totals
     function updateTotals() {
+        const subtotalElem = document.getElementById('subtotal');
+        if (!subtotalElem) return;
+
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const gstAmount = subtotal * (restaurantSettings.gstRate / 100);
         const serviceCharge = subtotal * (restaurantSettings.serviceCharge / 100);
         const total = subtotal + gstAmount + serviceCharge;
 
-        document.getElementById('subtotal').textContent = `${restaurantSettings.currency}${subtotal.toFixed(2)}`;
+        subtotalElem.textContent = `${restaurantSettings.currency}${subtotal.toFixed(2)}`;
         document.getElementById('gstAmount').textContent = `${restaurantSettings.currency}${gstAmount.toFixed(2)}`;
         document.getElementById('serviceCharge').textContent = `${restaurantSettings.currency}${serviceCharge.toFixed(2)}`;
         document.getElementById('totalAmount').textContent = `${restaurantSettings.currency}${total.toFixed(2)}`;
     }
 
     // Clear cart
-    document.getElementById('clearCart').addEventListener('click', function() {
-        if (cart.length === 0) return;
-        
-        if (confirm('Are you sure you want to clear all items from the cart?')) {
-            cart = [];
-            renderCart();
-            updateTotals();
-            showNotification('Cart cleared', 'info');
-        }
-    });
+    const clearCartBtn = document.getElementById('clearCart');
+    if (clearCartBtn) {
+        clearCartBtn.addEventListener('click', function() {
+            if (cart.length === 0) return;
+            
+            if (confirm('Are you sure you want to clear all items from the cart?')) {
+                cart = [];
+                renderCart();
+                updateTotals();
+                showNotification('Cart cleared', 'info');
+            }
+        });
+    }
 
     // Save order
-    document.getElementById('saveOrder').addEventListener('click', function() {
-        if (cart.length === 0) {
-            showNotification('Please add items to cart first', 'error');
-            return;
-        }
+    const saveOrderBtn = document.getElementById('saveOrder');
+    if (saveOrderBtn) {
+        saveOrderBtn.addEventListener('click', function() {
+            if (cart.length === 0) {
+                showNotification('Please add items to cart first', 'error');
+                return;
+            }
 
-        const user = auth.currentUser;
-        const orderData = {
-            restaurantId: user.uid,
-            items: cart,
-            customerName: document.getElementById('customerName').value || 'Walk-in Customer',
-            customerPhone: document.getElementById('customerPhone').value || '',
-            subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-            gstRate: restaurantSettings.gstRate,
-            serviceChargeRate: restaurantSettings.serviceCharge,
-            total: parseFloat(document.getElementById('totalAmount').textContent.replace(restaurantSettings.currency, '')),
-            status: 'saved',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
+            const user = auth.currentUser;
+            const orderData = {
+                restaurantId: user.uid,
+                items: cart,
+                customerName: document.getElementById('customerName').value || 'Walk-in Customer',
+                customerPhone: document.getElementById('customerPhone').value || '',
+                subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+                gstRate: restaurantSettings.gstRate,
+                serviceChargeRate: restaurantSettings.serviceCharge,
+                total: parseFloat(document.getElementById('totalAmount').textContent.replace(restaurantSettings.currency, '')),
+                status: 'saved',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
 
-        db.collection('orders').add(orderData)
-            .then(docRef => {
-                showNotification('Order saved successfully!', 'success');
-                document.getElementById('customerName').value = '';
-                document.getElementById('customerPhone').value = '';
-            })
-            .catch(error => {
-                showNotification('Error saving order: ' + error.message, 'error');
-            });
-    });
+            db.collection('orders').add(orderData)
+                .then(docRef => {
+                    showNotification('Order saved successfully!', 'success');
+                    document.getElementById('customerName').value = '';
+                    document.getElementById('customerPhone').value = '';
+                })
+                .catch(error => {
+                    showNotification('Error saving order: ' + error.message, 'error');
+                });
+        });
+    }
 
     // Print bill
-    document.getElementById('printBill').addEventListener('click', function() {
-        if (cart.length === 0) {
-            showNotification('Please add items to cart first', 'error');
-            return;
-        }
+    const printBillBtn = document.getElementById('printBill');
+    if (printBillBtn) {
+        printBillBtn.addEventListener('click', function() {
+            if (cart.length === 0) {
+                showNotification('Please add items to cart first', 'error');
+                return;
+            }
 
-        prepareReceipt();
-        document.getElementById('printModal').classList.remove('hidden');
-    });
+            prepareReceipt();
+            document.getElementById('printModal').classList.remove('hidden');
+        });
+    }
 
     // Search functionality
-    document.getElementById('productSearch').addEventListener('input', function() {
-        filterProducts(document.querySelector('.category-tab.active').dataset.category);
-    });
+    const productSearchInput = document.getElementById('productSearch');
+    if (productSearchInput) {
+        productSearchInput.addEventListener('input', function() {
+            const activeTab = document.querySelector('.category-tab.active');
+            filterProducts(activeTab ? activeTab.dataset.category : 'all');
+        });
+    }
 
     // Logout
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        auth.signOut().then(() => {
-            window.location.href = 'index.html';
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            auth.signOut().then(() => {
+                window.location.href = 'index.html';
+            });
         });
-    });
-
-    function showNotification(message, type) {
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white`;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        // Remove notification after 3 seconds
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
-        }, 3000);
     }
+
+    // Export helpers for other scripts
+    window.renderCart = renderCart;
+    window.updateTotals = updateTotals;
 });
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove notification after 3 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}

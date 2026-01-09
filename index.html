@@ -115,6 +115,11 @@
     <div class="absolute bottom-4 text-center text-white w-full">
         <p>MNRFoodBill System v1.0 • Thermal Print Ready</p>
     </div>
-</body>
 
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
+</script>
+</body>
 </html>

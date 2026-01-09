@@ -9,19 +9,27 @@ const firebaseConfig = {
   measurementId: "G-J5SRFCBCCL"
 };
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+// Initialize Firebase only if not already initialized
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+} else {
+    firebase.app(); // if already initialized, use that one
+}
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Enable offline persistence
-firebase.initializeApp(firebaseConfig);
 firebase.firestore().enablePersistence()
   .then(() => {
     console.log("Offline persistence enabled");
   })
   .catch(err => {
-    console.error("Persistence failed:", err);
+    if (err.code == 'failed-precondition') {
+        console.warn("Multiple tabs open, persistence can only be enabled in one tab at a time.");
+    } else if (err.code == 'unimplemented') {
+        console.warn("The current browser doesn't support all of the features required to enable persistence");
+    }
   });
 
 // Set cache size

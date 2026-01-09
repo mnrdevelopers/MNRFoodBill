@@ -49,7 +49,10 @@ function setupEventListeners() {
 }
 
 function loadUserInfo() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.warn('currentUser is not defined yet');
+        return;
+    }
     
     const userEmailElement = document.getElementById('userEmail');
     if (userEmailElement) {
@@ -309,4 +312,5 @@ function showNotification(message, type) {
 // Make functions available globally
 window.closeProductModal = closeProductModal;
 window.closeDeleteModal = closeDeleteModal;
+
 

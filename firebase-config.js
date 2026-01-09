@@ -24,9 +24,6 @@ firebase.firestore().enablePersistence()
     console.error("Persistence failed:", err);
   });
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-
 // Set cache size
 db.settings({
   cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED

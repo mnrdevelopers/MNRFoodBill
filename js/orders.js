@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPage = 1;
     const ordersPerPage = 10;
     let selectedOrder = null;
+    let orderToDelete = null;
 
     // Check auth
     auth.onAuthStateChanged(user => {
@@ -133,11 +134,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 </td>
                 <td class="py-4 px-6">
                     <div class="flex space-x-2">
-                        <button class="view-order text-blue-500 hover:text-blue-700" data-id="${order.id}">
+                        <button class="view-order text-blue-500 hover:text-blue-700" data-id="${order.id}" title="View Details">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="print-order text-red-500 hover:text-red-700" data-id="${order.id}">
+                        <button class="print-order text-orange-500 hover:text-orange-700" data-id="${order.id}" title="Print Receipt">
                             <i class="fas fa-print"></i>
+                        </button>
+                        <button class="delete-order text-red-500 hover:text-red-700" data-id="${order.id}" title="Delete Order">
+                            <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </td>
@@ -157,6 +161,13 @@ document.addEventListener('DOMContentLoaded', function() {
             button.addEventListener('click', function() {
                 const orderId = this.dataset.id;
                 printOrder(orderId);
+            });
+        });
+
+        document.querySelectorAll('.delete-order').forEach(button => {
+            button.addEventListener('click', function() {
+                const orderId = this.dataset.id;
+                showDeleteOrderModal(orderId);
             });
         });
     }
@@ -247,11 +258,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <span>₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2) : '0.00'}</span>
                 </div>
                 <div class="flex justify-between mb-2">
-                    <span>GST (${selectedOrder.gstRate || 18}%):</span>
+                    <span>GST (${selectedOrder.gstRate || 0}%):</span>
                     <span>₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2) : '0.00'}</span>
                 </div>
                 <div class="flex justify-between mb-2">
-                    <span>Service Charge (${selectedOrder.serviceChargeRate || 5}%):</span>
+                    <span>Service Charge (${selectedOrder.serviceChargeRate || 0}%):</span>
                     <span>₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2) : '0.00'}</span>
                 </div>
                 <div class="flex justify-between text-xl font-bold pt-2 border-t">
@@ -294,8 +305,8 @@ document.addEventListener('DOMContentLoaded', function() {
         receipt += `
             ${'-'.repeat(32)}
             Subtotal:        ₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            GST (${selectedOrder.gstRate || 18}%):       ₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            Service (${selectedOrder.serviceChargeRate || 5}%):    ₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2).padStart(10) : '0.00'.padStart(10)}
+            GST (${selectedOrder.gstRate || 0}%):       ₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2).padStart(10) : '0.00'.padStart(10)}
+            Service (${selectedOrder.serviceChargeRate || 0}%):    ₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2).padStart(10) : '0.00'.padStart(10)}
             ${'-'.repeat(32)}
             TOTAL:          ₹${selectedOrder.total ? selectedOrder.total.toFixed(2).padStart(10) : '0.00'.padStart(10)}
             ${'='.repeat(32)}
@@ -309,6 +320,34 @@ document.addEventListener('DOMContentLoaded', function() {
         closeOrderModal();
         document.getElementById('printModal').classList.remove('hidden');
     };
+
+    // Delete logic
+    function showDeleteOrderModal(orderId) {
+        orderToDelete = orderId;
+        document.getElementById('deleteOrderModal').classList.remove('hidden');
+    }
+
+    window.closeDeleteOrderModal = function() {
+        orderToDelete = null;
+        document.getElementById('deleteOrderModal').classList.add('hidden');
+    };
+
+    document.getElementById('confirmDeleteOrder').addEventListener('click', function() {
+        if (!orderToDelete) return;
+        
+        db.collection('orders').doc(orderToDelete).delete()
+            .then(() => {
+                showNotification('Order deleted successfully', 'success');
+                orders = orders.filter(o => o.id !== orderToDelete);
+                renderOrdersTable();
+                updatePagination();
+                loadTodayStats(); // Refresh stats in case a today's order was deleted
+                closeDeleteOrderModal();
+            })
+            .catch(error => {
+                showNotification('Error deleting order: ' + error.message, 'error');
+            });
+    });
 
     // Print order directly
     function printOrder(orderId) {
@@ -365,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function updatePagination() {
-        const totalPages = Math.ceil(orders.length / ordersPerPage);
+        const totalPages = Math.max(1, Math.ceil(orders.length / ordersPerPage));
         document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
         
         document.getElementById('prevPage').disabled = currentPage === 1;
@@ -378,4 +417,16 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = 'index.html';
         });
     });
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white font-semibold`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
 });

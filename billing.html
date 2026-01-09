@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Billing - MNRFoodBill</title>
+    <title>Billing - FastFood Billing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -20,7 +20,7 @@
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
                     <i class="fas fa-utensils text-red-500 text-2xl"></i>
-                    <span class="text-xl font-bold text-gray-800">MNRFoodBill</span>
+                    <span class="text-xl font-bold text-gray-800">FastFood Billing</span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <a href="dashboard.html" class="text-gray-600 hover:text-red-500">
@@ -106,9 +106,48 @@
                             <span class="text-gray-600">Service Charge (5%)</span>
                             <span id="serviceCharge">₹0.00</span>
                         </div>
-                        <div class="flex justify-between text-xl font-bold border-t pt-4">
+                        <div class="flex justify-between text-xl font-bold border-t pt-4 mb-4">
                             <span>Total</span>
                             <span id="totalAmount">₹0.00</span>
+                        </div>
+
+                        <!-- Payment Section -->
+                        <div class="border-t pt-4 mb-4">
+                            <h3 class="font-bold text-gray-700 mb-3">Payment Details</h3>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-600 mb-2">Payment Mode *</label>
+                                <select id="paymentMode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
+                                    <option value="cash">Cash</option>
+                                    <option value="card">Card</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="online">Online</option>
+                                </select>
+                            </div>
+
+                            <!-- Cash Payment Fields -->
+                            <div id="cashPaymentFields" class="space-y-3">
+                                <div>
+                                    <label class="block text-gray-600 mb-2">Cash Received *</label>
+                                    <input type="number" id="cashReceived" step="0.01" min="0"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                                           placeholder="Enter cash amount">
+                                </div>
+                                <div class="flex justify-between items-center bg-green-50 p-3 rounded-lg">
+                                    <span class="font-bold text-gray-700">Change to Return:</span>
+                                    <span id="changeAmount" class="text-xl font-bold text-green-600">₹0.00</span>
+                                </div>
+                            </div>
+
+                            <!-- Non-cash Payment Fields -->
+                            <div id="nonCashPaymentFields" class="hidden">
+                                <div class="bg-blue-50 p-3 rounded-lg">
+                                    <p class="text-blue-700 text-sm">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Payment will be processed via selected method.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -152,5 +191,4 @@
         </div>
     </div>
 </body>
-
 </html>

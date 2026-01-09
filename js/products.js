@@ -1,6 +1,15 @@
 document.addEventListener('DOMContentLoaded', function() {
     let products = [];
     let productToDelete = null;
+    let productModal;
+    let deleteModal;
+
+    // Initialize Bootstrap Modals
+    const productModalElem = document.getElementById('productModal');
+    const deleteModalElem = document.getElementById('deleteModal');
+    
+    if (productModalElem) productModal = new bootstrap.Modal(productModalElem);
+    if (deleteModalElem) deleteModal = new bootstrap.Modal(deleteModalElem);
 
     // Check auth
     auth.onAuthStateChanged(user => {
@@ -93,7 +102,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Open product modal
     function openProductModal(product = null) {
-        const modal = document.getElementById('productModal');
         const form = document.getElementById('productForm');
         const title = document.getElementById('modalTitle');
         
@@ -111,12 +119,12 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('productId').value = '';
         }
         
-        modal.classList.remove('hidden');
+        if (productModal) productModal.show();
     }
 
     // Close product modal
     window.closeProductModal = function() {
-        document.getElementById('productModal').classList.add('hidden');
+        if (productModal) productModal.hide();
     };
 
     // Edit product
@@ -130,13 +138,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show delete modal
     function showDeleteModal(productId) {
         productToDelete = productId;
-        document.getElementById('deleteModal').classList.remove('hidden');
+        if (deleteModal) deleteModal.show();
     }
 
     // Close delete modal
     window.closeDeleteModal = function() {
         productToDelete = null;
-        document.getElementById('deleteModal').classList.add('hidden');
+        if (deleteModal) deleteModal.hide();
     };
 
     // Confirm delete
@@ -175,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        if (!productData.name || productData.price < 0) {
+        if (!productData.name || isNaN(productData.price) || productData.price < 0) {
             showNotification('Please fill all required fields correctly', 'error');
             return;
         }
@@ -225,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
             notification.style.opacity = '0';
             notification.style.transform = 'translateX(100%)';
             setTimeout(() => {
-                document.body.removeChild(notification);
+                if(notification.parentNode) notification.parentNode.removeChild(notification);
             }, 300);
         }, 3000);
     }

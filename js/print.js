@@ -148,6 +148,25 @@ ${'='.repeat(42)}
 `;
         
         document.getElementById('printContent').textContent = receipt;
+        
+        // Show modal with scrollbar
+        const modal = document.getElementById('printModal');
+        modal.classList.remove('hidden');
+        
+        // Ensure scrollbar appears if content is too long
+        setTimeout(() => {
+            const printContent = document.getElementById('printContent');
+            const contentHeight = printContent.scrollHeight;
+            const containerHeight = printContent.parentElement.clientHeight;
+            
+            if (contentHeight > containerHeight) {
+                printContent.style.maxHeight = '300px';
+                printContent.style.overflowY = 'auto';
+                printContent.classList.add('overflow-y-auto', 'max-h-80');
+            } else {
+                printContent.style.overflowY = 'visible';
+            }
+        }, 100);
     } catch (error) {
         console.error("Error preparing receipt:", error);
         showNotification('Error loading restaurant details', 'error');

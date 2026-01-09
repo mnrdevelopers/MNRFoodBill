@@ -11,16 +11,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (togglePassword) {
         togglePassword.addEventListener('click', function() {
             const password = document.getElementById('password');
-            const icon = this.querySelector('i');
-            if (password.type === 'password') {
-                password.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                password.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
         });
     }
 
@@ -42,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 1000);
                 })
                 .catch(error => {
-                    showMessage(error.message, 'danger');
+                    showMessage(error.message, 'error');
                 });
         });
     }
@@ -55,15 +48,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (registerBtn) {
         registerBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            document.getElementById('loginForm').classList.add('d-none');
-            document.getElementById('registerForm').classList.remove('d-none');
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
         });
     }
 
     if (backToLogin) {
         backToLogin.addEventListener('click', function() {
-            document.getElementById('registerForm').classList.add('d-none');
-            document.getElementById('loginForm').classList.remove('d-none');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
         });
     }
 
@@ -88,11 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         settings: {
                             gstRate: 18,
                             serviceCharge: 5,
-                            currency: '₹',
-                            address: '',
-                            phone: '',
-                            gstin: '',
-                            fssai: ''
+                            currency: '₹'
                         }
                     });
                 })
@@ -103,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 1500);
                 })
                 .catch(error => {
-                    showMessage(error.message, 'danger');
+                    showMessage(error.message, 'error');
                 });
         });
     }
@@ -111,11 +100,20 @@ document.addEventListener('DOMContentLoaded', function() {
     function showMessage(text, type) {
         const messageDiv = document.getElementById('message');
         messageDiv.textContent = text;
-        messageDiv.className = `alert alert-${type} mt-3`;
-        messageDiv.classList.remove('d-none');
+        messageDiv.className = 'mt-4 p-3 rounded-lg';
+        
+        if (type === 'success') {
+            messageDiv.classList.add('bg-green-100', 'text-green-700', 'border', 'border-green-300');
+        } else if (type === 'error') {
+            messageDiv.classList.add('bg-red-100', 'text-red-700', 'border', 'border-red-300');
+        } else {
+            messageDiv.classList.add('bg-blue-100', 'text-blue-700', 'border', 'border-blue-300');
+        }
+        
+        messageDiv.classList.remove('hidden');
         
         setTimeout(() => {
-            messageDiv.classList.add('d-none');
+            messageDiv.classList.add('hidden');
         }, 5000);
     }
 });

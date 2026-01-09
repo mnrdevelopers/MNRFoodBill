@@ -435,3 +435,37 @@ body.sidebar-open {
   100% { background-position: -200% 0; }
 }
 
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Product card image container */
+.product-image-container {
+    position: relative;
+    overflow: hidden;
+}
+
+/* Fallback image styles */
+.image-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f9fafb;
+    color: #9ca3af;
+}
+
+/* Smooth image loading */
+img {
+    transition: opacity 0.3s ease;
+}
+
+img[src*="githubusercontent"] {
+    background-color: #f9fafb;
+}
+
+/* Make sure images don't overflow */
+.product-card img {
+    max-height: 160px;
+    object-fit: cover;
+}

@@ -81,6 +81,19 @@ function loadSidebar() {
         });
 }
 
+function updateMainContentGrid() {
+    const mainContent = document.querySelector('#mainContent, .lg\\:col-span-3, .lg\\:col-span-4');
+    if (!mainContent) return;
+    
+    if (sidebarOpen) {
+        mainContent.classList.remove('lg:col-span-4', 'lg:col-span-5');
+        mainContent.classList.add('lg:col-span-3');
+    } else {
+        mainContent.classList.remove('lg:col-span-3', 'lg:col-span-4');
+        mainContent.classList.add('lg:col-span-4');
+    }
+}
+
 function setupDesktopSidebarToggle() {
     // Desktop toggle in sidebar
     document.addEventListener('click', function(e) {
@@ -139,6 +152,9 @@ function collapseSidebar() {
             mainContent.classList.remove('lg:col-span-3');
             mainContent.classList.add('lg:col-span-4');
         }
+
+        // Update main content grid
+        updateMainContentGrid();
         
         // Add collapsed class for styling
         sidebar.classList.add('sidebar-collapsed');
@@ -174,6 +190,9 @@ function expandSidebar() {
         // Adjust toggle icon
         toggleIcon.classList.remove('fa-chevron-right');
         toggleIcon.classList.add('fa-chevron-left');
+
+         // Update main content grid
+         updateMainContentGrid();
         
         // Adjust main content
         mainContent.classList.remove('lg:col-span-4');

@@ -1,103 +1,213 @@
-/**
- * Professional Thermal Print Module
- * Standard 32-character width for 58mm thermal printers
- */
-
-function prepareReceipt() {
-    // Access global state from billing.js/orders.js
-    const currency = (typeof restaurantSettings !== 'undefined' && restaurantSettings.currency) ? restaurantSettings.currency : '₹';
-    const restaurantName = (typeof restaurantSettings !== 'undefined' && restaurantSettings.name) ? restaurantSettings.name.toUpperCase() : 'RESTAURANT';
-    const restaurantAddress = (typeof restaurantSettings !== 'undefined' && restaurantSettings.address) ? restaurantSettings.address : '';
+// Thermal printing functions - Professional Restaurant Bill Style
+async function prepareReceipt() {
+    const user = auth.currentUser;
+    if (!user) return;
     
-    // Values from UI elements
-    const subtotal = parseFloat(document.getElementById('subtotal').textContent.replace(currency, '')) || 0;
-    const gstAmount = parseFloat(document.getElementById('gstAmount').textContent.replace(currency, '')) || 0;
-    const serviceCharge = parseFloat(document.getElementById('serviceCharge').textContent.replace(currency, '')) || 0;
-    const total = parseFloat(document.getElementById('totalAmount').textContent.replace(currency, '')) || 0;
-    
-    const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
-    const customerPhone = document.getElementById('customerPhone').value || '';
-    
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-IN');
-    const timeStr = now.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit' });
-    
-    // Build receipt string
-    let receipt = "";
-    
-    // Header
-    receipt += `${'='.repeat(32)}\n`;
-    receipt += centerText(restaurantName, 32) + "\n";
-    if (restaurantAddress) {
-        receipt += centerText(restaurantAddress, 32) + "\n";
+    try {
+        // Fetch restaurant details from Firestore
+        const doc = await db.collection('restaurants').doc(user.uid).get();
+        if (!doc.exists) {
+            throw new Error('Restaurant settings not found');
+        }
+        
+        const restaurantData = doc.data();
+        const settings = restaurantData.settings || {};
+        
+        const restaurant = {
+            name: restaurantData.name || '',
+            address: settings.address || '',
+            phone: settings.phone || '',
+            gstin: settings.gstin || '',
+            fssai: settings.fssai || ''
+        };
+        
+        const currency = settings.currency || '₹';
+        const gstRate = parseFloat(settings.gstRate) || 0;
+        const serviceRate = parseFloat(settings.serviceCharge) || 0;
+        
+        const subtotal = parseFloat(document.getElementById('subtotal')?.textContent.replace(currency, '') || 0);
+        const gstAmount = parseFloat(document.getElementById('gstAmount')?.textContent.replace(currency, '') || 0);
+        const serviceCharge = parseFloat(document.getElementById('serviceCharge')?.textContent.replace(currency, '') || 0);
+        const total = parseFloat(document.getElementById('totalAmount')?.textContent.replace(currency, '') || 0);
+        
+        const customerName = document.getElementById('customerName')?.value || 'Walk-in Customer';
+        const customerPhone = document.getElementById('customerPhone')?.value || '';
+        
+        // Calculate CGST/SGST if applicable
+        const cgstAmount = gstRate > 0 ? gstAmount / 2 : 0;
+        const sgstAmount = gstRate > 0 ? gstAmount / 2 : 0;
+        
+        const now = new Date();
+        const billNo = generateOrderId();
+        const tableNo = 'T01'; // Could be made dynamic from UI if needed
+        
+        let receipt = `
+${'='.repeat(42)}
+        ${restaurant.name.toUpperCase()}
+${'='.repeat(42)}
+`;
+        
+        // Add restaurant details only if they exist
+        if (restaurant.address) receipt += `${restaurant.address}\n`;
+        if (restaurant.phone) receipt += `${restaurant.phone}\n`;
+        if (restaurant.gstin) receipt += `${restaurant.gstin}\n`;
+        if (restaurant.fssai) receipt += `${restaurant.fssai}\n`;
+        
+        receipt += `
+${'-'.repeat(42)}
+Date: ${now.toLocaleDateString('en-IN')}
+Time: ${now.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})}
+Bill No: ${billNo}
+Table: ${tableNo}
+${'-'.repeat(42)}
+Customer: ${customerName}
+`;
+        
+        if (customerPhone) {
+            receipt += `Phone: ${customerPhone}\n`;
+        }
+        
+        receipt += `
+${'-'.repeat(42)}
+SL  ITEM              QTY   RATE    AMOUNT
+${'-'.repeat(42)}
+`;
+        
+        // Add cart items with proper numbering
+        let slNo = 1;
+        cart.forEach(item => {
+            const itemName = item.name;
+            const qty = item.quantity;
+            const rate = item.price.toFixed(2);
+            const amount = (item.price * item.quantity).toFixed(2);
+            
+            // Handle long item names
+            let displayName = itemName;
+            if (itemName.length > 16) {
+                displayName = itemName.substring(0, 16);
+            }
+            
+            receipt += `${slNo.toString().padStart(2)}. ${displayName.padEnd(17)} ${qty.toString().padStart(3)}  ${currency}${rate.padStart(6)}  ${currency}${amount.padStart(7)}\n`;
+            slNo++;
+        });
+        
+        receipt += `
+${'-'.repeat(42)}
+                BILL SUMMARY
+${'-'.repeat(42)}
+Sub Total:                  ${currency}${subtotal.toFixed(2).padStart(10)}
+`;
+        
+        if (serviceCharge > 0) {
+            receipt += `Service Charge ${serviceRate}%:   ${currency}${serviceCharge.toFixed(2).padStart(10)}\n`;
+        }
+        
+        if (gstRate > 0) {
+            receipt += `CGST ${(gstRate/2).toFixed(1)}%:                 ${currency}${cgstAmount.toFixed(2).padStart(10)}\n`;
+            receipt += `SGST ${(gstRate/2).toFixed(1)}%:                 ${currency}${sgstAmount.toFixed(2).padStart(10)}\n`;
+        }
+        
+        receipt += `
+${'-'.repeat(42)}
+GRAND TOTAL:                ${currency}${total.toFixed(2).padStart(10)}
+${'='.repeat(42)}
+Payment Mode: CASH
+Amount Paid:  ${currency}${total.toFixed(2)}
+Change:       ${currency}0.00
+${'='.repeat(42)}
+Thank you for dining with us!
+Please visit again.
+${'-'.repeat(42)}
+** This is a computer generated bill **
+** No signature required **
+`;
+        
+        // Add restaurant phone for feedback if available
+        if (restaurant.phone) {
+            receipt += `
+For feedback: ${restaurant.phone}
+`;
+        }
+        
+        receipt += `
+${'='.repeat(42)}
+`;
+        
+        document.getElementById('printContent').textContent = receipt;
+    } catch (error) {
+        console.error("Error preparing receipt:", error);
+        showNotification('Error loading restaurant details', 'error');
     }
-    receipt += `${'='.repeat(32)}\n`;
-    
-    // Bill Info
-    receipt += `Order: ${generateOrderId()}\n`;
-    receipt += `Date : ${dateStr}  ${timeStr}\n`;
-    receipt += `Cust : ${customerName}\n`;
-    if (customerPhone) receipt += `Ph   : ${customerPhone}\n`;
-    receipt += `${'-'.repeat(32)}\n`;
-    
-    // Table Header
-    receipt += `ITEM            QTY   AMOUNT\n`;
-    receipt += `${'-'.repeat(32)}\n`;
-    
-    // Items
-    cart.forEach(item => {
-        const itemTotal = (item.price * item.quantity).toFixed(2);
-        // Multiline name handling if name > 16 chars
-        const name = item.name.substring(0, 16).padEnd(16);
-        const qty = item.quantity.toString().padStart(3);
-        const amt = `${currency}${itemTotal}`.padStart(9);
-        receipt += `${name} ${qty} ${amt}\n`;
-    });
-    
-    // Totals
-    receipt += `${'-'.repeat(32)}\n`;
-    receipt += `Subtotal:`.padEnd(20) + `${currency}${subtotal.toFixed(2)}`.padStart(12) + "\n";
-    
-    if (restaurantSettings.gstRate > 0) {
-        receipt += `GST (${restaurantSettings.gstRate}%):`.padEnd(20) + `${currency}${gstAmount.toFixed(2)}`.padStart(12) + "\n";
-    }
-    
-    if (restaurantSettings.serviceCharge > 0) {
-        receipt += `Srv. Chg (${restaurantSettings.serviceCharge}%):`.padEnd(20) + `${currency}${serviceCharge.toFixed(2)}`.padStart(12) + "\n";
-    }
-    
-    receipt += `${'-'.repeat(32)}\n`;
-    receipt += `TOTAL:`.padEnd(15) + `${currency}${total.toFixed(2)}`.padStart(17) + "\n";
-    receipt += `${'='.repeat(32)}\n`;
-    
-    // Footer
-    receipt += centerText("THANK YOU FOR YOUR VISIT", 32) + "\n";
-    receipt += centerText("Please come again!", 32) + "\n";
-    receipt += `${'='.repeat(32)}\n`;
-    receipt += centerText("MNRFoodBill System", 32) + "\n";
-
-    document.getElementById('printContent').textContent = receipt;
-}
-
-/**
- * Helper to center text for thermal output
- */
-function centerText(text, width) {
-    if (text.length >= width) return text.substring(0, width);
-    const leftPadding = Math.floor((width - text.length) / 2);
-    return " ".repeat(leftPadding) + text;
 }
 
 function printReceipt() {
     const printContent = document.getElementById('printContent').textContent;
     
-    // Check for browser print fallback (most common for thermal printers via drivers)
-    printViaBrowser(printContent);
+    // Create a print-friendly window with thermal printer styling
+    const printWindow = window.open('', '_blank', 'width=230,height=400');
+    if (!printWindow) {
+        // Fallback to browser print dialog
+        printViaBrowser(printContent);
+        return;
+    }
     
-    // Save order to DB after trigger
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Print Receipt</title>
+            <style>
+                @media print {
+                    body { 
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 58mm !important;
+                        font-size: 10pt !important;
+                    }
+                    @page {
+                        margin: 0 !important;
+                        size: 58mm auto !important;
+                    }
+                }
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 10pt;
+                    width: 58mm;
+                    margin: 0 auto;
+                    padding: 0;
+                    line-height: 1.1;
+                    white-space: pre-line;
+                }
+                .receipt {
+                    padding: 2mm;
+                    word-wrap: break-word;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="receipt">
+                <pre>${printContent}</pre>
+            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(() => {
+                        window.print();
+                        setTimeout(() => {
+                            window.close();
+                        }, 500);
+                    }, 100);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    
+    // Save the order to database
     saveOrderAndClearCart();
 }
 
+// Fallback browser print function
 function printViaBrowser(printContent) {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -105,23 +215,20 @@ function printViaBrowser(printContent) {
     printWindow.document.write(`
         <html>
             <head>
-                <title>Bill Receipt</title>
+                <title>Print Receipt</title>
                 <style>
-                    @page {
-                        margin: 0;
+                    @media print {
+                        body { margin: 0; }
+                        @page { size: 58mm auto; margin: 0; }
                     }
                     body {
-                        font-family: 'Courier New', Courier, monospace;
-                        font-size: 12px;
-                        width: 58mm; /* Standard Thermal Width */
+                        font-family: 'Courier New', monospace;
+                        font-size: 10pt;
+                        width: 58mm;
                         margin: 0;
-                        padding: 10px;
-                        background: white;
-                    }
-                    pre {
-                        white-space: pre-wrap;
-                        word-wrap: break-word;
-                        margin: 0;
+                        padding: 2mm;
+                        line-height: 1.1;
+                        white-space: pre;
                     }
                 </style>
             </head>
@@ -130,7 +237,9 @@ function printViaBrowser(printContent) {
                 <script>
                     window.onload = function() {
                         window.print();
-                        window.onafterprint = function() { window.close(); };
+                        setTimeout(function() {
+                            window.close();
+                        }, 1000);
                     }
                 </script>
             </body>
@@ -139,48 +248,58 @@ function printViaBrowser(printContent) {
     printWindow.document.close();
 }
 
-function saveOrderAndClearCart() {
+async function saveOrderAndClearCart() {
     const user = auth.currentUser;
     if (!user) return;
     
-    const currency = restaurantSettings.currency || '₹';
-    
-    const orderData = {
-        restaurantId: user.uid,
-        items: [...cart],
-        customerName: document.getElementById('customerName').value || 'Walk-in Customer',
-        customerPhone: document.getElementById('customerPhone').value || '',
-        subtotal: parseFloat(document.getElementById('subtotal').textContent.replace(currency, '')),
-        gstAmount: parseFloat(document.getElementById('gstAmount').textContent.replace(currency, '')),
-        gstRate: restaurantSettings.gstRate || 0,
-        serviceCharge: parseFloat(document.getElementById('serviceCharge').textContent.replace(currency, '')),
-        serviceChargeRate: restaurantSettings.serviceCharge || 0,
-        total: parseFloat(document.getElementById('totalAmount').textContent.replace(currency, '')),
-        status: 'completed',
-        orderId: generateOrderId(),
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
+    try {
+        // Get restaurant settings for currency
+        const doc = await db.collection('restaurants').doc(user.uid).get();
+        const settings = doc.data()?.settings || {};
+        const currency = settings.currency || '₹';
+        
+        const orderData = {
+            restaurantId: user.uid,
+            items: [...cart],
+            customerName: document.getElementById('customerName')?.value || 'Walk-in Customer',
+            customerPhone: document.getElementById('customerPhone')?.value || '',
+            subtotal: parseFloat(document.getElementById('subtotal')?.textContent.replace(currency, '') || 0),
+            gstRate: parseFloat(settings.gstRate) || 0,
+            gstAmount: parseFloat(document.getElementById('gstAmount')?.textContent.replace(currency, '') || 0),
+            serviceChargeRate: parseFloat(settings.serviceCharge) || 0,
+            serviceCharge: parseFloat(document.getElementById('serviceCharge')?.textContent.replace(currency, '') || 0),
+            total: parseFloat(document.getElementById('totalAmount')?.textContent.replace(currency, '') || 0),
+            status: 'completed',
+            orderId: generateOrderId(),
+            billNo: generateOrderId(),
+            paymentMode: 'CASH',
+            printedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
 
-    db.collection('orders').add(orderData)
-        .then(() => {
-            cart = [];
-            if (typeof renderCart === 'function') renderCart();
-            if (typeof updateTotals === 'function') updateTotals();
-            
-            document.getElementById('customerName').value = '';
-            document.getElementById('customerPhone').value = '';
-            closePrintModal();
-            showNotification('Order completed successfully.', 'success');
-        })
-        .catch(error => {
-            console.error('Error saving order:', error);
-            showNotification('Error saving order record.', 'error');
-        });
+        await db.collection('orders').add(orderData);
+        
+        cart = [];
+        if (typeof renderCart === 'function') renderCart();
+        if (typeof updateTotals === 'function') updateTotals();
+        
+        document.getElementById('customerName').value = '';
+        document.getElementById('customerPhone').value = '';
+        closePrintModal();
+        showNotification('Order completed and receipt printed!', 'success');
+    } catch (error) {
+        console.error('Error saving order:', error);
+        showNotification('Order printed but failed to save.', 'error');
+    }
 }
 
 function generateOrderId() {
-    const d = new Date();
-    return `INV-${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}-${Math.floor(100 + Math.random() * 900)}`;
+    const date = new Date();
+    const year = date.getFullYear().toString().substr(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `BILL${year}${month}${day}${random}`;
 }
 
 function closePrintModal() {
@@ -188,6 +307,7 @@ function closePrintModal() {
     if (modal) modal.classList.add('hidden');
 }
 
+// Make functions available globally
 window.prepareReceipt = prepareReceipt;
 window.printReceipt = printReceipt;
 window.closePrintModal = closePrintModal;

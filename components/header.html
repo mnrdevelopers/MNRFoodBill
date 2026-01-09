@@ -2,12 +2,18 @@
 <nav class="bg-white shadow-lg sticky top-0 z-40">
     <div class="container mx-auto px-4">
         <div class="flex justify-between items-center h-16">
-            <!-- Left side: Logo and Hamburger menu (mobile) -->
+            <!-- Left side: Logo and Hamburger menu -->
             <div class="flex items-center space-x-3">
-                <!-- Hamburger menu for mobile -->
-                <button id="sidebarToggle" class="lg:hidden text-gray-600 focus:outline-none">
+                <!-- Desktop sidebar toggle -->
+                <button id="sidebarToggleDesktopHeader" class="hidden lg:flex text-gray-600 hover:text-red-500 focus:outline-none">
                     <i class="fas fa-bars text-xl"></i>
                 </button>
+                
+                <!-- Mobile menu toggle -->
+                <button id="sidebarToggleMobile" class="lg:hidden text-gray-600 hover:text-red-500 focus:outline-none">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                
                 <div class="flex items-center space-x-2">
                     <i class="fas fa-utensils text-red-500 text-2xl"></i>
                     <span class="text-xl font-bold text-gray-800" id="restaurantName">MNRFoodBill</span>

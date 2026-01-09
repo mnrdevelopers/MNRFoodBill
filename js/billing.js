@@ -221,55 +221,72 @@ async function saveOrderToFirebase(orderData) {
     }
 
     // Render products
-    function renderProducts(productsToShow) {
-        const container = document.getElementById('productsGrid');
-        if (!container) return;
-        container.innerHTML = '';
+  function renderProducts(productsToShow) {
+    const container = document.getElementById('productsGrid');
+    if (!container) return;
+    container.innerHTML = '';
 
-        const currency = restaurantSettings.currency || '';
+    const currency = restaurantSettings.currency || '';
 
-        productsToShow.forEach(product => {
-            const card = document.createElement('div');
-            card.className = 'bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer';
-            card.innerHTML = `
-                <div class="flex items-start justify-between mb-2">
-                    <div>
-                        <h3 class="font-bold text-gray-800">${product.name}</h3>
-                        <p class="text-sm text-gray-600">${product.description || ''}</p>
+    productsToShow.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition cursor-pointer';
+        
+        // Get image URL based on product name
+        const imageUrl = getProductImage(product.name);
+        
+        const cardContent = `
+            <div class="h-40 ${imageUrl ? 'overflow-hidden' : 'bg-gray-100 flex items-center justify-center'}">
+                ${imageUrl 
+                    ? `<img src="${imageUrl}" 
+                           alt="${product.name}" 
+                           class="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                           onerror="this.style.display='none'; this.parentElement.classList.add('bg-gray-100', 'flex', 'items-center', 'justify-center'); this.parentElement.innerHTML='<i class=\\'fas fa-hamburger text-gray-300 text-4xl\\'></i>';" />`
+                    : `<i class="fas fa-hamburger text-gray-300 text-4xl"></i>`
+                }
+            </div>
+            <div class="p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gray-800 truncate">${product.name}</h3>
+                        <p class="text-sm text-gray-600 mt-1 truncate">${product.description || ''}</p>
                     </div>
-                    <span class="font-bold text-red-500">${currency}${Number(product.price || 0).toFixed(2)}</span>
+                    <span class="font-bold text-red-500 ml-2">${currency}${Number(product.price || 0).toFixed(2)}</span>
                 </div>
-                <div class="flex items-center justify-between mt-3">
-                    <span class="text-sm text-gray-500">${product.category}</span>
+                <div class="flex items-center justify-between mt-4">
+                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${product.category}</span>
                     <button class="add-to-cart bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600" 
                             data-id="${product.id}">
                         <i class="fas fa-plus mr-1"></i> Add
                     </button>
                 </div>
-            `;
-            container.appendChild(card);
+            </div>
+        `;
+        
+        card.innerHTML = cardContent;
+        container.appendChild(card);
+    });
+      
+          // Add event listeners to Add buttons
+    document.querySelectorAll('.add-to-cart').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const productId = this.dataset.id;
+            addToCart(productId);
         });
+    });
 
-        // Add event listeners to Add buttons
-        document.querySelectorAll('.add-to-cart').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const productId = this.dataset.id;
+    // Add click event to product cards
+    container.querySelectorAll('.bg-white').forEach(card => {
+        card.addEventListener('click', function() {
+            const addButton = this.querySelector('.add-to-cart');
+            if (addButton) {
+                const productId = addButton.dataset.id;
                 addToCart(productId);
-            });
+            }
         });
-
-        // Add click event to product cards
-        container.querySelectorAll('.bg-white').forEach(card => {
-            card.addEventListener('click', function() {
-                const addButton = this.querySelector('.add-to-cart');
-                if (addButton) {
-                    const productId = addButton.dataset.id;
-                    addToCart(productId);
-                }
-            });
-        });
-    }
+    });
+}
 
     // Add product to cart
     function addToCart(productId) {
@@ -315,24 +332,37 @@ async function saveOrderToFirebase(orderData) {
 
         const currency = restaurantSettings.currency || '';
 
-        cart.forEach((item, index) => {
-            const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
-            const itemElement = document.createElement('div');
-            itemElement.className = 'flex items-center justify-between py-2 border-b';
-            itemElement.innerHTML = `
-                <div class="flex-1">
-                    <h4 class="font-medium text-gray-800">${item.name}</h4>
-                    <p class="text-sm text-gray-600">${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</p>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <span class="font-bold">${currency}${itemTotal.toFixed(2)}</span>
-                    <button class="remove-item text-red-500 hover:text-red-700" data-index="${index}">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-            container.appendChild(itemElement);
-        });
+       cart.forEach((item, index) => {
+    const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
+    const imageUrl = getProductImage(item.name);
+    
+    const itemElement = document.createElement('div');
+    itemElement.className = 'flex items-center justify-between py-2 border-b';
+    itemElement.innerHTML = `
+        <div class="flex items-center space-x-3">
+            ${imageUrl 
+                ? `<img src="${imageUrl}" 
+                       class="w-10 h-10 object-cover rounded-lg"
+                       alt="${item.name}"
+                       onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\"w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center\\"><i class=\\"fas fa-hamburger text-gray-400\\"></i></div>' + this.parentElement.innerHTML;">`
+                : `<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                     <i class="fas fa-hamburger text-gray-400"></i>
+                   </div>`
+            }
+            <div>
+                <h4 class="font-medium text-gray-800">${item.name}</h4>
+                <p class="text-sm text-gray-600">${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span class="font-bold">${currency}${itemTotal.toFixed(2)}</span>
+            <button class="remove-item text-red-500 hover:text-red-700" data-index="${index}">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(itemElement);
+});
 
         // Add event listeners to remove buttons
         document.querySelectorAll('.remove-item').forEach(button => {
@@ -537,4 +567,5 @@ function showNotification(message, type) {
         }, 300);
     }, 3000);
 }
+
 

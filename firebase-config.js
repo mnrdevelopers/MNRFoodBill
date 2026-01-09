@@ -13,3 +13,21 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+// Enable offline persistence
+firebase.initializeApp(firebaseConfig);
+firebase.firestore().enablePersistence()
+  .then(() => {
+    console.log("Offline persistence enabled");
+  })
+  .catch(err => {
+    console.error("Persistence failed:", err);
+  });
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Set cache size
+db.settings({
+  cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+});

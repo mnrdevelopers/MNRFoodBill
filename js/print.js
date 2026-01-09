@@ -14,7 +14,7 @@ async function prepareReceipt() {
         const settings = restaurantData.settings || {};
         
         const restaurant = {
-            name: restaurantData.name || '',
+            name: restaurantData.name || 'Restaurant Name',
             address: settings.address || '',
             phone: settings.phone || '',
             gstin: settings.gstin || '',
@@ -147,26 +147,24 @@ For feedback: ${restaurant.phone}
 ${'='.repeat(42)}
 `;
         
-        document.getElementById('printContent').textContent = receipt;
+        // Set the receipt content
+        const printContent = document.getElementById('printContent');
+        printContent.textContent = receipt;
         
-        // Show modal with scrollbar
+        // Show modal
         const modal = document.getElementById('printModal');
         modal.classList.remove('hidden');
         
-        // Ensure scrollbar appears if content is too long
-        setTimeout(() => {
-            const printContent = document.getElementById('printContent');
-            const contentHeight = printContent.scrollHeight;
-            const containerHeight = printContent.parentElement.clientHeight;
-            
-            if (contentHeight > containerHeight) {
-                printContent.style.maxHeight = '300px';
-                printContent.style.overflowY = 'auto';
-                printContent.classList.add('overflow-y-auto', 'max-h-80');
-            } else {
-                printContent.style.overflowY = 'visible';
+        // Prevent body scrolling when modal is open
+        document.body.style.overflow = 'hidden';
+        
+        // Add click outside to close
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePrintModal();
             }
-        }, 100);
+        });
+        
     } catch (error) {
         console.error("Error preparing receipt:", error);
         showNotification('Error loading restaurant details', 'error');
@@ -352,10 +350,15 @@ function generateOrderId() {
 
 function closePrintModal() {
     const modal = document.getElementById('printModal');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.add('hidden');
+        // Re-enable body scrolling
+        document.body.style.overflow = '';
+    }
 }
 
 // Make functions available globally
 window.prepareReceipt = prepareReceipt;
 window.printReceipt = printReceipt;
 window.closePrintModal = closePrintModal;
+

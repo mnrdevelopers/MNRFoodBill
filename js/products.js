@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // Render products table
+    // Render products table with images
     function renderProductsTable() {
         const tbody = document.getElementById('productsTable');
         tbody.innerHTML = '';
@@ -45,11 +45,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         products.forEach(product => {
+            const imageUrl = getProductImage(product.name);
+            
             const row = document.createElement('tr');
             row.className = 'border-b hover:bg-gray-50';
             row.innerHTML = `
                 <td class="py-4 px-6">
-                    <div class="font-medium text-gray-800">${product.name}</div>
+                    <div class="flex items-center space-x-3">
+                        ${imageUrl ? 
+                            `<img src="${imageUrl}" alt="${product.name}" 
+                                  class="w-10 h-10 object-cover rounded"
+                                  onerror="this.style.display='none'">` : 
+                            `<div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                                <i class="fas fa-hamburger text-gray-400"></i>
+                             </div>`
+                        }
+                        <div class="font-medium text-gray-800">${product.name}</div>
+                    </div>
                 </td>
                 <td class="py-4 px-6">
                     <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${product.category}</span>
@@ -91,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
         openProductModal();
     });
 
-    // Open product modal
+      // Open product modal (simplified - no image selection needed)
     function openProductModal(product = null) {
         const modal = document.getElementById('productModal');
         const form = document.getElementById('productForm');
@@ -160,12 +172,13 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // Product form submission
-    document.getElementById('productForm').addEventListener('submit', function(e) {
+  // Product form submission
+    document.getElementById('productForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
         const user = auth.currentUser;
         const productId = document.getElementById('productId').value;
+        
         const productData = {
             name: document.getElementById('productName').value.trim(),
             category: document.getElementById('productCategory').value,
@@ -180,30 +193,22 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (productId) {
-            // Update existing product
-            db.collection('products').doc(productId).update(productData)
-                .then(() => {
-                    showNotification('Product updated successfully', 'success');
-                    loadProducts();
-                    closeProductModal();
-                })
-                .catch(error => {
-                    showNotification('Error updating product: ' + error.message, 'error');
-                });
-        } else {
-            // Add new product
-            productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        try {
+            if (productId) {
+                // Update existing product
+                await db.collection('products').doc(productId).update(productData);
+                showNotification('Product updated successfully', 'success');
+            } else {
+                // Add new product
+                productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                await db.collection('products').add(productData);
+                showNotification('Product added successfully', 'success');
+            }
             
-            db.collection('products').add(productData)
-                .then(() => {
-                    showNotification('Product added successfully', 'success');
-                    loadProducts();
-                    closeProductModal();
-                })
-                .catch(error => {
-                    showNotification('Error adding product: ' + error.message, 'error');
-                });
+            loadProducts();
+            closeProductModal();
+        } catch (error) {
+            showNotification('Error saving product: ' + error.message, 'error');
         }
     });
 

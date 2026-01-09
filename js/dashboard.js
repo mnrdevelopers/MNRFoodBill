@@ -1,141 +1,234 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Check auth
+    // Check auth and setup logout for all pages
+    setupAuthAndLogout();
+    
+    // Load dashboard specific data
+    loadDashboardData();
+});
+
+function setupAuthAndLogout() {
+    // Check authentication
     auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
-            loadRestaurantInfo();
-            loadDashboardStats();
-            loadRecentOrders();
+            loadUserInfo();
+            setupLogoutButton();
         }
     });
+}
 
-    // Load restaurant info
-    function loadRestaurantInfo() {
-        const user = auth.currentUser;
-        document.getElementById('userEmail').textContent = user.email;
-        
-        db.collection('restaurants').doc(user.uid).get()
-            .then(doc => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    document.getElementById('restaurantName').textContent = data.name;
+function loadUserInfo() {
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    const userEmailElement = document.getElementById('userEmail');
+    if (userEmailElement) {
+        userEmailElement.textContent = user.email;
+    }
+    
+    // Load restaurant name
+    db.collection('restaurants').doc(user.uid).get()
+        .then(doc => {
+            if (doc.exists) {
+                const data = doc.data();
+                const restaurantNameElement = document.getElementById('restaurantName');
+                if (restaurantNameElement) {
+                    restaurantNameElement.textContent = data.name || 'MNRFoodBill';
                 }
+            }
+        })
+        .catch(error => console.error("Error loading restaurant info:", error));
+}
+
+function setupLogoutButton() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            auth.signOut().then(() => {
+                window.location.href = 'index.html';
+            }).catch(error => {
+                console.error("Logout error:", error);
+                showNotification('Logout failed. Please try again.', 'danger');
             });
+        });
     }
+}
 
-    // Load dashboard stats
-    function loadDashboardStats() {
-        const user = auth.currentUser;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+function loadDashboardData() {
+    const user = auth.currentUser;
+    if (!user) return;
 
-        // Today's sales and orders
-        db.collection('orders')
-            .where('restaurantId', '==', user.uid)
-            .where('createdAt', '>=', today)
-            .where('createdAt', '<', tomorrow)
-            .where('status', '==', 'completed')
-            .get()
-            .then(snapshot => {
-                let todaySales = 0;
-                let todayOrders = 0;
-                
-                snapshot.forEach(doc => {
-                    const order = doc.data();
-                    todaySales += order.total || 0;
-                    todayOrders++;
-                });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-                document.getElementById('todaySales').textContent = `₹${todaySales.toFixed(2)}`;
-                document.getElementById('todayOrders').textContent = todayOrders;
+    // Today's sales and orders
+    db.collection('orders')
+        .where('restaurantId', '==', user.uid)
+        .where('createdAt', '>=', today)
+        .where('createdAt', '<', tomorrow)
+        .where('status', '==', 'completed')
+        .get()
+        .then(snapshot => {
+            let todaySales = 0;
+            let todayOrders = 0;
+            
+            snapshot.forEach(doc => {
+                const order = doc.data();
+                todaySales += order.total || 0;
+                todayOrders++;
             });
 
-        // Total revenue and orders
-        db.collection('orders')
-            .where('restaurantId', '==', user.uid)
-            .where('status', '==', 'completed')
-            .get()
-            .then(snapshot => {
-                let totalRevenue = 0;
-                let totalOrders = 0;
-                
-                snapshot.forEach(doc => {
-                    const order = doc.data();
-                    totalRevenue += order.total || 0;
-                    totalOrders++;
-                });
+            const todaySalesElement = document.getElementById('todaySales');
+            const todayOrdersElement = document.getElementById('todayOrders');
+            
+            if (todaySalesElement) todaySalesElement.textContent = `₹${todaySales.toFixed(2)}`;
+            if (todayOrdersElement) todayOrdersElement.textContent = todayOrders;
+        });
 
-                document.getElementById('totalRevenue').textContent = `₹${totalRevenue.toFixed(2)}`;
-                document.getElementById('totalOrders').textContent = totalOrders;
+    // Total revenue and orders
+    db.collection('orders')
+        .where('restaurantId', '==', user.uid)
+        .where('status', '==', 'completed')
+        .get()
+        .then(snapshot => {
+            let totalRevenue = 0;
+            let totalOrders = 0;
+            
+            snapshot.forEach(doc => {
+                const order = doc.data();
+                totalRevenue += order.total || 0;
+                totalOrders++;
             });
 
-        // Total products
-        db.collection('products')
-            .where('restaurantId', '==', user.uid)
-            .get()
-            .then(snapshot => {
-                document.getElementById('totalProducts').textContent = snapshot.size;
-            });
-    }
+            const totalRevenueElement = document.getElementById('totalRevenue');
+            const totalOrdersElement = document.getElementById('totalOrders');
+            
+            if (totalRevenueElement) totalRevenueElement.textContent = `₹${totalRevenue.toFixed(2)}`;
+            if (totalOrdersElement) totalOrdersElement.textContent = totalOrders;
+        });
+
+    // Total products
+    db.collection('products')
+        .where('restaurantId', '==', user.uid)
+        .get()
+        .then(snapshot => {
+            const totalProductsElement = document.getElementById('totalProducts');
+            if (totalProductsElement) {
+                totalProductsElement.textContent = snapshot.size;
+            }
+        });
 
     // Load recent orders
-    function loadRecentOrders() {
-        const user = auth.currentUser;
-        const tbody = document.getElementById('recentOrders');
-        
-        db.collection('orders')
-            .where('restaurantId', '==', user.uid)
-            .orderBy('createdAt', 'desc')
-            .limit(5)
-            .get()
-            .then(snapshot => {
-                tbody.innerHTML = '';
-                
-                if (snapshot.empty) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="5" class="py-4 text-center text-gray-500">
-                                No orders yet
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
-                
-                snapshot.forEach(doc => {
-                    const order = doc.data();
-                    const orderDate = order.createdAt?.toDate() || new Date();
-                    const itemCount = order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
-                    
-                    const row = document.createElement('tr');
-                    row.className = 'border-b hover:bg-gray-50';
-                    row.innerHTML = `
-                        <td class="py-3 px-4">
-                            <div class="font-mono text-sm">${order.orderId || doc.id.substring(0, 8)}</div>
-                        </td>
-                        <td class="py-3 px-4">
-                            ${orderDate.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'})}
-                        </td>
-                        <td class="py-3 px-4">${itemCount} items</td>
-                        <td class="py-3 px-4 font-bold">₹${order.total ? order.total.toFixed(2) : '0.00'}</td>
-                        <td class="py-3 px-4">
-                            <span class="px-2 py-1 text-xs rounded-full ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
-                                ${order.status}
-                            </span>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            });
-    }
+    loadRecentOrders();
+}
 
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        auth.signOut().then(() => {
-            window.location.href = 'index.html';
+function loadRecentOrders() {
+    const user = auth.currentUser;
+    const tbody = document.getElementById('recentOrders');
+    if (!tbody) return;
+    
+    db.collection('orders')
+        .where('restaurantId', '==', user.uid)
+        .orderBy('createdAt', 'desc')
+        .limit(5)
+        .get()
+        .then(snapshot => {
+            tbody.innerHTML = '';
+            
+            if (snapshot.empty) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="fas fa-receipt fs-1 mb-2 d-block"></i>
+                            No orders yet
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            snapshot.forEach(doc => {
+                const order = doc.data();
+                const orderDate = order.createdAt?.toDate() || new Date();
+                const itemCount = order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
+                
+                const statusBadge = getStatusBadge(order.status || 'saved');
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <small class="font-monospace">${order.orderId || doc.id.substring(0, 8)}</small>
+                    </td>
+                    <td>
+                        ${orderDate.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'})}
+                    </td>
+                    <td>${itemCount} items</td>
+                    <td class="fw-bold">₹${order.total ? order.total.toFixed(2) : '0.00'}</td>
+                    <td>${statusBadge}</td>
+                `;
+                tbody.appendChild(row);
+            });
         });
-    });
-});
+}
+
+function getStatusBadge(status) {
+    const statusMap = {
+        'completed': 'success',
+        'saved': 'warning',
+        'cancelled': 'danger'
+    };
+    
+    const color = statusMap[status] || 'secondary';
+    return `<span class="badge bg-${color}">${status}</span>`;
+}
+
+function showNotification(message, type) {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification-toast');
+    existingNotifications.forEach(n => n.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification-toast position-fixed top-0 end-0 m-3 toast show`;
+    notification.setAttribute('role', 'alert');
+    notification.innerHTML = `
+        <div class="toast-header bg-${type} text-white">
+            <strong class="me-auto">${type === 'success' ? 'Success' : type === 'danger' ? 'Error' : 'Info'}</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Make functions available globally for modals
+window.closePrintModal = function() {
+    const modal = document.getElementById('printModal');
+    if (modal) {
+        const bsModal = bootstrap.Modal.getInstance(modal);
+        if (bsModal) {
+            bsModal.hide();
+        } else {
+            // If modal is not initialized, hide it manually
+            modal.classList.remove('show');
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) backdrop.remove();
+        }
+    }
+};
+
+window.printReceipt = function() {
+    // This function will be overridden by print.js
+    console.log('Print receipt function called');
+};

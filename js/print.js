@@ -32,6 +32,9 @@ async function prepareReceipt() {
         
         const customerName = document.getElementById('customerName')?.value || 'Walk-in Customer';
         const customerPhone = document.getElementById('customerPhone')?.value || '';
+        const paymentMode = document.getElementById('paymentMode')?.value || 'cash';
+        const cashReceived = parseFloat(document.getElementById('cashReceived')?.value || 0);
+        const changeAmount = parseFloat(document.getElementById('changeAmount')?.textContent.replace(currency, '') || 0);
         
         // Calculate CGST/SGST if applicable
         const cgstAmount = gstRate > 0 ? gstAmount / 2 : 0;
@@ -111,9 +114,20 @@ Sub Total:                  ${currency}${subtotal.toFixed(2).padStart(10)}
 ${'-'.repeat(42)}
 GRAND TOTAL:                ${currency}${total.toFixed(2).padStart(10)}
 ${'='.repeat(42)}
-Payment Mode: CASH
-Amount Paid:  ${currency}${total.toFixed(2)}
-Change:       ${currency}0.00
+`;
+        
+        // Payment details
+        const paymentModeDisplay = paymentMode.toUpperCase();
+        receipt += `Payment Mode: ${paymentModeDisplay}\n`;
+        
+        if (paymentMode === 'cash') {
+            receipt += `Amount Paid:  ${currency}${cashReceived.toFixed(2)}\n`;
+            receipt += `Change:       ${currency}${changeAmount.toFixed(2)}\n`;
+        } else {
+            receipt += `Amount Paid:  ${currency}${total.toFixed(2)}\n`;
+        }
+        
+        receipt += `
 ${'='.repeat(42)}
 Thank you for dining with us!
 Please visit again.
@@ -258,6 +272,10 @@ async function saveOrderAndClearCart() {
         const settings = doc.data()?.settings || {};
         const currency = settings.currency || '₹';
         
+        const paymentMode = document.getElementById('paymentMode')?.value || 'cash';
+        const cashReceived = parseFloat(document.getElementById('cashReceived')?.value || 0);
+        const changeAmount = parseFloat(document.getElementById('changeAmount')?.textContent.replace(currency, '') || 0);
+        
         const orderData = {
             restaurantId: user.uid,
             items: [...cart],
@@ -269,10 +287,12 @@ async function saveOrderAndClearCart() {
             serviceChargeRate: parseFloat(settings.serviceCharge) || 0,
             serviceCharge: parseFloat(document.getElementById('serviceCharge')?.textContent.replace(currency, '') || 0),
             total: parseFloat(document.getElementById('totalAmount')?.textContent.replace(currency, '') || 0),
+            paymentMode: paymentMode,
+            cashReceived: paymentMode === 'cash' ? cashReceived : 0,
+            changeAmount: paymentMode === 'cash' ? changeAmount : 0,
             status: 'completed',
             orderId: generateOrderId(),
             billNo: generateOrderId(),
-            paymentMode: 'CASH',
             printedAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
@@ -283,8 +303,17 @@ async function saveOrderAndClearCart() {
         if (typeof renderCart === 'function') renderCart();
         if (typeof updateTotals === 'function') updateTotals();
         
+        // Clear all form fields
         document.getElementById('customerName').value = '';
         document.getElementById('customerPhone').value = '';
+        document.getElementById('paymentMode').value = 'cash';
+        document.getElementById('cashReceived').value = '';
+        document.getElementById('changeAmount').textContent = `${currency}0.00`;
+        
+        // Reset UI to show cash fields
+        document.getElementById('cashPaymentFields').classList.remove('hidden');
+        document.getElementById('nonCashPaymentFields').classList.add('hidden');
+        
         closePrintModal();
         showNotification('Order completed and receipt printed!', 'success');
     } catch (error) {

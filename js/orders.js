@@ -5,428 +5,506 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedOrder = null;
     let orderToDelete = null;
 
-    // Check auth
+    // Check auth and setup
+    setupAuthAndLogout();
+    
+    // Load initial data
+    loadOrders();
+    loadTodayStats();
+    
+    // Setup event listeners
+    setupEventListeners();
+});
+
+function setupAuthAndLogout() {
     auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
-            loadOrders();
-            loadTodayStats();
+            loadUserInfo();
+            setupLogoutButton();
         }
     });
+}
 
-    // Load orders
-    function loadOrders(filters = {}) {
-        const user = auth.currentUser;
-        let query = db.collection('orders')
-            .where('restaurantId', '==', user.uid)
-            .orderBy('createdAt', 'desc');
+function loadUserInfo() {
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    const userEmailElement = document.getElementById('userEmail');
+    if (userEmailElement) {
+        userEmailElement.textContent = user.email;
+    }
+}
 
-        // Apply filters
-        if (filters.startDate && filters.endDate) {
-            const start = new Date(filters.startDate);
-            const end = new Date(filters.endDate);
-            end.setHours(23, 59, 59, 999);
-            
-            query = query.where('createdAt', '>=', start)
-                         .where('createdAt', '<=', end);
-        }
+function setupLogoutButton() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            auth.signOut().then(() => {
+                window.location.href = 'index.html';
+            });
+        });
+    }
+}
 
-        if (filters.status && filters.status !== 'all') {
-            query = query.where('status', '==', filters.status);
-        }
+function loadOrders(filters = {}) {
+    const user = auth.currentUser;
+    let query = db.collection('orders')
+        .where('restaurantId', '==', user.uid)
+        .orderBy('createdAt', 'desc');
 
-        query.get()
-            .then(snapshot => {
-                orders = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    orders.push({
-                        id: doc.id,
-                        ...data,
-                        createdAt: data.createdAt?.toDate() || new Date()
-                    });
+    // Apply filters
+    if (filters.startDate && filters.endDate) {
+        const start = new Date(filters.startDate);
+        const end = new Date(filters.endDate);
+        end.setHours(23, 59, 59, 999);
+        
+        query = query.where('createdAt', '>=', start)
+                     .where('createdAt', '<=', end);
+    }
+
+    if (filters.status && filters.status !== 'all') {
+        query = query.where('status', '==', filters.status);
+    }
+
+    query.get()
+        .then(snapshot => {
+            orders = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                orders.push({
+                    id: doc.id,
+                    ...data,
+                    createdAt: data.createdAt?.toDate() || new Date()
                 });
+            });
+            renderOrdersTable();
+            updatePagination();
+        });
+}
+
+function loadTodayStats() {
+    const user = auth.currentUser;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    db.collection('orders')
+        .where('restaurantId', '==', user.uid)
+        .where('createdAt', '>=', today)
+        .where('createdAt', '<', tomorrow)
+        .where('status', '==', 'completed')
+        .get()
+        .then(snapshot => {
+            let todayRevenue = 0;
+            let todayOrders = 0;
+            
+            snapshot.forEach(doc => {
+                const order = doc.data();
+                todayRevenue += order.total || 0;
+                todayOrders++;
+            });
+
+            const todayOrdersElement = document.getElementById('todayOrdersCount');
+            const todayRevenueElement = document.getElementById('todayRevenue');
+            const avgOrderValueElement = document.getElementById('avgOrderValue');
+            
+            if (todayOrdersElement) todayOrdersElement.textContent = todayOrders;
+            if (todayRevenueElement) todayRevenueElement.textContent = `₹${todayRevenue.toFixed(2)}`;
+            
+            const avgOrderValue = todayOrders > 0 ? todayRevenue / todayOrders : 0;
+            if (avgOrderValueElement) avgOrderValueElement.textContent = `₹${avgOrderValue.toFixed(2)}`;
+        });
+}
+
+function renderOrdersTable() {
+    const tbody = document.getElementById('ordersTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+
+    if (orders.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-5 text-muted">
+                    <i class="fas fa-receipt fs-1 mb-3 d-block"></i>
+                    <p>No orders found</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // Calculate pagination
+    const startIndex = (currentPage - 1) * ordersPerPage;
+    const endIndex = startIndex + ordersPerPage;
+    const pageOrders = orders.slice(startIndex, endIndex);
+
+    pageOrders.forEach(order => {
+        const orderDate = order.createdAt.toLocaleDateString('en-IN');
+        const orderTime = order.createdAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        const itemCount = order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
+        const statusBadge = getStatusBadge(order.status);
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <small class="font-monospace">${order.orderId || order.id.substring(0, 8)}</small>
+            </td>
+            <td>
+                <div>${orderDate}</div>
+                <small class="text-muted">${orderTime}</small>
+            </td>
+            <td>
+                <div class="fw-medium">${order.customerName}</div>
+                ${order.customerPhone ? `<small class="text-muted">${order.customerPhone}</small>` : ''}
+            </td>
+            <td>${itemCount} items</td>
+            <td class="fw-bold">₹${order.total ? order.total.toFixed(2) : '0.00'}</td>
+            <td>${statusBadge}</td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary view-order" data-id="${order.id}" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-outline-warning print-order" data-id="${order.id}" title="Print Receipt">
+                        <i class="fas fa-print"></i>
+                    </button>
+                    <button class="btn btn-outline-danger delete-order" data-id="${order.id}" title="Delete Order">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // Add event listeners
+    document.querySelectorAll('.view-order').forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = this.dataset.id;
+            viewOrderDetails(orderId);
+        });
+    });
+
+    document.querySelectorAll('.print-order').forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = this.dataset.id;
+            printOrder(orderId);
+        });
+    });
+
+    document.querySelectorAll('.delete-order').forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = this.dataset.id;
+            showDeleteOrderModal(orderId);
+        });
+    });
+}
+
+function getStatusBadge(status) {
+    const statusMap = {
+        'completed': 'success',
+        'saved': 'warning',
+        'cancelled': 'danger'
+    };
+    
+    const color = statusMap[status] || 'secondary';
+    return `<span class="badge bg-${color}">${status}</span>`;
+}
+
+function setupEventListeners() {
+    // Apply filters
+    const applyFilterBtn = document.getElementById('applyFilter');
+    if (applyFilterBtn) {
+        applyFilterBtn.addEventListener('click', function() {
+            const filters = {
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                status: document.getElementById('statusFilter').value
+            };
+            
+            currentPage = 1;
+            loadOrders(filters);
+        });
+    }
+
+    // Reset filters
+    const resetFilterBtn = document.getElementById('resetFilter');
+    if (resetFilterBtn) {
+        resetFilterBtn.addEventListener('click', function() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('statusFilter').value = 'all';
+            
+            currentPage = 1;
+            loadOrders({});
+        });
+    }
+
+    // Pagination
+    const prevPageBtn = document.getElementById('prevPage');
+    const nextPageBtn = document.getElementById('nextPage');
+    
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage--;
                 renderOrdersTable();
                 updatePagination();
-            });
+            }
+        });
     }
 
-    // Load today's stats
-    function loadTodayStats() {
-        const user = auth.currentUser;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', function() {
+            const totalPages = Math.ceil(orders.length / ordersPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderOrdersTable();
+                updatePagination();
+            }
+        });
+    }
 
-        db.collection('orders')
-            .where('restaurantId', '==', user.uid)
-            .where('createdAt', '>=', today)
-            .where('createdAt', '<', tomorrow)
-            .where('status', '==', 'completed')
-            .get()
-            .then(snapshot => {
-                let todayRevenue = 0;
-                let todayOrders = 0;
-                
-                snapshot.forEach(doc => {
-                    const order = doc.data();
-                    todayRevenue += order.total || 0;
-                    todayOrders++;
+    // Delete confirmation
+    const confirmDeleteOrderBtn = document.getElementById('confirmDeleteOrder');
+    if (confirmDeleteOrderBtn) {
+        confirmDeleteOrderBtn.addEventListener('click', function() {
+            if (!orderToDelete) return;
+            
+            db.collection('orders').doc(orderToDelete).delete()
+                .then(() => {
+                    showNotification('Order deleted successfully', 'success');
+                    orders = orders.filter(o => o.id !== orderToDelete);
+                    renderOrdersTable();
+                    updatePagination();
+                    loadTodayStats(); // Refresh stats
+                    closeDeleteOrderModal();
+                })
+                .catch(error => {
+                    showNotification('Error deleting order: ' + error.message, 'danger');
                 });
-
-                document.getElementById('todayOrdersCount').textContent = todayOrders;
-                document.getElementById('todayRevenue').textContent = `₹${todayRevenue.toFixed(2)}`;
-                
-                const avgOrderValue = todayOrders > 0 ? todayRevenue / todayOrders : 0;
-                document.getElementById('avgOrderValue').textContent = `₹${avgOrderValue.toFixed(2)}`;
-            });
-    }
-
-    // Render orders table
-    function renderOrdersTable() {
-        const tbody = document.getElementById('ordersTable');
-        tbody.innerHTML = '';
-
-        if (orders.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="py-8 text-center text-gray-500">
-                        <i class="fas fa-receipt text-3xl mb-2"></i>
-                        <p>No orders found</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        // Calculate pagination
-        const startIndex = (currentPage - 1) * ordersPerPage;
-        const endIndex = startIndex + ordersPerPage;
-        const pageOrders = orders.slice(startIndex, endIndex);
-
-        pageOrders.forEach(order => {
-            const orderDate = order.createdAt.toLocaleDateString('en-IN');
-            const orderTime = order.createdAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-            const itemCount = order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
-
-            const row = document.createElement('tr');
-            row.className = 'border-b hover:bg-gray-50';
-            row.innerHTML = `
-                <td class="py-4 px-6">
-                    <div class="font-mono text-sm">${order.orderId || order.id.substring(0, 8)}</div>
-                </td>
-                <td class="py-4 px-6">
-                    <div>${orderDate}</div>
-                    <div class="text-sm text-gray-500">${orderTime}</div>
-                </td>
-                <td class="py-4 px-6">
-                    <div class="font-medium">${order.customerName}</div>
-                    ${order.customerPhone ? `<div class="text-sm text-gray-500">${order.customerPhone}</div>` : ''}
-                </td>
-                <td class="py-4 px-6">${itemCount} items</td>
-                <td class="py-4 px-6 font-bold">₹${order.total ? order.total.toFixed(2) : '0.00'}</td>
-                <td class="py-4 px-6">
-                    <span class="px-3 py-1 rounded-full text-sm ${getStatusClass(order.status)}">
-                        ${order.status}
-                    </span>
-                </td>
-                <td class="py-4 px-6">
-                    <div class="flex space-x-2">
-                        <button class="view-order text-blue-500 hover:text-blue-700" data-id="${order.id}" title="View Details">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="print-order text-orange-500 hover:text-orange-700" data-id="${order.id}" title="Print Receipt">
-                            <i class="fas fa-print"></i>
-                        </button>
-                        <button class="delete-order text-red-500 hover:text-red-700" data-id="${order.id}" title="Delete Order">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-
-        // Add event listeners
-        document.querySelectorAll('.view-order').forEach(button => {
-            button.addEventListener('click', function() {
-                const orderId = this.dataset.id;
-                viewOrderDetails(orderId);
-            });
-        });
-
-        document.querySelectorAll('.print-order').forEach(button => {
-            button.addEventListener('click', function() {
-                const orderId = this.dataset.id;
-                printOrder(orderId);
-            });
-        });
-
-        document.querySelectorAll('.delete-order').forEach(button => {
-            button.addEventListener('click', function() {
-                const orderId = this.dataset.id;
-                showDeleteOrderModal(orderId);
-            });
         });
     }
+}
 
-    // Get status CSS class
-    function getStatusClass(status) {
-        switch (status) {
-            case 'completed':
-                return 'bg-green-100 text-green-800';
-            case 'saved':
-                return 'bg-yellow-100 text-yellow-800';
-            case 'cancelled':
-                return 'bg-red-100 text-red-800';
-            default:
-                return 'bg-gray-100 text-gray-800';
-        }
+function updatePagination() {
+    const totalPages = Math.max(1, Math.ceil(orders.length / ordersPerPage));
+    const pageInfoElement = document.getElementById('pageInfo');
+    
+    if (pageInfoElement) {
+        pageInfoElement.textContent = `Page ${currentPage} of ${totalPages}`;
     }
+    
+    const prevPageBtn = document.getElementById('prevPage');
+    const nextPageBtn = document.getElementById('nextPage');
+    
+    if (prevPageBtn) {
+        prevPageBtn.disabled = currentPage === 1;
+    }
+    if (nextPageBtn) {
+        nextPageBtn.disabled = currentPage === totalPages;
+    }
+}
 
-    // View order details
-    function viewOrderDetails(orderId) {
-        selectedOrder = orders.find(o => o.id === orderId);
-        if (!selectedOrder) return;
+function viewOrderDetails(orderId) {
+    selectedOrder = orders.find(o => o.id === orderId);
+    if (!selectedOrder) return;
 
-        const modal = document.getElementById('orderModal');
-        const details = document.getElementById('orderDetails');
+    const modal = new bootstrap.Modal(document.getElementById('orderModal'));
+    const details = document.getElementById('orderDetails');
 
-        let itemsHtml = '';
-        if (selectedOrder.items && selectedOrder.items.length > 0) {
-            itemsHtml = `
-                <h4 class="font-bold text-gray-700">Items:</h4>
-                <div class="border rounded-lg overflow-hidden">
-                    <table class="w-full">
-                        <thead class="bg-gray-50">
+    let itemsHtml = '';
+    if (selectedOrder.items && selectedOrder.items.length > 0) {
+        itemsHtml = `
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">Items</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-light">
                             <tr>
-                                <th class="py-2 px-4 text-left">Item</th>
-                                <th class="py-2 px-4 text-left">Qty</th>
-                                <th class="py-2 px-4 text-left">Price</th>
-                                <th class="py-2 px-4 text-left">Total</th>
+                                <th>Item</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Total</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${selectedOrder.items.map(item => `
-                                <tr class="border-t">
-                                    <td class="py-2 px-4">${item.name}</td>
-                                    <td class="py-2 px-4">${item.quantity}</td>
-                                    <td class="py-2 px-4">₹${item.price.toFixed(2)}</td>
-                                    <td class="py-2 px-4 font-bold">₹${(item.price * item.quantity).toFixed(2)}</td>
+                                <tr>
+                                    <td>${item.name}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>₹${item.price.toFixed(2)}</td>
+                                    <td class="fw-bold">₹${(item.price * item.quantity).toFixed(2)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
                 </div>
-            `;
-        }
-
-        const orderDate = selectedOrder.createdAt.toLocaleDateString('en-IN');
-        const orderTime = selectedOrder.createdAt.toLocaleTimeString('en-IN');
-
-        details.innerHTML = `
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <p class="text-gray-600">Order ID</p>
-                    <p class="font-bold">${selectedOrder.orderId || selectedOrder.id}</p>
-                </div>
-                <div>
-                    <p class="text-gray-600">Date & Time</p>
-                    <p class="font-bold">${orderDate} ${orderTime}</p>
-                </div>
-                <div>
-                    <p class="text-gray-600">Customer Name</p>
-                    <p class="font-bold">${selectedOrder.customerName}</p>
-                </div>
-                <div>
-                    <p class="text-gray-600">Phone</p>
-                    <p class="font-bold">${selectedOrder.customerPhone || 'N/A'}</p>
-                </div>
-                <div>
-                    <p class="text-gray-600">Status</p>
-                    <span class="px-3 py-1 rounded-full text-sm ${getStatusClass(selectedOrder.status)}">
-                        ${selectedOrder.status}
-                    </span>
-                </div>
-            </div>
-            ${itemsHtml}
-            <div class="border-t pt-4">
-                <div class="flex justify-between mb-2">
-                    <span>Subtotal:</span>
-                    <span>₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2) : '0.00'}</span>
-                </div>
-                <div class="flex justify-between mb-2">
-                    <span>GST (${selectedOrder.gstRate || 0}%):</span>
-                    <span>₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2) : '0.00'}</span>
-                </div>
-                <div class="flex justify-between mb-2">
-                    <span>Service Charge (${selectedOrder.serviceChargeRate || 0}%):</span>
-                    <span>₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2) : '0.00'}</span>
-                </div>
-                <div class="flex justify-between text-xl font-bold pt-2 border-t">
-                    <span>Total:</span>
-                    <span>₹${selectedOrder.total ? selectedOrder.total.toFixed(2) : '0.00'}</span>
-                </div>
             </div>
         `;
-
-        modal.classList.remove('hidden');
     }
 
-    // Print order receipt
-    window.printOrderReceipt = function() {
-        if (!selectedOrder) return;
+    const orderDate = selectedOrder.createdAt.toLocaleDateString('en-IN');
+    const orderTime = selectedOrder.createdAt.toLocaleTimeString('en-IN');
 
-        // Prepare receipt for printing
-        let receipt = `
-            ${'='.repeat(32)}
-                FASTFOOD RESTAURANT
-            ${'='.repeat(32)}
-            Date: ${selectedOrder.createdAt.toLocaleDateString('en-IN')}
-            Time: ${selectedOrder.createdAt.toLocaleTimeString('en-IN', {hour12: true})}
-            ${'-'.repeat(32)}
-            Order ID: ${selectedOrder.orderId || selectedOrder.id}
-            Customer: ${selectedOrder.customerName}
-            Phone: ${selectedOrder.customerPhone || 'N/A'}
-            ${'-'.repeat(32)}
-            ITEM            QTY   AMOUNT
-            ${'-'.repeat(32)}
-        `;
-        
-        if (selectedOrder.items) {
-            selectedOrder.items.forEach(item => {
-                const itemTotal = item.price * item.quantity;
-                receipt += `${item.name.substring(0, 16).padEnd(16)} ${item.quantity.toString().padStart(3)}   ₹${itemTotal.toFixed(2).padStart(7)}\n`;
-            });
-        }
-        
-        receipt += `
-            ${'-'.repeat(32)}
-            Subtotal:        ₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            GST (${selectedOrder.gstRate || 0}%):       ₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            Service (${selectedOrder.serviceChargeRate || 0}%):    ₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            ${'-'.repeat(32)}
-            TOTAL:          ₹${selectedOrder.total ? selectedOrder.total.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            ${'='.repeat(32)}
-            Status: ${selectedOrder.status}
-            ${'='.repeat(32)}
-            *** DUPLICATE COPY ***
-        `;
-        
-        // Set print content and show modal
-        document.getElementById('printContent').textContent = receipt;
-        closeOrderModal();
-        document.getElementById('printModal').classList.remove('hidden');
-    };
+    details.innerHTML = `
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-muted">Order ID</label>
+                <div class="fw-bold">${selectedOrder.orderId || selectedOrder.id}</div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-muted">Date & Time</label>
+                <div class="fw-bold">${orderDate} ${orderTime}</div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-muted">Customer Name</label>
+                <div class="fw-bold">${selectedOrder.customerName}</div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-muted">Phone</label>
+                <div class="fw-bold">${selectedOrder.customerPhone || 'N/A'}</div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-muted">Status</label>
+                <div>${getStatusBadge(selectedOrder.status)}</div>
+            </div>
+        </div>
+        ${itemsHtml}
+        <div class="border-top pt-3">
+            <div class="d-flex justify-content-between mb-2">
+                <span>Subtotal:</span>
+                <span>₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2) : '0.00'}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span>GST (${selectedOrder.gstRate || 0}%):</span>
+                <span>₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2) : '0.00'}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span>Service Charge (${selectedOrder.serviceChargeRate || 0}%):</span>
+                <span>₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2) : '0.00'}</span>
+            </div>
+            <div class="d-flex justify-content-between fw-bold fs-5 pt-2 border-top">
+                <span>Total:</span>
+                <span>₹${selectedOrder.total ? selectedOrder.total.toFixed(2) : '0.00'}</span>
+            </div>
+        </div>
+    `;
 
-    // Delete logic
-    function showDeleteOrderModal(orderId) {
-        orderToDelete = orderId;
-        document.getElementById('deleteOrderModal').classList.remove('hidden');
-    }
+    modal.show();
+}
 
-    window.closeDeleteOrderModal = function() {
-        orderToDelete = null;
-        document.getElementById('deleteOrderModal').classList.add('hidden');
-    };
+function printOrder(orderId) {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
 
-    document.getElementById('confirmDeleteOrder').addEventListener('click', function() {
-        if (!orderToDelete) return;
-        
-        db.collection('orders').doc(orderToDelete).delete()
-            .then(() => {
-                showNotification('Order deleted successfully', 'success');
-                orders = orders.filter(o => o.id !== orderToDelete);
-                renderOrdersTable();
-                updatePagination();
-                loadTodayStats(); // Refresh stats in case a today's order was deleted
-                closeDeleteOrderModal();
-            })
-            .catch(error => {
-                showNotification('Error deleting order: ' + error.message, 'error');
-            });
-    });
+    selectedOrder = order;
+    window.printOrderReceipt();
+}
 
-    // Print order directly
-    function printOrder(orderId) {
-        const order = orders.find(o => o.id === orderId);
-        if (!order) return;
+window.printOrderReceipt = function() {
+    if (!selectedOrder) return;
 
-        selectedOrder = order;
-        printOrderReceipt();
-    }
-
-    // Close order modal
-    window.closeOrderModal = function() {
-        document.getElementById('orderModal').classList.add('hidden');
-    };
-
-    // Apply filters
-    document.getElementById('applyFilter').addEventListener('click', function() {
-        const filters = {
-            startDate: document.getElementById('startDate').value,
-            endDate: document.getElementById('endDate').value,
-            status: document.getElementById('statusFilter').value
-        };
-        
-        currentPage = 1;
-        loadOrders(filters);
-    });
-
-    // Reset filters
-    document.getElementById('resetFilter').addEventListener('click', function() {
-        document.getElementById('startDate').value = '';
-        document.getElementById('endDate').value = '';
-        document.getElementById('statusFilter').value = 'all';
-        
-        currentPage = 1;
-        loadOrders({});
-    });
-
-    // Pagination
-    document.getElementById('prevPage').addEventListener('click', function() {
-        if (currentPage > 1) {
-            currentPage--;
-            renderOrdersTable();
-            updatePagination();
-        }
-    });
-
-    document.getElementById('nextPage').addEventListener('click', function() {
-        const totalPages = Math.ceil(orders.length / ordersPerPage);
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderOrdersTable();
-            updatePagination();
-        }
-    });
-
-    function updatePagination() {
-        const totalPages = Math.max(1, Math.ceil(orders.length / ordersPerPage));
-        document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
-        
-        document.getElementById('prevPage').disabled = currentPage === 1;
-        document.getElementById('nextPage').disabled = currentPage === totalPages;
-    }
-
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        auth.signOut().then(() => {
-            window.location.href = 'index.html';
+    // Prepare receipt for printing
+    let receipt = `
+${'='.repeat(32)}
+    MNR FOOD COURT
+${'='.repeat(32)}
+Date: ${selectedOrder.createdAt.toLocaleDateString('en-IN')}
+Time: ${selectedOrder.createdAt.toLocaleTimeString('en-IN', {hour12: true})}
+${'-'.repeat(32)}
+Order ID: ${selectedOrder.orderId || selectedOrder.id}
+Customer: ${selectedOrder.customerName}
+Phone: ${selectedOrder.customerPhone || 'N/A'}
+${'-'.repeat(32)}
+ITEM            QTY   AMOUNT
+${'-'.repeat(32)}
+`;
+    
+    if (selectedOrder.items) {
+        selectedOrder.items.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            receipt += `${item.name.substring(0, 16).padEnd(16)} ${item.quantity.toString().padStart(3)}   ₹${itemTotal.toFixed(2).padStart(7)}\n`;
         });
-    });
-
-    function showNotification(message, type) {
-        const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white font-semibold`;
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(100%)';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
     }
-});
+    
+    receipt += `
+${'-'.repeat(32)}
+Subtotal:        ₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2).padStart(10) : '0.00'.padStart(10)}
+GST (${selectedOrder.gstRate || 0}%):       ₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2).padStart(10) : '0.00'.padStart(10)}
+Service (${selectedOrder.serviceChargeRate || 0}%):    ₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2).padStart(10) : '0.00'.padStart(10)}
+${'-'.repeat(32)}
+TOTAL:          ₹${selectedOrder.total ? selectedOrder.total.toFixed(2).padStart(10) : '0.00'.padStart(10)}
+${'='.repeat(32)}
+Status: ${selectedOrder.status}
+${'='.repeat(32)}
+*** DUPLICATE COPY ***
+`;
+    
+    // Set print content and show modal
+    const printContent = document.getElementById('printContent');
+    if (printContent) {
+        printContent.textContent = receipt;
+    }
+    
+    closeOrderModal();
+    
+    const printModal = new bootstrap.Modal(document.getElementById('printModal'));
+    printModal.show();
+};
+
+function showDeleteOrderModal(orderId) {
+    orderToDelete = orderId;
+    const modal = new bootstrap.Modal(document.getElementById('deleteOrderModal'));
+    modal.show();
+}
+
+window.closeDeleteOrderModal = function() {
+    orderToDelete = null;
+    const modalElement = document.getElementById('deleteOrderModal');
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+            modal.hide();
+        }
+    }
+};
+
+window.closeOrderModal = function() {
+    const modalElement = document.getElementById('orderModal');
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+            modal.hide();
+        }
+    }
+};
+
+function showNotification(message, type) {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification-toast');
+    existingNotifications.forEach(n => n.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification-toast position-fixed top-0 end-0 m-3 toast show`;
+    notification.setAttribute('role', 'alert');
+    notification.innerHTML = `
+        <div class="toast-header bg-${type} text-white">
+            <strong class="me-auto">${type === 'success' ? 'Success' : type === 'danger' ? 'Error' : 'Info'}</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}

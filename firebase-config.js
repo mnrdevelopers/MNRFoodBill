@@ -13,14 +13,19 @@ const firebaseConfig = {
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 } else {
-    firebase.app(); // if already initialized, use that one
+    firebase.app();
 }
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Enable offline persistence
-firebase.firestore().enablePersistence()
+// IMPORTANT: Set settings BEFORE calling any other Firestore methods (like enablePersistence)
+db.settings({
+  cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+});
+
+// Enable offline persistence after settings are applied
+db.enablePersistence()
   .then(() => {
     console.log("Offline persistence enabled");
   })
@@ -28,11 +33,6 @@ firebase.firestore().enablePersistence()
     if (err.code == 'failed-precondition') {
         console.warn("Multiple tabs open, persistence can only be enabled in one tab at a time.");
     } else if (err.code == 'unimplemented') {
-        console.warn("The current browser doesn't support all of the features required to enable persistence");
+        console.warn("Browser doesn't support persistence.");
     }
   });
-
-// Set cache size
-db.settings({
-  cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-});

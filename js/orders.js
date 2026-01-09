@@ -35,12 +35,14 @@ function setupAuthAndLogout() {
 }
 
 function loadUserInfo() {
-    const user = auth.currentUser;
-    if (!user) return;
+    if (!currentUser) {
+        console.warn('currentUser is not defined yet');
+        return;
+    }
     
     const userEmailElement = document.getElementById('userEmail');
     if (userEmailElement) {
-        userEmailElement.textContent = user.email;
+        userEmailElement.textContent = currentUser.email;
     }
 }
 
@@ -522,4 +524,5 @@ function showNotification(message, type) {
         notification.remove();
     }, 3000);
 }
+
 

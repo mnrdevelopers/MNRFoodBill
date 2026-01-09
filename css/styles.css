@@ -469,3 +469,120 @@ img[src*="githubusercontent"] {
     max-height: 160px;
     object-fit: cover;
 }
+
+/* Collapsed Sidebar Styles */
+.sidebar-collapsed {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+}
+
+.sidebar-collapsed .sidebar-link {
+    justify-content: center !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+}
+
+.sidebar-collapsed .sidebar-link i {
+    margin-right: 0 !important;
+}
+
+.sidebar-collapsed .sidebar-link span {
+    display: none !important;
+}
+
+.sidebar-collapsed #sidebarStats {
+    display: none !important;
+}
+
+.sidebar-collapsed #sidebarToggleDesktop {
+    transform: translateX(-8px);
+}
+
+/* Smooth transitions for sidebar */
+#sidebar {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#sidebarNav {
+    transition: all 0.3s ease;
+}
+
+.sidebar-link span {
+    transition: all 0.3s ease;
+}
+
+#sidebarStats {
+    transition: all 0.3s ease;
+}
+
+/* Main content transition */
+.lg\:col-span-3, .lg\:col-span-4 {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Toggle button animations */
+#sidebarToggleDesktop {
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#sidebarToggleDesktop:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Tooltip for collapsed sidebar */
+.sidebar-collapsed .sidebar-link {
+    position: relative;
+}
+
+.sidebar-collapsed .sidebar-link:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1f2937;
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    margin-left: 0.75rem;
+    z-index: 50;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure tooltip doesn't overflow */
+.sidebar-collapsed .sidebar-link {
+    overflow: visible;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .sidebar-collapsed {
+        width: auto !important;
+        min-width: auto !important;
+        max-width: auto !important;
+    }
+    
+    .lg\:col-span-3, .lg\:col-span-4 {
+        transition: none;
+    }
+}
+
+/* Animation for toggle icon */
+#sidebarToggleIcon {
+    transition: transform 0.3s ease;
+}
+
+.sidebar-collapsed #sidebarToggleIcon {
+    transform: rotate(180deg);
+}
+
+/* Better hover states for collapsed sidebar */
+.sidebar-collapsed .sidebar-link:hover {
+    background-color: #fef2f2 !important;
+    color: #dc2626 !important;
+}

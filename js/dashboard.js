@@ -1,246 +1,141 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Check auth and setup - loadProducts is now called inside the auth observer
-    setupAuthAndLogout();
-    
-    // Setup event listeners
-    setupEventListeners();
-});
-
-function setupAuthAndLogout() {
+    // Check auth
     auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
-            loadUserInfo();
-            setupLogoutButton();
-            // Data loading moved here to ensure user object is available
-            loadProducts();
+            loadRestaurantInfo();
+            loadDashboardStats();
+            loadRecentOrders();
         }
     });
-}
 
-function loadUserInfo() {
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    const userEmailElement = document.getElementById('userEmail');
-    if (userEmailElement) {
-        userEmailElement.textContent = user.email;
-    }
-}
-
-function setupLogoutButton() {
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function() {
-            auth.signOut().then(() => {
-                window.location.href = 'index.html';
+    // Load restaurant info
+    function loadRestaurantInfo() {
+        const user = auth.currentUser;
+        document.getElementById('userEmail').textContent = user.email;
+        
+        db.collection('restaurants').doc(user.uid).get()
+            .then(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    document.getElementById('restaurantName').textContent = data.name;
+                }
             });
-        });
     }
-}
 
-function loadProducts() {
-    const user = auth.currentUser;
-    if (!user) return;
+    // Load dashboard stats
+    function loadDashboardStats() {
+        const user = auth.currentUser;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
 
-    db.collection('products')
-        .where('restaurantId', '==', user.uid)
-        .orderBy('name')
-        .get()
-        .then(snapshot => {
-            const products = []; // Use local array or handle globally
-            snapshot.forEach(doc => {
-                products.push({ id: doc.id, ...doc.data() });
+        // Today's sales and orders
+        db.collection('orders')
+            .where('restaurantId', '==', user.uid)
+            .where('createdAt', '>=', today)
+            .where('createdAt', '<', tomorrow)
+            .where('status', '==', 'completed')
+            .get()
+            .then(snapshot => {
+                let todaySales = 0;
+                let todayOrders = 0;
+                
+                snapshot.forEach(doc => {
+                    const order = doc.data();
+                    todaySales += order.total || 0;
+                    todayOrders++;
+                });
+
+                document.getElementById('todaySales').textContent = `₹${todaySales.toFixed(2)}`;
+                document.getElementById('todayOrders').textContent = todayOrders;
             });
-            window.allProducts = products; // Store globally if needed for edits
-            renderProductsTable(products);
-        })
-        .catch(error => console.error("Error loading products:", error));
-}
 
-function renderProductsTable(products) {
-    const tbody = document.getElementById('productsTable');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '';
+        // Total revenue and orders
+        db.collection('orders')
+            .where('restaurantId', '==', user.uid)
+            .where('status', '==', 'completed')
+            .get()
+            .then(snapshot => {
+                let totalRevenue = 0;
+                let totalOrders = 0;
+                
+                snapshot.forEach(doc => {
+                    const order = doc.data();
+                    totalRevenue += order.total || 0;
+                    totalOrders++;
+                });
 
-    if (products.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="5" class="text-center py-5 text-muted">
-                    <i class="fas fa-box-open fs-1 mb-3 d-block"></i>
-                    <p>No products found. Add your first product!</p>
-                </td>
-            </tr>
-        `;
-        return;
+                document.getElementById('totalRevenue').textContent = `₹${totalRevenue.toFixed(2)}`;
+                document.getElementById('totalOrders').textContent = totalOrders;
+            });
+
+        // Total products
+        db.collection('products')
+            .where('restaurantId', '==', user.uid)
+            .get()
+            .then(snapshot => {
+                document.getElementById('totalProducts').textContent = snapshot.size;
+            });
     }
 
-    products.forEach(product => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>
-                <div class="fw-medium">${product.name}</div>
-            </td>
-            <td>
-                <span class="badge bg-primary">${product.category}</span>
-            </td>
-            <td class="fw-bold">₹${Number(product.price || 0).toFixed(2)}</td>
-            <td class="text-muted">${product.description || '-'}</td>
-            <td>
-                <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary edit-product" data-id="${product.id}" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-outline-danger delete-product" data-id="${product.id}" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-
-    // Re-attach listeners for dynamically created buttons
-    document.querySelectorAll('.edit-product').forEach(button => {
-        button.addEventListener('click', () => editProduct(button.dataset.id));
-    });
-
-    document.querySelectorAll('.delete-product').forEach(button => {
-        button.addEventListener('click', () => showDeleteModal(button.dataset.id));
-    });
-}
-
-function setupEventListeners() {
-    const addProductBtn = document.getElementById('addProductBtn');
-    if (addProductBtn) {
-        addProductBtn.addEventListener('click', () => openProductModal());
+    // Load recent orders
+    function loadRecentOrders() {
+        const user = auth.currentUser;
+        const tbody = document.getElementById('recentOrders');
+        
+        db.collection('orders')
+            .where('restaurantId', '==', user.uid)
+            .orderBy('createdAt', 'desc')
+            .limit(5)
+            .get()
+            .then(snapshot => {
+                tbody.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="py-4 text-center text-gray-500">
+                                No orders yet
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                snapshot.forEach(doc => {
+                    const order = doc.data();
+                    const orderDate = order.createdAt?.toDate() || new Date();
+                    const itemCount = order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
+                    
+                    const row = document.createElement('tr');
+                    row.className = 'border-b hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="py-3 px-4">
+                            <div class="font-mono text-sm">${order.orderId || doc.id.substring(0, 8)}</div>
+                        </td>
+                        <td class="py-3 px-4">
+                            ${orderDate.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'})}
+                        </td>
+                        <td class="py-3 px-4">${itemCount} items</td>
+                        <td class="py-3 px-4 font-bold">₹${order.total ? order.total.toFixed(2) : '0.00'}</td>
+                        <td class="py-3 px-4">
+                            <span class="px-2 py-1 text-xs rounded-full ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                ${order.status}
+                            </span>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            });
     }
 
-    const productForm = document.getElementById('productForm');
-    if (productForm) {
-        productForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            saveProduct();
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        auth.signOut().then(() => {
+            window.location.href = 'index.html';
         });
-    }
-
-    const confirmDeleteBtn = document.getElementById('confirmDelete');
-    if (confirmDeleteBtn) {
-        confirmDeleteBtn.addEventListener('click', function() {
-            const productId = this.dataset.productId;
-            if (productId) deleteProduct(productId);
-        });
-    }
-}
-
-function openProductModal(product = null) {
-    const modal = new bootstrap.Modal(document.getElementById('productModal'));
-    const form = document.getElementById('productForm');
-    const title = document.getElementById('modalTitle');
-    
-    form.reset();
-    
-    if (product) {
-        title.textContent = 'Edit Product';
-        document.getElementById('productId').value = product.id;
-        document.getElementById('productName').value = product.name;
-        document.getElementById('productCategory').value = product.category;
-        document.getElementById('productPrice').value = product.price;
-        document.getElementById('productDescription').value = product.description || '';
-    } else {
-        title.textContent = 'Add New Product';
-        document.getElementById('productId').value = '';
-    }
-    
-    modal.show();
-}
-
-function closeProductModal() {
-    const modalElement = document.getElementById('productModal');
-    if (modalElement) {
-        const modal = bootstrap.Modal.getInstance(modalElement);
-        if (modal) modal.hide();
-    }
-}
-
-function editProduct(productId) {
-    const product = (window.allProducts || []).find(p => p.id === productId);
-    if (product) openProductModal(product);
-}
-
-function showDeleteModal(productId) {
-    const confirmBtn = document.getElementById('confirmDelete');
-    if (confirmBtn) confirmBtn.dataset.productId = productId;
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    modal.show();
-}
-
-function closeDeleteModal() {
-    const modalElement = document.getElementById('deleteModal');
-    if (modalElement) {
-        const modal = bootstrap.Modal.getInstance(modalElement);
-        if (modal) modal.hide();
-    }
-}
-
-function deleteProduct(productId) {
-    db.collection('products').doc(productId).delete()
-        .then(() => {
-            showNotification('Product deleted successfully', 'success');
-            loadProducts();
-            closeDeleteModal();
-        })
-        .catch(error => showNotification('Error deleting product: ' + error.message, 'danger'));
-}
-
-function saveProduct() {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const productId = document.getElementById('productId').value;
-    const productData = {
-        name: document.getElementById('productName').value.trim(),
-        category: document.getElementById('productCategory').value,
-        price: parseFloat(document.getElementById('productPrice').value),
-        description: document.getElementById('productDescription').value.trim(),
-        restaurantId: user.uid,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-
-    if (!productData.name || isNaN(productData.price)) {
-        showNotification('Please fill all required fields correctly', 'danger');
-        return;
-    }
-
-    const promise = productId 
-        ? db.collection('products').doc(productId).update(productData)
-        : db.collection('products').add({ ...productData, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-
-    promise.then(() => {
-        showNotification(productId ? 'Product updated' : 'Product added', 'success');
-        loadProducts();
-        closeProductModal();
-    }).catch(error => showNotification('Error: ' + error.message, 'danger'));
-}
-
-function showNotification(message, type) {
-    const existing = document.querySelectorAll('.notification-toast');
-    existing.forEach(n => n.remove());
-    
-    const notification = document.createElement('div');
-    notification.className = `notification-toast position-fixed top-0 end-0 m-3 toast show`;
-    notification.innerHTML = `
-        <div class="toast-header bg-${type} text-white">
-            <strong class="me-auto">Notification</strong>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-        </div>
-        <div class="toast-body">${message}</div>
-    `;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
-
-window.closeProductModal = closeProductModal;
-window.closeDeleteModal = closeDeleteModal;
+    });
+});

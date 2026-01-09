@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Billing - MNRFoodBill</title>
+    <title>Billing - FastFood Billing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -12,6 +12,27 @@
     <script src="firebase-config.js"></script>
     <script src="js/billing.js" defer></script>
     <script src="js/print.js" defer></script>
+    <style>
+        /* Prevent body scroll when modal is open */
+        body.modal-open {
+            overflow: hidden;
+        }
+        
+        /* Modal styles */
+        #printModal {
+            display: none;
+        }
+        
+        #printModal.show {
+            display: flex;
+        }
+        
+        /* Print content scroll */
+        #printContent {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <!-- Navigation (same as dashboard) -->
@@ -20,7 +41,7 @@
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
                     <i class="fas fa-utensils text-red-500 text-2xl"></i>
-                    <span class="text-xl font-bold text-gray-800">MNRFoodBill</span>
+                    <span class="text-xl font-bold text-gray-800">FastFood Billing</span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <a href="dashboard.html" class="text-gray-600 hover:text-red-500">
@@ -172,18 +193,18 @@
     </div>
 
     <!-- Print Modal -->
-    <div id="printModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div id="printModal" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50 p-4 hidden">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md">
             <div class="p-6">
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Print Receipt</h3>
-                <div id="printContent" class="font-mono text-sm whitespace-pre-line mb-6 p-4 bg-gray-50 rounded">
+                <div id="printContent" class="font-mono text-sm whitespace-pre-line mb-6 p-4 bg-gray-50 rounded max-h-96 overflow-y-auto">
                     <!-- Receipt content will be here -->
                 </div>
                 <div class="flex space-x-3">
-                    <button onclick="printReceipt()" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                    <button id="printNowBtn" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
                         <i class="fas fa-print mr-2"></i> Print Now
                     </button>
-                    <button onclick="closePrintModal()" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                    <button id="closePrintModalBtn" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
                         Close
                     </button>
                 </div>
@@ -192,4 +213,3 @@
     </div>
 </body>
 </html>
-

@@ -39,11 +39,11 @@
                 <!-- Basic Info -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-gray-700">Restaurant Name</label>
+                        <label class="block text-sm font-semibold text-gray-700">Restaurant Name *</label>
                         <input type="text" id="resName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none" placeholder="e.g. MNR Food Court">
                     </div>
                     <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-gray-700">Currency Symbol</label>
+                        <label class="block text-sm font-semibold text-gray-700">Currency Symbol *</label>
                         <input type="text" id="resCurrency" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none" placeholder="₹, $, etc.">
                     </div>
                 </div>
@@ -51,6 +51,23 @@
                 <div class="space-y-2">
                     <label class="block text-sm font-semibold text-gray-700">Restaurant Address (for Bill)</label>
                     <textarea id="resAddress" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none" placeholder="Enter full address..."></textarea>
+                </div>
+
+                <!-- Contact & Legal -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">Phone Number</label>
+                        <input type="tel" id="resPhone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none" placeholder="+91 9876543210">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">GSTIN</label>
+                        <input type="text" id="resGSTIN" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none" placeholder="29ABCDE1234F1Z5">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">FSSAI License Number</label>
+                    <input type="text" id="resFSSAI" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none" placeholder="12345678901234">
                 </div>
 
                 <!-- Financials -->

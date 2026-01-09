@@ -1,35 +1,59 @@
 document.addEventListener('DOMContentLoaded', function() {
     let products = [];
     let productToDelete = null;
+    let currentUser = null;
 
     // Check auth and setup
-    setupAuthAndLogout();
-    
-    // Load products
-    loadProducts();
+    auth.onAuthStateChanged(user => {
+        if (!user) {
+            window.location.href = 'index.html';
+        } else {
+            currentUser = user;
+            loadUserInfo();
+            setupLogoutButton();
+            loadProducts();
+        }
+    });
     
     // Setup event listeners
     setupEventListeners();
 });
 
-function setupAuthAndLogout() {
-    auth.onAuthStateChanged(user => {
-        if (!user) {
-            window.location.href = 'index.html';
-        } else {
-            loadUserInfo();
-            setupLogoutButton();
-        }
-    });
+function setupEventListeners() {
+    // Add product button
+    const addProductBtn = document.getElementById('addProductBtn');
+    if (addProductBtn) {
+        addProductBtn.addEventListener('click', function() {
+            openProductModal();
+        });
+    }
+
+    // Product form submission
+    const productForm = document.getElementById('productForm');
+    if (productForm) {
+        productForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveProduct();
+        });
+    }
+
+    // Confirm delete
+    const confirmDeleteBtn = document.getElementById('confirmDelete');
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', function() {
+            if (productToDelete) {
+                deleteProduct(productToDelete);
+            }
+        });
+    }
 }
 
 function loadUserInfo() {
-    const user = auth.currentUser;
-    if (!user) return;
+    if (!currentUser) return;
     
     const userEmailElement = document.getElementById('userEmail');
     if (userEmailElement) {
-        userEmailElement.textContent = user.email;
+        userEmailElement.textContent = currentUser.email;
     }
 }
 
@@ -45,9 +69,10 @@ function setupLogoutButton() {
 }
 
 function loadProducts() {
-    const user = auth.currentUser;
+    if (!currentUser) return;
+    
     db.collection('products')
-        .where('restaurantId', '==', user.uid)
+        .where('restaurantId', '==', currentUser.uid)
         .orderBy('name')
         .get()
         .then(snapshot => {
@@ -56,6 +81,10 @@ function loadProducts() {
                 products.push({ id: doc.id, ...doc.data() });
             });
             renderProductsTable();
+        })
+        .catch(error => {
+            console.error("Error loading products:", error);
+            showNotification('Error loading products', 'danger');
         });
 }
 
@@ -86,7 +115,7 @@ function renderProductsTable() {
             <td>
                 <span class="badge bg-primary">${product.category}</span>
             </td>
-            <td class="fw-bold">₹${product.price.toFixed(2)}</td>
+            <td class="fw-bold">₹${product.price ? product.price.toFixed(2) : '0.00'}</td>
             <td class="text-muted">${product.description || '-'}</td>
             <td>
                 <div class="btn-group btn-group-sm">
@@ -118,52 +147,27 @@ function renderProductsTable() {
     });
 }
 
-function setupEventListeners() {
-    // Add product button
-    const addProductBtn = document.getElementById('addProductBtn');
-    if (addProductBtn) {
-        addProductBtn.addEventListener('click', function() {
-            openProductModal();
-        });
-    }
-
-    // Product form submission
-    const productForm = document.getElementById('productForm');
-    if (productForm) {
-        productForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            saveProduct();
-        });
-    }
-
-    // Confirm delete
-    const confirmDeleteBtn = document.getElementById('confirmDelete');
-    if (confirmDeleteBtn) {
-        confirmDeleteBtn.addEventListener('click', function() {
-            if (productToDelete) {
-                deleteProduct(productToDelete);
-            }
-        });
-    }
-}
-
 function openProductModal(product = null) {
-    const modal = new bootstrap.Modal(document.getElementById('productModal'));
+    const modalElement = document.getElementById('productModal');
+    if (!modalElement) return;
+    
+    const modal = new bootstrap.Modal(modalElement);
     const form = document.getElementById('productForm');
     const title = document.getElementById('modalTitle');
     
-    form.reset();
+    if (form) form.reset();
     
     if (product) {
-        title.textContent = 'Edit Product';
+        if (title) title.textContent = 'Edit Product';
         document.getElementById('productId').value = product.id;
         document.getElementById('productName').value = product.name;
         document.getElementById('productCategory').value = product.category;
-        document.getElementById('productPrice').value = product.price;
+        document.getElementById('productPrice').value = product.price || 0;
         document.getElementById('productDescription').value = product.description || '';
     } else {
-        title.textContent = 'Add New Product';
-        document.getElementById('productId').value = '';
+        if (title) title.textContent = 'Add New Product';
+        const productIdInput = document.getElementById('productId');
+        if (productIdInput) productIdInput.value = '';
     }
     
     modal.show();
@@ -188,8 +192,11 @@ function editProduct(productId) {
 
 function showDeleteModal(productId) {
     productToDelete = productId;
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    modal.show();
+    const modalElement = document.getElementById('deleteModal');
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
 }
 
 function closeDeleteModal() {
@@ -204,6 +211,8 @@ function closeDeleteModal() {
 }
 
 function deleteProduct(productId) {
+    if (!productId) return;
+    
     db.collection('products').doc(productId).delete()
         .then(() => {
             showNotification('Product deleted successfully', 'success');
@@ -212,24 +221,34 @@ function deleteProduct(productId) {
             closeDeleteModal();
         })
         .catch(error => {
+            console.error("Error deleting product:", error);
             showNotification('Error deleting product: ' + error.message, 'danger');
         });
 }
 
 function saveProduct() {
-    const user = auth.currentUser;
-    const productId = document.getElementById('productId').value;
+    if (!currentUser) return;
+    
+    const productId = document.getElementById('productId')?.value;
+    const productName = document.getElementById('productName')?.value;
+    const productPrice = document.getElementById('productPrice')?.value;
+    
+    if (!productName || !productPrice) {
+        showNotification('Please fill all required fields correctly', 'danger');
+        return;
+    }
+
     const productData = {
-        name: document.getElementById('productName').value.trim(),
+        name: productName.trim(),
         category: document.getElementById('productCategory').value,
-        price: parseFloat(document.getElementById('productPrice').value),
-        description: document.getElementById('productDescription').value.trim(),
-        restaurantId: user.uid,
+        price: parseFloat(productPrice),
+        description: document.getElementById('productDescription')?.value.trim() || '',
+        restaurantId: currentUser.uid,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    if (!productData.name || productData.price < 0) {
-        showNotification('Please fill all required fields correctly', 'danger');
+    if (productData.price < 0) {
+        showNotification('Price cannot be negative', 'danger');
         return;
     }
 
@@ -242,6 +261,7 @@ function saveProduct() {
                 closeProductModal();
             })
             .catch(error => {
+                console.error("Error updating product:", error);
                 showNotification('Error updating product: ' + error.message, 'danger');
             });
     } else {
@@ -255,6 +275,7 @@ function saveProduct() {
                 closeProductModal();
             })
             .catch(error => {
+                console.error("Error adding product:", error);
                 showNotification('Error adding product: ' + error.message, 'danger');
             });
     }

@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     renderCart();
                     updateTotals();
+                    setupPaymentHandlers();
                 } else {
                     // If no settings found, redirect to settings page to set them up
                     showNotification('Please configure your settings first.', 'info');
@@ -52,7 +53,65 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => {
                 console.error("Error loading settings:", err);
                 updateTotals();
+                setupPaymentHandlers();
             });
+    }
+
+    // Setup payment mode handlers
+    function setupPaymentHandlers() {
+        const paymentMode = document.getElementById('paymentMode');
+        const cashReceived = document.getElementById('cashReceived');
+        
+        if (paymentMode) {
+            paymentMode.addEventListener('change', function() {
+                const mode = this.value;
+                const cashFields = document.getElementById('cashPaymentFields');
+                const nonCashFields = document.getElementById('nonCashPaymentFields');
+                
+                if (mode === 'cash') {
+                    cashFields.classList.remove('hidden');
+                    nonCashFields.classList.add('hidden');
+                    cashReceived.required = true;
+                } else {
+                    cashFields.classList.add('hidden');
+                    nonCashFields.classList.remove('hidden');
+                    cashReceived.required = false;
+                    document.getElementById('changeAmount').textContent = `${restaurantSettings.currency}0.00`;
+                }
+                
+                // Clear cash received field when switching modes
+                cashReceived.value = '';
+            });
+        }
+        
+        if (cashReceived) {
+            cashReceived.addEventListener('input', calculateChange);
+        }
+    }
+
+    // Calculate change
+    function calculateChange() {
+        const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
+        const totalText = document.getElementById('totalAmount').textContent;
+        const currency = restaurantSettings.currency || '';
+        const total = parseFloat(totalText.replace(currency, '')) || 0;
+        
+        let change = 0;
+        if (cashReceived >= total) {
+            change = cashReceived - total;
+        }
+        
+        document.getElementById('changeAmount').textContent = `${currency}${change.toFixed(2)}`;
+        
+        // Visual feedback for insufficient cash
+        if (cashReceived < total) {
+            document.getElementById('changeAmount').classList.remove('text-green-600');
+            document.getElementById('changeAmount').classList.add('text-red-600');
+            document.getElementById('changeAmount').textContent = `${currency}${(cashReceived - total).toFixed(2)}`;
+        } else {
+            document.getElementById('changeAmount').classList.remove('text-red-600');
+            document.getElementById('changeAmount').classList.add('text-green-600');
+        }
     }
 
     // Load products
@@ -288,11 +347,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('totalAmount').textContent = `${currency}${total.toFixed(2)}`;
         
         // Update the labels in the UI to show the rates dynamically
-        const gstLabel = document.querySelector('p:has(#gstAmount)');
-        if (gstLabel) gstLabel.childNodes[0].textContent = `GST (${gstRate}%): `;
+        const gstLabel = document.querySelector('div.flex.justify-between.mb-2:has(#gstAmount) span.text-gray-600');
+        if (gstLabel) gstLabel.textContent = `GST (${gstRate}%)`;
         
-        const serviceLabel = document.querySelector('p:has(#serviceCharge)');
-        if (serviceLabel) serviceLabel.childNodes[0].textContent = `Service Charge (${serviceRate}%): `;
+        const serviceLabel = document.querySelector('div.flex.justify-between.mb-4:has(#serviceCharge) span.text-gray-600');
+        if (serviceLabel) serviceLabel.textContent = `Service Charge (${serviceRate}%)`;
+        
+        // Recalculate change if cash payment
+        if (document.getElementById('paymentMode').value === 'cash') {
+            calculateChange();
+        }
     }
 
     // Clear cart
@@ -322,10 +386,26 @@ document.addEventListener('DOMContentLoaded', function() {
             const user = auth.currentUser;
             if (!user) return;
 
+            const paymentMode = document.getElementById('paymentMode').value;
             const currency = restaurantSettings.currency || '';
             const subtotal = cart.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
             const totalText = document.getElementById('totalAmount').textContent;
             const total = parseFloat(totalText.replace(currency, '')) || 0;
+            
+            // Validate payment for cash mode
+            if (paymentMode === 'cash') {
+                const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
+                if (cashReceived <= 0) {
+                    showNotification('Please enter cash received amount', 'error');
+                    document.getElementById('cashReceived').focus();
+                    return;
+                }
+                if (cashReceived < total) {
+                    showNotification('Cash received is less than total amount', 'error');
+                    document.getElementById('cashReceived').focus();
+                    return;
+                }
+            }
             
             const orderData = {
                 restaurantId: user.uid,
@@ -334,8 +414,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 customerPhone: document.getElementById('customerPhone').value || '',
                 subtotal: Number(subtotal) || 0,
                 gstRate: Number(restaurantSettings.gstRate) || 0,
+                gstAmount: Number(document.getElementById('gstAmount')?.textContent.replace(currency, '') || 0),
                 serviceChargeRate: Number(restaurantSettings.serviceCharge) || 0,
+                serviceCharge: Number(document.getElementById('serviceCharge')?.textContent.replace(currency, '') || 0),
                 total: Number(total) || 0,
+                paymentMode: paymentMode,
+                cashReceived: paymentMode === 'cash' ? parseFloat(document.getElementById('cashReceived').value) || 0 : 0,
+                changeAmount: paymentMode === 'cash' ? parseFloat(document.getElementById('changeAmount').textContent.replace(currency, '')) || 0 : 0,
                 status: 'saved',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
@@ -343,8 +428,11 @@ document.addEventListener('DOMContentLoaded', function() {
             db.collection('orders').add(orderData)
                 .then(docRef => {
                     showNotification('Order saved successfully!', 'success');
+                    // Clear form
                     document.getElementById('customerName').value = '';
                     document.getElementById('customerPhone').value = '';
+                    document.getElementById('cashReceived').value = '';
+                    document.getElementById('changeAmount').textContent = `${currency}0.00`;
                 })
                 .catch(error => {
                     console.error("Firebase Error:", error);
@@ -360,6 +448,26 @@ document.addEventListener('DOMContentLoaded', function() {
             if (cart.length === 0) {
                 showNotification('Please add items to cart first', 'error');
                 return;
+            }
+
+            // Validate payment for cash mode
+            const paymentMode = document.getElementById('paymentMode').value;
+            if (paymentMode === 'cash') {
+                const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
+                const totalText = document.getElementById('totalAmount').textContent;
+                const currency = restaurantSettings.currency || '';
+                const total = parseFloat(totalText.replace(currency, '')) || 0;
+                
+                if (cashReceived <= 0) {
+                    showNotification('Please enter cash received amount', 'error');
+                    document.getElementById('cashReceived').focus();
+                    return;
+                }
+                if (cashReceived < total) {
+                    showNotification('Cash received is less than total amount', 'error');
+                    document.getElementById('cashReceived').focus();
+                    return;
+                }
             }
 
             if (typeof prepareReceipt === 'function') {

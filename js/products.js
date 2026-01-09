@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load products
     function loadProducts() {
         const user = auth.currentUser;
+        if (!user) return;
+
         db.collection('products')
             .where('restaurantId', '==', user.uid)
             .orderBy('name')
@@ -24,12 +26,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     products.push({ id: doc.id, ...doc.data() });
                 });
                 renderProductsTable();
+            })
+            .catch(error => {
+                console.error("Error loading products:", error);
             });
     }
 
-    // Render products table with images
+    // Render products table
     function renderProductsTable() {
         const tbody = document.getElementById('productsTable');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         if (products.length === 0) {
@@ -45,7 +51,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         products.forEach(product => {
-            const imageUrl = getProductImage(product.name);
+            // Safe check for getProductImage availability
+            const imageUrl = typeof getProductImage === 'function' ? getProductImage(product.name) : null;
             
             const row = document.createElement('tr');
             row.className = 'border-b hover:bg-gray-50';
@@ -66,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="py-4 px-6">
                     <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${product.category}</span>
                 </td>
-                <td class="py-4 px-6 font-bold">₹${product.price.toFixed(2)}</td>
+                <td class="py-4 px-6 font-bold">₹${(product.price || 0).toFixed(2)}</td>
                 <td class="py-4 px-6 text-gray-600">${product.description || '-'}</td>
                 <td class="py-4 px-6">
                     <div class="flex space-x-2">
@@ -85,30 +92,29 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add event listeners
         document.querySelectorAll('.edit-product').forEach(button => {
             button.addEventListener('click', function() {
-                const productId = this.dataset.id;
-                editProduct(productId);
+                editProduct(this.dataset.id);
             });
         });
 
         document.querySelectorAll('.delete-product').forEach(button => {
             button.addEventListener('click', function() {
-                const productId = this.dataset.id;
-                showDeleteModal(productId);
+                showDeleteModal(this.dataset.id);
             });
         });
     }
 
-    // Add product button
-    document.getElementById('addProductBtn').addEventListener('click', function() {
-        openProductModal();
-    });
+    // Modal controls
+    const addProductBtn = document.getElementById('addProductBtn');
+    if (addProductBtn) {
+        addProductBtn.addEventListener('click', () => openProductModal());
+    }
 
-      // Open product modal (simplified - no image selection needed)
     function openProductModal(product = null) {
         const modal = document.getElementById('productModal');
         const form = document.getElementById('productForm');
         const title = document.getElementById('modalTitle');
         
+        if (!form) return;
         form.reset();
         
         if (product) {
@@ -126,112 +132,77 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.classList.remove('hidden');
     }
 
-    // Close product modal
     window.closeProductModal = function() {
         document.getElementById('productModal').classList.add('hidden');
     };
 
-    // Edit product
     function editProduct(productId) {
         const product = products.find(p => p.id === productId);
-        if (product) {
-            openProductModal(product);
-        }
+        if (product) openProductModal(product);
     }
 
-    // Show delete modal
     function showDeleteModal(productId) {
         productToDelete = productId;
         document.getElementById('deleteModal').classList.remove('hidden');
     }
 
-    // Close delete modal
     window.closeDeleteModal = function() {
         productToDelete = null;
         document.getElementById('deleteModal').classList.add('hidden');
     };
 
-    // Confirm delete
-    document.getElementById('confirmDelete').addEventListener('click', function() {
-        if (productToDelete) {
-            deleteProduct(productToDelete);
-        }
-    });
-
-    // Delete product
-    function deleteProduct(productId) {
-        db.collection('products').doc(productId).delete()
-            .then(() => {
-                showNotification('Product deleted successfully', 'success');
-                products = products.filter(p => p.id !== productId);
-                renderProductsTable();
-                closeDeleteModal();
-            })
-            .catch(error => {
-                showNotification('Error deleting product: ' + error.message, 'error');
-            });
+    const confirmDeleteBtn = document.getElementById('confirmDelete');
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', function() {
+            if (productToDelete) {
+                db.collection('products').doc(productToDelete).delete()
+                    .then(() => {
+                        showNotification('Product deleted', 'success');
+                        products = products.filter(p => p.id !== productToDelete);
+                        renderProductsTable();
+                        closeDeleteModal();
+                    });
+            }
+        });
     }
 
-  // Product form submission
-    document.getElementById('productForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const user = auth.currentUser;
-        const productId = document.getElementById('productId').value;
-        
-        const productData = {
-            name: document.getElementById('productName').value.trim(),
-            category: document.getElementById('productCategory').value,
-            price: parseFloat(document.getElementById('productPrice').value),
-            description: document.getElementById('productDescription').value.trim(),
-            restaurantId: user.uid,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        if (!productData.name || productData.price < 0) {
-            showNotification('Please fill all required fields correctly', 'error');
-            return;
-        }
-
-        try {
-            if (productId) {
-                // Update existing product
-                await db.collection('products').doc(productId).update(productData);
-                showNotification('Product updated successfully', 'success');
-            } else {
-                // Add new product
-                productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                await db.collection('products').add(productData);
-                showNotification('Product added successfully', 'success');
-            }
+    const productForm = document.getElementById('productForm');
+    if (productForm) {
+        productForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const user = auth.currentUser;
+            const productId = document.getElementById('productId').value;
             
-            loadProducts();
-            closeProductModal();
-        } catch (error) {
-            showNotification('Error saving product: ' + error.message, 'error');
-        }
-    });
+            const productData = {
+                name: document.getElementById('productName').value.trim(),
+                category: document.getElementById('productCategory').value,
+                price: parseFloat(document.getElementById('productPrice').value),
+                description: document.getElementById('productDescription').value.trim(),
+                restaurantId: user.uid,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
 
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        auth.signOut().then(() => {
-            window.location.href = 'index.html';
+            try {
+                if (productId) {
+                    await db.collection('products').doc(productId).update(productData);
+                } else {
+                    productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await db.collection('products').add(productData);
+                }
+                showNotification('Product saved', 'success');
+                loadProducts();
+                closeProductModal();
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
         });
-    });
+    }
 
     function showNotification(message, type) {
-        const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
-        }, 3000);
+        const n = document.createElement('div');
+        n.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 text-white ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+        n.textContent = message;
+        document.body.appendChild(n);
+        setTimeout(() => n.remove(), 3000);
     }
 });

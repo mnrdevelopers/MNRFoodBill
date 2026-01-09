@@ -1,4 +1,3 @@
-// Initialize empty state. No more hardcoded tax values.
 let cart = [];
 let products = [];
 let restaurantSettings = {
@@ -6,6 +5,21 @@ let restaurantSettings = {
     serviceCharge: 0,
     currency: ''
 };
+
+// Modal functions
+function showPrintModal() {
+    const modal = document.getElementById('printModal');
+    document.body.classList.add('modal-open');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closePrintModal() {
+    const modal = document.getElementById('printModal');
+    document.body.classList.remove('modal-open');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     // Check auth
@@ -15,8 +29,44 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             loadRestaurantSettings();
             loadProducts();
+            setupModalHandlers();
         }
     });
+
+    function setupModalHandlers() {
+        // Close modal when clicking outside
+        const modal = document.getElementById('printModal');
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closePrintModal();
+                }
+            });
+        }
+
+        // Close button
+        const closeBtn = document.getElementById('closePrintModalBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closePrintModal);
+        }
+
+        // Print button
+        const printBtn = document.getElementById('printNowBtn');
+        if (printBtn) {
+            printBtn.addEventListener('click', function() {
+                if (typeof printReceipt === 'function') {
+                    printReceipt();
+                }
+            });
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal.classList.contains('flex')) {
+                closePrintModal();
+            }
+        });
+    }
 
     // Load restaurant settings from Firestore (Source of Truth)
     function loadRestaurantSettings() {
@@ -107,7 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cashReceived < total) {
             document.getElementById('changeAmount').classList.remove('text-green-600');
             document.getElementById('changeAmount').classList.add('text-red-600');
-            document.getElementById('changeAmount').textContent = `${currency}${(cashReceived - total).toFixed(2)}`;
+            document.getElementById('changeAmount').textContent = `${currency}-${(total - cashReceived).toFixed(2)}`;
         } else {
             document.getElementById('changeAmount').classList.remove('text-red-600');
             document.getElementById('changeAmount').classList.add('text-green-600');
@@ -472,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (typeof prepareReceipt === 'function') {
                 prepareReceipt();
-                document.getElementById('printModal').classList.remove('hidden');
+                showPrintModal();
             } else {
                 showNotification('Printing module not loaded.', 'error');
             }
@@ -488,9 +538,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        auth.signOut().then(() => {
+            window.location.href = 'index.html';
+        });
+    });
+
     // Export helpers for other scripts
     window.renderCart = renderCart;
     window.updateTotals = updateTotals;
+    window.showPrintModal = showPrintModal;
+    window.closePrintModal = closePrintModal;
 });
 
 function showNotification(message, type) {

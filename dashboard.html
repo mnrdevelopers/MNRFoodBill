@@ -4,241 +4,103 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - MNRFoodBill</title>
-    
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="firebase-config.js"></script>
+    <script src="js/layout.js" defer></script>
     <script src="js/dashboard.js" defer></script>
-    
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .sidebar {
-            height: calc(100vh - 76px);
-            overflow-y: auto;
-        }
-        .stat-card {
-            transition: transform 0.3s;
-            border: none;
-            border-radius: 10px;
-        }
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .nav-link.active {
-            background-color: rgba(220, 53, 69, 0.1);
-            color: #dc3545 !important;
-            font-weight: 600;
-        }
-        .nav-link {
-            color: #495057;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            margin-bottom: 0.25rem;
-        }
-        .nav-link:hover {
-            background-color: rgba(0,0,0,0.05);
-        }
-        .hover-bg-light:hover {
-            background-color: rgba(0,0,0,0.05);
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <i class="fas fa-utensils text-danger fs-4 me-2"></i>
-                <span class="fs-5 fw-bold text-dark" id="restaurantName">MNRFoodBill</span>
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="dashboard.html">
-                            <i class="fas fa-home me-1"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="billing.html">
-                            <i class="fas fa-cash-register me-1"></i> Billing
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="products.html">
-                            <i class="fas fa-hamburger me-1"></i> Products
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="orders.html">
-                            <i class="fas fa-receipt me-1"></i> Orders
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="settings.html">
-                            <i class="fas fa-gear me-1"></i> Settings
-                        </a>
-                    </li>
-                </ul>
-                
-                <div class="d-flex align-items-center">
-                    <span class="me-3 d-none d-md-block text-muted" id="userEmail"></span>
-                    <button id="logoutBtn" class="btn btn-danger">
-                        <i class="fas fa-sign-out-alt me-2"></i>Logout
-                    </button>
-                </div>
-            </div>
-        </div>
-    </nav>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header (loaded via layout.js) -->
+    <div id="header"></div>
 
-    <div class="container-fluid py-4">
-        <div class="row g-4">
-            <!-- Sidebar -->
-            <div class="col-lg-3 col-xl-2">
-                <div class="sidebar bg-white rounded shadow-sm p-3">
-                    <nav class="nav flex-column">
-                        <a class="nav-link active bg-danger bg-opacity-10 text-danger rounded mb-2" href="dashboard.html">
-                            <i class="fas fa-tachometer-alt me-2"></i> Dashboard
-                        </a>
-                        <a class="nav-link text-dark hover-bg-light rounded mb-2" href="billing.html">
-                            <i class="fas fa-cash-register me-2"></i> Billing
-                        </a>
-                        <a class="nav-link text-dark hover-bg-light rounded mb-2" href="products.html">
-                            <i class="fas fa-hamburger me-2"></i> Products
-                        </a>
-                        <a class="nav-link text-dark hover-bg-light rounded mb-2" href="orders.html">
-                            <i class="fas fa-receipt me-2"></i> Orders
-                        </a>
-                        <a class="nav-link text-dark hover-bg-light rounded mb-2" href="settings.html">
-                            <i class="fas fa-gear me-2"></i> Settings
-                        </a>
-                    </nav>
-                    
-                    <!-- Quick Stats -->
-                    <div class="mt-4 p-3 bg-info bg-opacity-10 rounded">
-                        <h6 class="fw-bold text-info mb-3">Quick Stats</h6>
-                        <div class="row">
-                            <div class="col-6 mb-2">
-                                <small class="text-muted d-block">Today's Sales</small>
-                                <span class="fw-bold" id="todaySales">₹0</span>
-                            </div>
-                            <div class="col-6 mb-2">
-                                <small class="text-muted d-block">Today's Orders</small>
-                                <span class="fw-bold" id="todayOrders">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div class="container mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Sidebar (loaded via layout.js) -->
+            <div id="sidebar"></div>
 
             <!-- Main Content -->
-            <div class="col-lg-9 col-xl-10">
-                <!-- Stats Cards -->
-                <div class="row g-4 mb-4">
-                    <div class="col-md-6 col-lg-4">
-                        <div class="stat-card bg-white p-4 shadow-sm">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <p class="text-muted mb-1">Total Revenue</p>
-                                    <h3 class="fw-bold mb-0" id="totalRevenue">₹0</h3>
-                                </div>
-                                <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                                    <i class="fas fa-rupee-sign text-success fs-4"></i>
-                                </div>
+            <div class="lg:col-span-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Stats Cards -->
+                    <div class="stat-card bg-white rounded-xl shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500">Total Revenue</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-2" id="totalRevenue">₹0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-rupee-sign text-green-600 text-xl"></i>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="col-md-6 col-lg-4">
-                        <div class="stat-card bg-white p-4 shadow-sm">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <p class="text-muted mb-1">Total Orders</p>
-                                    <h3 class="fw-bold mb-0" id="totalOrders">0</h3>
-                                </div>
-                                <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                                    <i class="fas fa-shopping-cart text-primary fs-4"></i>
-                                </div>
+
+                    <div class="stat-card bg-white rounded-xl shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500">Total Orders</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-2" id="totalOrders">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-shopping-cart text-blue-600 text-xl"></i>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="col-md-6 col-lg-4">
-                        <div class="stat-card bg-white p-4 shadow-sm">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <p class="text-muted mb-1">Products</p>
-                                    <h3 class="fw-bold mb-0" id="totalProducts">0</h3>
-                                </div>
-                                <div class="bg-purple bg-opacity-10 p-3 rounded-circle">
-                                    <i class="fas fa-hamburger text-purple fs-4"></i>
-                                </div>
+
+                    <div class="stat-card bg-white rounded-xl shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500">Products</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-2" id="totalProducts">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-hamburger text-purple-600 text-xl"></i>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Recent Orders -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title fw-bold mb-4">Recent Orders</h5>
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Order ID</th>
-                                        <th>Time</th>
-                                        <th>Items</th>
-                                        <th>Amount</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="recentOrders">
-                                    <!-- Orders will be loaded here -->
-                                </tbody>
-                            </table>
-                        </div>
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Orders</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-3 px-4">Order ID</th>
+                                    <th class="text-left py-3 px-4">Time</th>
+                                    <th class="text-left py-3 px-4">Items</th>
+                                    <th class="text-left py-3 px-4">Amount</th>
+                                    <th class="text-left py-3 px-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentOrders">
+                                <!-- Orders will be loaded here -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
                 <!-- Quick Actions -->
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <div class="card bg-gradient text-white shadow-sm" style="background: linear-gradient(135deg, #ff6b6b, #ff8e53);">
-                            <div class="card-body">
-                                <h5 class="card-title fw-bold">Create New Bill</h5>
-                                <p class="card-text mb-4">Start a new order and print receipt</p>
-                                <a href="billing.html" class="btn btn-light text-danger fw-bold px-4">
-                                    <i class="fas fa-plus me-2"></i> New Bill
-                                </a>
-                            </div>
-                        </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div class="bg-gradient-to-r from-red-500 to-orange-500 rounded-xl shadow p-6 text-white">
+                        <h3 class="text-xl font-bold mb-4">Create New Bill</h3>
+                        <p class="mb-6">Start a new order and print receipt</p>
+                        <a href="billing.html" class="bg-white text-red-600 px-6 py-3 rounded-lg font-bold inline-flex items-center hover:bg-gray-100 transition">
+                            <i class="fas fa-plus mr-2"></i> New Bill
+                        </a>
                     </div>
-                    
-                    <div class="col-md-6">
-                        <div class="card bg-gradient text-white shadow-sm" style="background: linear-gradient(135deg, #4776E6, #8E54E9);">
-                            <div class="card-body">
-                                <h5 class="card-title fw-bold">Manage Products</h5>
-                                <p class="card-text mb-4">Add, edit or remove menu items</p>
-                                <a href="products.html" class="btn btn-light text-primary fw-bold px-4">
-                                    <i class="fas fa-edit me-2"></i> Manage Menu
-                                </a>
-                            </div>
-                        </div>
+
+                    <div class="bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl shadow p-6 text-white">
+                        <h3 class="text-xl font-bold mb-4">Manage Products</h3>
+                        <p class="mb-6">Add, edit or remove menu items</p>
+                        <a href="products.html" class="bg-white text-blue-600 px-6 py-3 rounded-lg font-bold inline-flex items-center hover:bg-gray-100 transition">
+                            <i class="fas fa-edit mr-2"></i> Manage Menu
+                        </a>
                     </div>
                 </div>
             </div>
@@ -246,44 +108,25 @@
     </div>
 
     <!-- Print Modal -->
-    <div id="printModal" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Print Receipt</h5>
-                    <button type="button" class="btn-close" onclick="closePrintModal()"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="printContent" class="font-monospace small p-3 bg-light rounded overflow-auto" style="max-height: 400px;">
+    <div id="printModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto">
+        <div class="min-h-screen px-4 py-8 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-lg w-full max-w-md relative">
+                <div class="p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Print Receipt</h3>
+                    <div id="printContent" class="font-mono text-sm whitespace-pre-line mb-6 p-4 bg-gray-50 rounded-lg overflow-y-auto max-h-96">
                         <!-- Print content will go here -->
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button onclick="printReceipt()" class="btn btn-danger">
-                        <i class="fas fa-print me-2"></i> Print Now
-                    </button>
-                    <button onclick="closePrintModal()" class="btn btn-outline-secondary">
-                        Cancel
-                    </button>
+                    <div class="flex space-x-3">
+                        <button onclick="printReceipt()" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                            <i class="fas fa-print mr-2"></i> Print Now
+                        </button>
+                        <button onclick="closePrintModal()" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Bootstrap JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <style>
-        .bg-purple {
-            background-color: #6f42c1;
-        }
-        .text-purple {
-            color: #6f42c1;
-        }
-        .bg-gradient {
-            border: none;
-            border-radius: 10px;
-        }
-    </style>
 </body>
 </html>

@@ -57,6 +57,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    // Add network check
+function isOnline() {
+  return navigator.onLine;
+}
+
     // Setup payment mode handlers
     function setupPaymentHandlers() {
         const paymentMode = document.getElementById('paymentMode');
@@ -114,28 +119,50 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Load products
-    function loadProducts() {
-        const user = auth.currentUser;
-        db.collection('products')
-            .where('restaurantId', '==', user.uid)
-            .orderBy('category')
-            .get()
-            .then(snapshot => {
-                products = [];
-                const categories = new Set(['all']);
-                
-                snapshot.forEach(doc => {
-                    const product = { id: doc.id, ...doc.data() };
-                    products.push(product);
-                    categories.add(product.category);
-                });
-
-                renderCategories(categories);
-                renderProducts(products);
-            });
+    // Modified saveOrder function
+async function saveOrderToFirebase(orderData) {
+  try {
+    const docRef = await db.collection('orders').add(orderData);
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    if (!isOnline()) {
+      // Save locally if offline
+      const localId = storageManager.saveOrder(orderData);
+      return { success: true, id: localId, offline: true };
     }
+    throw error;
+  }
+}
 
+    // Load products
+  function loadProducts() {
+  if (isOnline()) {
+    // Load from Firebase
+    const user = auth.currentUser;
+    db.collection('products')
+      .where('restaurantId', '==', user.uid)
+      .get()
+      .then(snapshot => {
+        // Cache locally
+        const productsData = [];
+        snapshot.forEach(doc => {
+          productsData.push({ id: doc.id, ...doc.data() });
+        });
+        localStorage.setItem('cachedProducts', JSON.stringify(productsData));
+        renderProducts(productsData);
+      })
+      .catch(() => {
+        // Fallback to cache
+        const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
+        renderProducts(cached);
+      });
+  } else {
+    // Use cached data
+    const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
+    renderProducts(cached);
+  }
+}
+    
     // Render categories
     function renderCategories(categories) {
         const categoryTabs = document.querySelector('.category-tab');
@@ -510,3 +537,4 @@ function showNotification(message, type) {
         }, 300);
     }, 3000);
 }
+

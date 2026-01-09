@@ -193,6 +193,29 @@
             </div>
         </div>
     </div>
+
+    <!-- Add or replace in orders.html -->
+<div id="printModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto">
+    <div class="min-h-screen px-4 py-8 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md relative">
+            <div class="p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Print Receipt</h3>
+                <div id="printContent" class="font-mono text-sm whitespace-pre-line mb-6 p-4 bg-gray-50 rounded-lg overflow-y-auto max-h-96">
+                    <!-- Receipt content will be here -->
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="printReceipt()" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                        <i class="fas fa-print mr-2"></i> Print Now
+                    </button>
+                    <button onclick="closePrintModal()" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>
+
 

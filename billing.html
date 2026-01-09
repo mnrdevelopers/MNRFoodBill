@@ -12,27 +12,6 @@
     <script src="firebase-config.js"></script>
     <script src="js/billing.js" defer></script>
     <script src="js/print.js" defer></script>
-    <style>
-        /* Prevent body scroll when modal is open */
-        body.modal-open {
-            overflow: hidden;
-        }
-        
-        /* Modal styles */
-        #printModal {
-            display: none;
-        }
-        
-        #printModal.show {
-            display: flex;
-        }
-        
-        /* Print content scroll */
-        #printContent {
-            max-height: 60vh;
-            overflow-y: auto;
-        }
-    </style>
 </head>
 <body class="bg-gray-100">
     <!-- Navigation (same as dashboard) -->
@@ -193,18 +172,18 @@
     </div>
 
     <!-- Print Modal -->
-    <div id="printModal" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50 p-4 hidden">
+    <div id="printModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md">
             <div class="p-6">
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Print Receipt</h3>
-                <div id="printContent" class="font-mono text-sm whitespace-pre-line mb-6 p-4 bg-gray-50 rounded max-h-96 overflow-y-auto">
+                <div id="printContent" class="font-mono text-sm whitespace-pre-line mb-6 p-4 bg-gray-50 rounded">
                     <!-- Receipt content will be here -->
                 </div>
                 <div class="flex space-x-3">
-                    <button id="printNowBtn" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                    <button onclick="printReceipt()" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
                         <i class="fas fa-print mr-2"></i> Print Now
                     </button>
-                    <button id="closePrintModalBtn" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                    <button onclick="closePrintModal()" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
                         Close
                     </button>
                 </div>
@@ -213,4 +192,3 @@
     </div>
 </body>
 </html>
-

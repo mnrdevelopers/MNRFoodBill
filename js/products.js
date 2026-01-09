@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let productToDelete = null;
     let currentUser = null;
 
-    // Check auth and setup
+    // Check auth and setup - wait for auth state
     auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
@@ -12,11 +12,11 @@ document.addEventListener('DOMContentLoaded', function() {
             loadUserInfo();
             setupLogoutButton();
             loadProducts();
+            
+            // Setup event listeners AFTER auth is confirmed
+            setupEventListeners();
         }
     });
-    
-    // Setup event listeners
-    setupEventListeners();
 });
 
 function setupEventListeners() {
@@ -309,3 +309,4 @@ function showNotification(message, type) {
 // Make functions available globally
 window.closeProductModal = closeProductModal;
 window.closeDeleteModal = closeDeleteModal;
+

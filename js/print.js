@@ -25,16 +25,16 @@ async function prepareReceipt() {
         const gstRate = parseFloat(settings.gstRate) || 0;
         const serviceRate = parseFloat(settings.serviceCharge) || 0;
         
-        const subtotal = parseFloat(document.getElementById('subtotal')?.textContent.replace(/[^0-9.-]+/g, "") || 0);
-        const gstAmount = parseFloat(document.getElementById('gstAmount')?.textContent.replace(/[^0-9.-]+/g, "") || 0);
-        const serviceCharge = parseFloat(document.getElementById('serviceCharge')?.textContent.replace(/[^0-9.-]+/g, "") || 0);
-        const total = parseFloat(document.getElementById('totalAmount')?.textContent.replace(/[^0-9.-]+/g, "") || 0);
+        const subtotal = parseFloat(document.getElementById('subtotal')?.textContent.replace(currency, '') || 0);
+        const gstAmount = parseFloat(document.getElementById('gstAmount')?.textContent.replace(currency, '') || 0);
+        const serviceCharge = parseFloat(document.getElementById('serviceCharge')?.textContent.replace(currency, '') || 0);
+        const total = parseFloat(document.getElementById('totalAmount')?.textContent.replace(currency, '') || 0);
         
         const customerName = document.getElementById('customerName')?.value || 'Walk-in Customer';
         const customerPhone = document.getElementById('customerPhone')?.value || '';
         const paymentMode = document.getElementById('paymentMode')?.value || 'cash';
         const cashReceived = parseFloat(document.getElementById('cashReceived')?.value || 0);
-        const changeAmount = parseFloat(document.getElementById('changeAmount')?.textContent.replace(/[^0-9.-]+/g, "") || 0);
+        const changeAmount = parseFloat(document.getElementById('changeAmount')?.textContent.replace(currency, '') || 0);
         
         // Calculate CGST/SGST if applicable
         const cgstAmount = gstRate > 0 ? gstAmount / 2 : 0;
@@ -42,7 +42,7 @@ async function prepareReceipt() {
         
         const now = new Date();
         const billNo = generateOrderId();
-        const tableNo = 'T01';
+        const tableNo = 'T01'; // Could be made dynamic from UI if needed
         
         let receipt = `
 ${'='.repeat(42)}
@@ -78,23 +78,21 @@ ${'-'.repeat(42)}
         
         // Add cart items with proper numbering
         let slNo = 1;
-        if (window.cart && window.cart.length > 0) {
-            window.cart.forEach(item => {
-                const itemName = item.name;
-                const qty = item.quantity;
-                const rate = item.price.toFixed(2);
-                const amount = (item.price * item.quantity).toFixed(2);
-                
-                // Handle long item names
-                let displayName = itemName;
-                if (itemName.length > 16) {
-                    displayName = itemName.substring(0, 16);
-                }
-                
-                receipt += `${slNo.toString().padStart(2)}. ${displayName.padEnd(17)} ${qty.toString().padStart(3)}  ${currency}${rate.padStart(6)}  ${currency}${amount.padStart(7)}\n`;
-                slNo++;
-            });
-        }
+        cart.forEach(item => {
+            const itemName = item.name;
+            const qty = item.quantity;
+            const rate = item.price.toFixed(2);
+            const amount = (item.price * item.quantity).toFixed(2);
+            
+            // Handle long item names
+            let displayName = itemName;
+            if (itemName.length > 16) {
+                displayName = itemName.substring(0, 16);
+            }
+            
+            receipt += `${slNo.toString().padStart(2)}. ${displayName.padEnd(17)} ${qty.toString().padStart(3)}  ${currency}${rate.padStart(6)}  ${currency}${amount.padStart(7)}\n`;
+            slNo++;
+        });
         
         receipt += `
 ${'-'.repeat(42)}
@@ -151,27 +149,36 @@ ${'='.repeat(42)}
         
         // Set the receipt content
         const printContent = document.getElementById('printContent');
-        if (printContent) {
-            printContent.textContent = receipt;
-        }
+        printContent.textContent = receipt;
+        
+        // Show modal
+        const modal = document.getElementById('printModal');
+        modal.classList.remove('hidden');
+        
+        // Prevent body scrolling when modal is open
+        document.body.style.overflow = 'hidden';
+        
+        // Add click outside to close
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePrintModal();
+            }
+        });
         
     } catch (error) {
         console.error("Error preparing receipt:", error);
-        showNotification('Error loading restaurant details', 'danger');
+        showNotification('Error loading restaurant details', 'error');
     }
 }
 
 function printReceipt() {
-    const printContent = document.getElementById('printContent');
-    if (!printContent) return;
-    
-    const receiptContent = printContent.textContent;
+    const printContent = document.getElementById('printContent').textContent;
     
     // Create a print-friendly window with thermal printer styling
     const printWindow = window.open('', '_blank', 'width=230,height=400');
     if (!printWindow) {
         // Fallback to browser print dialog
-        printViaBrowser(receiptContent);
+        printViaBrowser(printContent);
         return;
     }
     
@@ -210,7 +217,7 @@ function printReceipt() {
         </head>
         <body>
             <div class="receipt">
-                <pre>${receiptContent}</pre>
+                <pre>${printContent}</pre>
             </div>
             <script>
                 window.onload = function() {
@@ -227,12 +234,12 @@ function printReceipt() {
     `);
     printWindow.document.close();
     
-    // Save the order to database and clear cart
+    // Save the order to database
     saveOrderAndClearCart();
 }
 
 // Fallback browser print function
-function printViaBrowser(receiptContent) {
+function printViaBrowser(printContent) {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     
@@ -257,7 +264,7 @@ function printViaBrowser(receiptContent) {
                 </style>
             </head>
             <body>
-                <pre>${receiptContent}</pre>
+                <pre>${printContent}</pre>
                 <script>
                     window.onload = function() {
                         window.print();
@@ -284,19 +291,19 @@ async function saveOrderAndClearCart() {
         
         const paymentMode = document.getElementById('paymentMode')?.value || 'cash';
         const cashReceived = parseFloat(document.getElementById('cashReceived')?.value || 0);
-        const changeAmount = parseFloat(document.getElementById('changeAmount')?.textContent.replace(/[^0-9.-]+/g, "") || 0);
+        const changeAmount = parseFloat(document.getElementById('changeAmount')?.textContent.replace(currency, '') || 0);
         
         const orderData = {
             restaurantId: user.uid,
-            items: [...window.cart],
+            items: [...cart],
             customerName: document.getElementById('customerName')?.value || 'Walk-in Customer',
             customerPhone: document.getElementById('customerPhone')?.value || '',
-            subtotal: parseFloat(document.getElementById('subtotal')?.textContent.replace(/[^0-9.-]+/g, "") || 0),
+            subtotal: parseFloat(document.getElementById('subtotal')?.textContent.replace(currency, '') || 0),
             gstRate: parseFloat(settings.gstRate) || 0,
-            gstAmount: parseFloat(document.getElementById('gstAmount')?.textContent.replace(/[^0-9.-]+/g, "") || 0),
+            gstAmount: parseFloat(document.getElementById('gstAmount')?.textContent.replace(currency, '') || 0),
             serviceChargeRate: parseFloat(settings.serviceCharge) || 0,
-            serviceCharge: parseFloat(document.getElementById('serviceCharge')?.textContent.replace(/[^0-9.-]+/g, "") || 0),
-            total: parseFloat(document.getElementById('totalAmount')?.textContent.replace(/[^0-9.-]+/g, "") || 0),
+            serviceCharge: parseFloat(document.getElementById('serviceCharge')?.textContent.replace(currency, '') || 0),
+            total: parseFloat(document.getElementById('totalAmount')?.textContent.replace(currency, '') || 0),
             paymentMode: paymentMode,
             cashReceived: paymentMode === 'cash' ? cashReceived : 0,
             changeAmount: paymentMode === 'cash' ? changeAmount : 0,
@@ -309,49 +316,26 @@ async function saveOrderAndClearCart() {
 
         await db.collection('orders').add(orderData);
         
-        // Clear cart
-        if (window.cart) {
-            window.cart = [];
-        }
-        
-        // Update UI if functions exist
-        if (typeof window.renderCart === 'function') window.renderCart();
-        if (typeof window.updateTotals === 'function') window.updateTotals();
+        cart = [];
+        if (typeof renderCart === 'function') renderCart();
+        if (typeof updateTotals === 'function') updateTotals();
         
         // Clear all form fields
-        const customerNameInput = document.getElementById('customerName');
-        const customerPhoneInput = document.getElementById('customerPhone');
-        const cashReceivedInput = document.getElementById('cashReceived');
-        const changeAmountElement = document.getElementById('changeAmount');
+        document.getElementById('customerName').value = '';
+        document.getElementById('customerPhone').value = '';
+        document.getElementById('paymentMode').value = 'cash';
+        document.getElementById('cashReceived').value = '';
+        document.getElementById('changeAmount').textContent = `${currency}0.00`;
         
-        if (customerNameInput) customerNameInput.value = '';
-        if (customerPhoneInput) customerPhoneInput.value = '';
-        if (cashReceivedInput) cashReceivedInput.value = '';
-        if (changeAmountElement) changeAmountElement.textContent = `${currency}0.00`;
+        // Reset UI to show cash fields
+        document.getElementById('cashPaymentFields').classList.remove('hidden');
+        document.getElementById('nonCashPaymentFields').classList.add('hidden');
         
-        // Reset payment mode to cash
-        const paymentModeSelect = document.getElementById('paymentMode');
-        if (paymentModeSelect) {
-            paymentModeSelect.value = 'cash';
-            const cashFields = document.getElementById('cashPaymentFields');
-            const nonCashFields = document.getElementById('nonCashPaymentFields');
-            if (cashFields) cashFields.classList.remove('d-none');
-            if (nonCashFields) nonCashFields.classList.add('d-none');
-        }
-        
-        // Close modal using Bootstrap
-        const modalElement = document.getElementById('printModal');
-        if (modalElement) {
-            const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) {
-                modal.hide();
-            }
-        }
-        
+        closePrintModal();
         showNotification('Order completed and receipt printed!', 'success');
     } catch (error) {
         console.error('Error saving order:', error);
-        showNotification('Order printed but failed to save.', 'danger');
+        showNotification('Order printed but failed to save.', 'error');
     }
 }
 
@@ -364,41 +348,16 @@ function generateOrderId() {
     return `BILL${year}${month}${day}${random}`;
 }
 
+function closePrintModal() {
+    const modal = document.getElementById('printModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        // Re-enable body scrolling
+        document.body.style.overflow = '';
+    }
+}
+
 // Make functions available globally
 window.prepareReceipt = prepareReceipt;
 window.printReceipt = printReceipt;
-window.closePrintModal = function() {
-    const modalElement = document.getElementById('printModal');
-    if (modalElement) {
-        const modal = bootstrap.Modal.getInstance(modalElement);
-        if (modal) {
-            modal.hide();
-        }
-    }
-};
-
-// Show notification function
-function showNotification(message, type) {
-    // Remove existing notifications
-    const existingNotifications = document.querySelectorAll('.notification-toast');
-    existingNotifications.forEach(n => n.remove());
-    
-    const notification = document.createElement('div');
-    notification.className = `notification-toast position-fixed top-0 end-0 m-3 toast show`;
-    notification.setAttribute('role', 'alert');
-    notification.innerHTML = `
-        <div class="toast-header bg-${type} text-white">
-            <strong class="me-auto">${type === 'success' ? 'Success' : type === 'danger' ? 'Error' : 'Info'}</strong>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-        </div>
-        <div class="toast-body">
-            ${message}
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
-}
+window.closePrintModal = closePrintModal;

@@ -5,15 +5,22 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedOrder = null;
     let orderToDelete = null;
 
-    // Check auth and setup
-    setupAuthAndLogout();
-    
-    // Load initial data
-    loadOrders();
-    loadTodayStats();
-    
-    // Setup event listeners
-    setupEventListeners();
+    // Check auth and setup - wait for auth state
+    auth.onAuthStateChanged(user => {
+        if (!user) {
+            window.location.href = 'index.html';
+        } else {
+            loadUserInfo();
+            setupLogoutButton();
+            
+            // Load initial data only after auth is confirmed
+            loadOrders();
+            loadTodayStats();
+            
+            // Setup event listeners
+            setupEventListeners();
+        }
+    });
 });
 
 function setupAuthAndLogout() {
@@ -50,6 +57,13 @@ function setupLogoutButton() {
 
 function loadOrders(filters = {}) {
     const user = auth.currentUser;
+    if (!user) {
+        console.error('User not authenticated');
+        showNotification('Please login again', 'danger');
+        window.location.href = 'index.html';
+        return;
+    }
+
     let query = db.collection('orders')
         .where('restaurantId', '==', user.uid)
         .orderBy('createdAt', 'desc');
@@ -508,3 +522,4 @@ function showNotification(message, type) {
         notification.remove();
     }, 3000);
 }
+

@@ -318,3 +318,108 @@
     background: #a1a1a1;
 }
 
+/* Add these styles to your existing styles.css */
+
+/* Mobile sidebar styles */
+#mobileSidebar {
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#mobileSidebarOverlay {
+    z-index: 30;
+}
+
+/* Prevent body scroll when sidebar is open */
+body.sidebar-open {
+    overflow: hidden;
+}
+
+/* Responsive improvements */
+@media (max-width: 1024px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .lg\:col-span-3 {
+        grid-column: span 1;
+    }
+    
+    .sticky {
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    h1, h2, h3 {
+        font-size: 1.25rem;
+    }
+    
+    .text-3xl {
+        font-size: 1.75rem;
+    }
+    
+    table {
+        font-size: 14px;
+    }
+    
+    .p-6 {
+        padding: 1rem;
+    }
+    
+    /* Mobile sidebar */
+    #mobileSidebar {
+        width: 280px;
+    }
+}
+
+@media (max-width: 640px) {
+    .grid-cols-1 {
+        grid-template-columns: 1fr;
+    }
+    
+    .md\:grid-cols-2 {
+        grid-template-columns: 1fr;
+    }
+    
+    .lg\:grid-cols-3 {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Billing page specific mobile adjustments */
+    #productsGrid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Better spacing for mobile */
+    .space-y-6 > * + * {
+        margin-top: 1rem;
+    }
+}
+
+/* Print modal z-index fix */
+.fixed.z-50 {
+    z-index: 9999;
+}
+
+/* Ensure all modals are above everything */
+.fixed.inset-0 {
+    z-index: 9998;
+}
+
+/* Smooth transitions */
+.transition {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+

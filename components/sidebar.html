@@ -1,0 +1,41 @@
+<!-- components/sidebar.html -->
+<div class="lg:col-span-1">
+    <div class="bg-white rounded-xl shadow p-4 h-full overflow-y-auto">
+        <nav class="space-y-2">
+            <a href="dashboard.html" class="flex items-center space-x-3 p-3 bg-red-50 text-red-600 rounded-lg">
+                <i class="fas fa-tachometer-alt"></i>
+                <span class="font-medium">Dashboard</span>
+            </a>
+            <a href="billing.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+                <i class="fas fa-cash-register"></i>
+                <span class="font-medium">Billing</span>
+            </a>
+            <a href="products.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+                <i class="fas fa-hamburger"></i>
+                <span class="font-medium">Products</span>
+            </a>
+            <a href="orders.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+                <i class="fas fa-receipt"></i>
+                <span class="font-medium">Orders</span>
+            </a>
+            <a href="settings.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+                <i class="fas fa-gear"></i>
+                <span class="font-medium">Settings</span>
+            </a>
+        </nav>
+
+        <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+            <h3 class="font-bold text-blue-800 mb-2">Quick Stats</h3>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-blue-600">Today's Sales</span>
+                    <span class="font-bold" id="todaySales">₹0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-blue-600">Today's Orders</span>
+                    <span class="font-bold" id="todayOrders">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

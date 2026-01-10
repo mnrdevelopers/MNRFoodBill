@@ -4,35 +4,32 @@ document.addEventListener('DOMContentLoaded', function() {
     let sidebarOpen = true;
     
     // Check authentication
-    auth.onAuthStateChanged(async user => {
-    if (!user) {
-        window.location.href = 'index.html';
-        return;
-    }
+    auth.onAuthStateChanged(user => {
+        if (!user) {
+            window.location.href = 'index.html';
+            return;
+        }
         
-      // Load restaurant name
-    db.collection('restaurants').doc(user.uid).get()
-        .then(doc => {
-            if (doc.exists) {
-                const data = doc.data();
-                const restaurantName = document.getElementById('restaurantName');
-                if (restaurantName) restaurantName.textContent = data.name;
-                
-                const mobileRestaurantName = document.querySelector('#mobileSidebar .text-xl');
-                if (mobileRestaurantName) mobileRestaurantName.textContent = data.name;
-            }
-        });
-    
-    // Set user email
-    const userEmail = document.getElementById('userEmail');
-    if (userEmail) userEmail.textContent = user.email;
-    
-    // Setup role-based navigation
-    await setupRoleBasedNavigation(); // Add this line
-    
-    // Load quick stats
-    loadQuickStats(user.uid);
-});
+        // Load restaurant name
+        db.collection('restaurants').doc(user.uid).get()
+            .then(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const restaurantName = document.getElementById('restaurantName');
+                    if (restaurantName) restaurantName.textContent = data.name;
+                    
+                    const mobileRestaurantName = document.querySelector('#mobileSidebar .text-xl');
+                    if (mobileRestaurantName) mobileRestaurantName.textContent = data.name;
+                }
+            });
+        
+        // Set user email
+        const userEmail = document.getElementById('userEmail');
+        if (userEmail) userEmail.textContent = user.email;
+        
+        // Load quick stats
+        loadQuickStats(user.uid);
+    });
     
     // Load header and sidebar
     loadHeader();
@@ -340,71 +337,3 @@ window.addEventListener('load', function() {
         }
     }, 100);
 });
-
-async function setupRoleBasedNavigation() {
-    const role = await RoleManager.getCurrentUserRole();
-    
-    // Get the current page path
-    const currentPage = window.location.pathname.split('/').pop();
-    
-    // Check permissions for current page
-    const pagePermissions = {
-        'dashboard.html': PERMISSIONS.VIEW_DASHBOARD,
-        'billing.html': PERMISSIONS.CREATE_BILL,
-        'products.html': PERMISSIONS.VIEW_PRODUCTS,
-        'orders.html': PERMISSIONS.VIEW_ORDERS,
-        'settings.html': PERMISSIONS.VIEW_SETTINGS,
-        'staff.html': PERMISSIONS.MANAGE_STAFF
-    };
-    
-    const requiredPermission = pagePermissions[currentPage];
-    
-    if (requiredPermission) {
-        const hasPermission = await RoleManager.hasPermission(requiredPermission);
-        if (!hasPermission) {
-            showNotification('Access Denied: You do not have permission to view this page', 'error');
-            setTimeout(() => {
-                window.location.href = 'dashboard.html';
-            }, 2000);
-            return;
-        }
-    }
-    
-    // Update sidebar based on role
-    updateSidebarForRole(role);
-}
-
-function updateSidebarForRole(role) {
-    // Hide sidebar items based on role
-    const sidebarLinks = document.querySelectorAll('#sidebarNav a, #mobileSidebar a');
-    
-    sidebarLinks.forEach(link => {
-        const href = link.getAttribute('href');
-        
-        // Define which pages each role can see
-        const allowedPages = {
-            [ROLES.OWNER]: ['dashboard.html', 'billing.html', 'products.html', 'orders.html', 'settings.html', 'staff.html'],
-            [ROLES.ADMIN]: ['dashboard.html', 'billing.html', 'products.html', 'orders.html'],
-            [ROLES.STAFF]: ['billing.html', 'products.html', 'orders.html']
-        };
-        
-        if (!allowedPages[role]?.includes(href)) {
-            link.style.display = 'none';
-        }
-    });
-    
-    // Add staff management link only for owners
-    if (role === ROLES.OWNER) {
-        const sidebarNav = document.getElementById('sidebarNav');
-        if (sidebarNav && !sidebarNav.querySelector('a[href="staff.html"]')) {
-            const staffLink = document.createElement('a');
-            staffLink.href = 'staff.html';
-            staffLink.className = 'flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition';
-            staffLink.innerHTML = `
-                <i class="fas fa-users"></i>
-                <span class="font-medium">Staff Management</span>
-            `;
-            sidebarNav.appendChild(staffLink);
-        }
-    }
-}

@@ -7,10 +7,16 @@ document.addEventListener('DOMContentLoaded', function() {
     let pendingAction = null; // 'password' or 'delete'
 
     // Check auth state
-    auth.onAuthStateChanged(user => {
-        if (!user) {
-            window.location.href = 'index.html';
-        } else {
+   auth.onAuthStateChanged(async user => {
+    if (!user) {
+        window.location.href = 'index.html';
+    } else {
+        // Check permission for viewing settings
+        const hasPermission = await RoleManager.hasPermission(PERMISSIONS.VIEW_SETTINGS);
+        if (!hasPermission) {
+            window.location.href = 'dashboard.html';
+            return;
+        }
             loadSettings();
         }
     });

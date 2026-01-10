@@ -1,31 +1,52 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Check auth
     auth.onAuthStateChanged(user => {
-    if (!user) {
-        window.location.href = 'index.html';
-    } else {
-        // Set email immediately from auth
-        const emailEl = document.getElementById('userEmail');
-        if (emailEl) {
-            emailEl.textContent = user.email;
-        }
-        
-        loadRestaurantInfo();
-        loadDashboardStats();
-        loadRecentOrders();
+        if (!user) {
+            window.location.href = 'index.html';
+        } else {
+            updateGreeting();
+            loadRestaurantInfo();
+            loadDashboardStats();
+            loadRecentOrders();
         }
     });
+
+    // Update greeting based on time
+    function updateGreeting() {
+        const greetingEl = document.getElementById('welcomeGreeting');
+        const dateTimeEl = document.getElementById('currentDateTime');
+        if (!greetingEl) return;
+
+        const hour = new Date().getHours();
+        let greeting = "";
+        
+        if (hour < 12) greeting = "Good Morning";
+        else if (hour < 17) greeting = "Good Afternoon";
+        else greeting = "Good Evening";
+
+        greetingEl.textContent = `${greeting}, Admin!`;
+
+        // Update date time
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        dateTimeEl.textContent = new Date().toLocaleDateString('en-IN', options);
+    }
 
     // Load restaurant info
     function loadRestaurantInfo() {
         const user = auth.currentUser;
-        document.getElementById('userEmail').textContent = user.email;
+        if (!user) return;
         
         db.collection('restaurants').doc(user.uid).get()
             .then(doc => {
                 if (doc.exists) {
                     const data = doc.data();
-                    document.getElementById('restaurantName').textContent = data.name;
+                    const nameEl = document.getElementById('dashboardRestaurantName');
+                    if (nameEl) nameEl.textContent = data.name;
+                    
+                    // Also update greeting if user name exists in DB
+                    if (data.ownerName) {
+                        document.getElementById('welcomeGreeting').textContent = document.getElementById('welcomeGreeting').textContent.replace('Admin', data.ownerName);
+                    }
                 }
             });
     }
@@ -38,28 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        // Today's sales and orders
-        db.collection('orders')
-            .where('restaurantId', '==', user.uid)
-            .where('createdAt', '>=', today)
-            .where('createdAt', '<', tomorrow)
-            .where('status', '==', 'completed')
-            .get()
-            .then(snapshot => {
-                let todaySales = 0;
-                let todayOrders = 0;
-                
-                snapshot.forEach(doc => {
-                    const order = doc.data();
-                    todaySales += order.total || 0;
-                    todayOrders++;
-                });
-
-                document.getElementById('todaySales').textContent = `₹${todaySales.toFixed(2)}`;
-                document.getElementById('todayOrders').textContent = todayOrders;
-            });
-
-        // Total revenue and orders
+        // Total revenue and orders (All time)
         db.collection('orders')
             .where('restaurantId', '==', user.uid)
             .where('status', '==', 'completed')
@@ -74,8 +74,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     totalOrders++;
                 });
 
-                document.getElementById('totalRevenue').textContent = `₹${totalRevenue.toFixed(2)}`;
-                document.getElementById('totalOrders').textContent = totalOrders;
+                const revEl = document.getElementById('totalRevenue');
+                const ordEl = document.getElementById('totalOrders');
+                if (revEl) revEl.textContent = `₹${totalRevenue.toFixed(2)}`;
+                if (ordEl) ordEl.textContent = totalOrders;
             });
 
         // Total products
@@ -83,7 +85,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .where('restaurantId', '==', user.uid)
             .get()
             .then(snapshot => {
-                document.getElementById('totalProducts').textContent = snapshot.size;
+                const prodEl = document.getElementById('totalProducts');
+                if (prodEl) prodEl.textContent = snapshot.size;
             });
     }
 
@@ -91,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadRecentOrders() {
         const user = auth.currentUser;
         const tbody = document.getElementById('recentOrders');
+        if (!tbody) return;
         
         db.collection('orders')
             .where('restaurantId', '==', user.uid)
@@ -137,12 +141,4 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
     }
-
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        auth.signOut().then(() => {
-            window.location.href = 'index.html';
-        });
-    });
 });
-

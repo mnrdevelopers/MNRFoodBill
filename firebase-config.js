@@ -1,12 +1,12 @@
 // Your Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCnGD6qAtzrM1Nc2zV6NIHG2EQ13K9EspE",
-  authDomain: "mnrfoodbill.firebaseapp.com",
-  projectId: "mnrfoodbill",
-  storageBucket: "mnrfoodbill.firebasestorage.app",
-  messagingSenderId: "1051424912016",
-  appId: "1:1051424912016:web:725c04807f5a3a5cf2de15",
-  measurementId: "G-390MRC610E"
+  apiKey: "AIzaSyBFL6RkTZIkFsr1PsYa5oVsOdP3orjdRKc",
+  authDomain: "mnrfoodbill-a8cf6.firebaseapp.com",
+  projectId: "mnrfoodbill-a8cf6",
+  storageBucket: "mnrfoodbill-a8cf6.firebasestorage.app",
+  messagingSenderId: "122551470168",
+  appId: "1:122551470168:web:e519681f82e03f4d66a22d",
+  measurementId: "G-7H0JS12B7Z"
 };
 
 // Initialize Firebase only if not already initialized
@@ -36,4 +36,5 @@ db.enablePersistence()
         console.warn("Browser doesn't support persistence.");
     }
   });
+
 

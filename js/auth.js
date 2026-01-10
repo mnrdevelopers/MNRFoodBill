@@ -27,25 +27,20 @@ document.addEventListener('DOMContentLoaded', function() {
             
             showMessage('Signing in...', 'info');
             
-       auth.signInWithEmailAndPassword(email, password)
-    .then(userCredential => {
-        showMessage('Login successful! Redirecting...', 'success');
-        
-        // Store user email in localStorage for immediate access
-        localStorage.setItem('userEmail', userCredential.user.email);
-        
-        setTimeout(() => {
-            window.location.href = 'dashboard.html';
-        }, 1000);
-    })
-    .catch(error => {
-        showMessage(error.message, 'error');
-    });
+            auth.signInWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    showMessage('Login successful! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1000);
+                })
+                .catch(error => {
+                    showMessage(error.message, 'error');
+                });
         });
     }
 
-    // Register form
-    const registerForm = document.getElementById('registerForm');
+    // Toggle Register UI
     const registerBtn = document.getElementById('registerBtn');
     const backToLogin = document.getElementById('backToLogin');
 
@@ -64,6 +59,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Register form logic - storing email in Firestore
+    const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -77,10 +74,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(userCredential => {
                     const user = userCredential.user;
                     
-                    // Save restaurant info to Firestore
+                    // Save restaurant info AND email to Firestore
                     return db.collection('restaurants').doc(user.uid).set({
                         name: restaurantName,
-                        email: email,
+                        email: email, // Store email explicitly
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         settings: {
                             gstRate: 18,
@@ -121,4 +118,3 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     }
 });
-

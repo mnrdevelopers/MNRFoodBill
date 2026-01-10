@@ -61,19 +61,21 @@ function setUserEmailWithRetry(email) {
     
     const trySetEmail = () => {
         const userEmailElement = document.getElementById('userEmail');
+        const mobileEmailElement = document.getElementById('mobileUserEmail');
         
-        if (userEmailElement) {
+        if (userEmailElement && mobileEmailElement) {
             userEmailElement.textContent = email;
-            console.log("Email successfully set in header:", email);
+            mobileEmailElement.textContent = email;
+            console.log("Email successfully set in header and mobile sidebar:", email);
             return true;
         } 
         
         retryCount++;
         if (retryCount < maxRetries) {
-            console.log(`Retry ${retryCount}/${maxRetries} - waiting for userEmail element...`);
+            console.log(`Retry ${retryCount}/${maxRetries} - waiting for email elements...`);
             setTimeout(trySetEmail, retryInterval);
         } else {
-            console.error("Failed to find userEmail element after", maxRetries, "retries");
+            console.error("Failed to find email elements after", maxRetries, "retries");
             return false;
         }
     };
@@ -95,10 +97,17 @@ function loadHeader() {
                 
                 const user = auth.currentUser;
                 if (user && user.email) {
+                    // Set desktop email
                     const emailEl = document.getElementById('userEmail');
                     if (emailEl) {
                         emailEl.textContent = user.email;
                         console.log("Email set during header load");
+                    }
+                    
+                    // Set mobile email in mobile sidebar
+                    const mobileEmailEl = document.getElementById('mobileUserEmail');
+                    if (mobileEmailEl) {
+                        mobileEmailEl.textContent = user.email;
                     }
                 }
             }

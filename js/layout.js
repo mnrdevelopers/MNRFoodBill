@@ -19,12 +19,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         
-        // Set user email
-        const userEmail = document.getElementById('userEmail');
-        if (userEmail) userEmail.textContent = user.email;
-        
         // Load quick stats
         loadQuickStats(user.uid);
+        
+        // FIX: Ensure user email is set even if header loads after auth check
+        setUserEmail(user.email);
     });
     
     // Load header and sidebar
@@ -38,12 +37,32 @@ document.addEventListener('DOMContentLoaded', function() {
     setupLogout();
 });
 
+function setUserEmail(email) {
+    const attemptUpdate = () => {
+        const userEmailElement = document.getElementById('userEmail');
+        if (userEmailElement) {
+            userEmailElement.textContent = email;
+        } else {
+            // If header isn't injected yet, retry shortly
+            setTimeout(attemptUpdate, 100);
+        }
+    };
+    attemptUpdate();
+}
+
 function loadHeader() {
     fetch('components/header.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('header').innerHTML = html;
             attachHeaderEvents();
+            
+            // Re-trigger email check in case auth happened first
+            const user = auth.currentUser;
+            if (user && user.email) {
+                const el = document.getElementById('userEmail');
+                if (el) el.textContent = user.email;
+            }
         })
         .catch(err => {
             console.error('Error loading header:', err);
@@ -103,8 +122,10 @@ function setupSidebarFunctionality() {
         
         // Close mobile sidebar
         if (e.target.closest('#closeSidebar') || e.target.closest('#mobileSidebarOverlay')) {
-            document.getElementById('mobileSidebar').classList.add('-translate-x-full');
-            document.getElementById('mobileSidebarOverlay').classList.add('hidden');
+            const mobSidebar = document.getElementById('mobileSidebar');
+            const mobOverlay = document.getElementById('mobileSidebarOverlay');
+            if (mobSidebar) mobSidebar.classList.add('-translate-x-full');
+            if (mobOverlay) mobOverlay.classList.add('hidden');
             document.body.style.overflow = '';
         }
     });
@@ -148,27 +169,6 @@ function collapseSidebar() {
     
     // Expand main content area
     updateMainContentGrid(true);
-    
-    // Update tooltips for collapsed icons
-    const tooltips = document.querySelectorAll('.sidebar-link[data-tooltip]');
-    tooltips.forEach(link => {
-        link.classList.add('relative');
-        // Add tooltip on hover
-        link.addEventListener('mouseenter', function(e) {
-            const tooltip = this.getAttribute('data-tooltip');
-            if (tooltip) {
-                const tooltipEl = document.createElement('div');
-                tooltipEl.className = 'absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-50';
-                tooltipEl.textContent = tooltip;
-                tooltipEl.id = 'dynamic-tooltip';
-                this.appendChild(tooltipEl);
-            }
-        });
-        link.addEventListener('mouseleave', function() {
-            const tooltip = document.getElementById('dynamic-tooltip');
-            if (tooltip) tooltip.remove();
-        });
-    });
 }
 
 function expandSidebar() {
@@ -198,18 +198,9 @@ function expandSidebar() {
     
     // Collapse main content area
     updateMainContentGrid(false);
-    
-    // Remove tooltip listeners
-    const tooltips = document.querySelectorAll('.sidebar-link[data-tooltip]');
-    tooltips.forEach(link => {
-        link.classList.remove('relative');
-        const tooltip = document.getElementById('dynamic-tooltip');
-        if (tooltip) tooltip.remove();
-    });
 }
 
 function updateMainContentGrid(isCollapsed) {
-    // Find all possible main content containers
     const mainContentSelectors = [
         '#mainContent',
         '.lg\\:col-span-3',
@@ -223,14 +214,12 @@ function updateMainContentGrid(isCollapsed) {
             element.classList.remove('lg:col-span-3', 'lg:col-span-4', 'lg:col-span-5');
             
             if (isCollapsed) {
-                // When sidebar is collapsed, main content gets more space
                 if (selector === '.lg\\:col-span-5') {
                     element.classList.add('lg:col-span-5');
                 } else {
                     element.classList.add('lg:col-span-4');
                 }
             } else {
-                // When sidebar is expanded, main content gets less space
                 if (selector === '.lg\\:col-span-5') {
                     element.classList.add('lg:col-span-5');
                 } else {
@@ -299,11 +288,8 @@ function loadQuickStats(userId = null) {
                 todayOrders++;
             });
             
-            // Update desktop sidebar
             updateStatsElement('todaySales', `₹${todaySales.toFixed(2)}`);
             updateStatsElement('todayOrders', todayOrders);
-            
-            // Update mobile sidebar
             updateStatsElement('mobileTodaySales', `₹${todaySales.toFixed(2)}`);
             updateStatsElement('mobileTodayOrders', todayOrders);
         });
@@ -324,13 +310,11 @@ function loadQuickStatsForSidebar() {
 function updateRestaurantName(name) {
     if (!name) return;
     
-    // Update header restaurant name
     const restaurantNameElements = document.querySelectorAll('#restaurantName');
     restaurantNameElements.forEach(el => {
         if (el) el.textContent = name;
     });
     
-    // Update mobile sidebar restaurant name
     const mobileRestaurantName = document.querySelector('#mobileSidebar .text-xl');
     if (mobileRestaurantName) mobileRestaurantName.textContent = name;
 }

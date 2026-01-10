@@ -620,3 +620,54 @@ img[src*="githubusercontent"] {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
+/* Role-based styling */
+.role-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.role-owner {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.role-staff {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.role-admin {
+    background-color: #f3e8ff;
+    color: #6b21a8;
+}
+
+/* Permission denied message */
+.permission-denied {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-left: 4px solid #f59e0b;
+}
+
+/* Staff management specific */
+.staff-table tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Modal animations */
+@keyframes slideInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-slide-up {
+    animation: slideInUp 0.3s ease-out;
+}
+

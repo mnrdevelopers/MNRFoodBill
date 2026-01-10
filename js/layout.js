@@ -51,31 +51,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function checkPageAccess(userData) {
     const page = window.location.pathname.split('/').pop();
+    if (!page || page === 'index.html') return;
+
     const role = userData.role;
     const permissions = userData.permissions || [];
 
-    // Owner has full access
-    if (role === 'owner') return;
+    // 1. OWNER LOGIC
+    if (role === 'owner') {
+        // If owner is on any page except settings, check if they finished setup
+        if (page !== 'settings.html') {
+            db.collection('restaurants').doc(userData.restaurantId).get().then(doc => {
+                if (!doc.exists || !doc.data().name) {
+                    // Force owner to settings if setup is missing
+                    window.location.href = 'settings.html?setup=required';
+                }
+            });
+        }
+        return; // Owner has access to everything once setup is done
+    }
 
-    // Mapping pages to permission keys
+    // 2. STAFF LOGIC
+    // Staff should NEVER be forced to settings unless they have permission
     const pagePermissionMap = {
         'billing.html': 'billing',
         'products.html': 'products',
         'orders.html': 'orders',
         'settings.html': 'settings',
-        'staff.html': 'staff-admin' // Only owner can access staff page
+        'staff.html': 'staff-admin' 
     };
 
     const requiredPermission = pagePermissionMap[page];
     
-    // Redirect staff away from management pages if not permitted
-    if (requiredPermission && !permissions.includes(requiredPermission)) {
-        if (requiredPermission === 'staff-admin') {
-            window.location.href = 'dashboard.html';
-        } else {
-            // Check if they have ANY module access, otherwise default to dashboard
-            const defaultPage = permissions.includes('billing') ? 'billing.html' : 'dashboard.html';
-            window.location.href = defaultPage;
+    // If they are on a page that requires specific permission
+    if (requiredPermission) {
+        const hasAccess = permissions.includes(requiredPermission);
+        
+        // Block staff from 'Staff Management' entirely
+        if (requiredPermission === 'staff-admin' || !hasAccess) {
+            console.warn("Access Denied: Redirecting to permitted area.");
+            
+            // Redirect to their primary work area
+            if (permissions.includes('billing')) {
+                window.location.href = 'billing.html';
+            } else if (permissions.includes('orders')) {
+                window.location.href = 'orders.html';
+            } else {
+                window.location.href = 'dashboard.html';
+            }
         }
     }
 }

@@ -4,9 +4,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Check auth
     auth.onAuthStateChanged(user => {
-        if (!user) {
-            window.location.href = 'index.html';
-        } else {
+    if (!user) {
+        window.location.href = 'index.html';
+    } else {
+        // Set email immediately from auth
+        const emailEl = document.getElementById('userEmail');
+        if (emailEl) {
+            emailEl.textContent = user.email;
+        }
             loadProducts();
         }
     });
@@ -206,3 +211,4 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => n.remove(), 3000);
     }
 });
+

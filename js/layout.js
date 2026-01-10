@@ -4,32 +4,35 @@ document.addEventListener('DOMContentLoaded', function() {
     let sidebarOpen = true;
     
     // Check authentication
-    auth.onAuthStateChanged(user => {
-        if (!user) {
-            window.location.href = 'index.html';
-            return;
-        }
+    auth.onAuthStateChanged(async user => {
+    if (!user) {
+        window.location.href = 'index.html';
+        return;
+    }
         
-        // Load restaurant name
-        db.collection('restaurants').doc(user.uid).get()
-            .then(doc => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    const restaurantName = document.getElementById('restaurantName');
-                    if (restaurantName) restaurantName.textContent = data.name;
-                    
-                    const mobileRestaurantName = document.querySelector('#mobileSidebar .text-xl');
-                    if (mobileRestaurantName) mobileRestaurantName.textContent = data.name;
-                }
-            });
-        
-        // Set user email
-        const userEmail = document.getElementById('userEmail');
-        if (userEmail) userEmail.textContent = user.email;
-        
-        // Load quick stats
-        loadQuickStats(user.uid);
-    });
+      // Load restaurant name
+    db.collection('restaurants').doc(user.uid).get()
+        .then(doc => {
+            if (doc.exists) {
+                const data = doc.data();
+                const restaurantName = document.getElementById('restaurantName');
+                if (restaurantName) restaurantName.textContent = data.name;
+                
+                const mobileRestaurantName = document.querySelector('#mobileSidebar .text-xl');
+                if (mobileRestaurantName) mobileRestaurantName.textContent = data.name;
+            }
+        });
+    
+    // Set user email
+    const userEmail = document.getElementById('userEmail');
+    if (userEmail) userEmail.textContent = user.email;
+    
+    // Setup role-based navigation
+    await setupRoleBasedNavigation(); // Add this line
+    
+    // Load quick stats
+    loadQuickStats(user.uid);
+});
     
     // Load header and sidebar
     loadHeader();

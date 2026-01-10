@@ -8,8 +8,62 @@ document.addEventListener('DOMContentLoaded', function() {
             loadRestaurantAndUserInfo();
             loadDashboardStats();
             loadRecentOrders();
+            // Initialize PWA Logic
+            initPWA();
         }
     });
+
+    // PWA Logic: Service Worker Registration & Install Prompt
+    function initPWA() {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => {
+                        console.log('Service Worker registered with scope:', reg.scope);
+                        
+                        // Check for updates
+                        reg.onupdatefound = () => {
+                            const installingWorker = reg.installing;
+                            installingWorker.onstatechange = () => {
+                                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New content is available; notify user or auto-reload
+                                    console.log('New content available, please refresh.');
+                                }
+                            };
+                        };
+                    })
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+
+        // Handle Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Optionally show a custom install button in the UI
+            const installBtn = document.getElementById('pwaInstallBtn');
+            if (installBtn) {
+                installBtn.classList.remove('hidden');
+                installBtn.addEventListener('click', () => {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('User accepted the PWA install');
+                        }
+                        deferredPrompt = null;
+                        installBtn.classList.add('hidden');
+                    });
+                });
+            }
+        });
+
+        // Detect if app is installed
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('MNRFoodBill was installed');
+        });
+    }
 
     // Update greeting based on time and name
     function updateGreeting(name = null) {

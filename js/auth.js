@@ -1,10 +1,15 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Check if user is already logged in
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async user => {
         if (user) {
             window.location.href = 'dashboard.html';
         }
     });
+
+    // Helper: Generate a unique 6-digit join code
+    function generateJoinCode() {
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
 
     // Toggle password visibility
     const togglePassword = document.getElementById('togglePassword');
@@ -28,92 +33,140 @@ document.addEventListener('DOMContentLoaded', function() {
             showMessage('Signing in...', 'info');
             
             auth.signInWithEmailAndPassword(email, password)
-                .then(userCredential => {
+                .then(() => {
                     showMessage('Login successful! Redirecting...', 'success');
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1000);
+                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
                 })
-                .catch(error => {
-                    showMessage(error.message, 'error');
-                });
+                .catch(error => { showMessage(error.message, 'error'); });
         });
     }
 
-    // Register form
-    const registerForm = document.getElementById('registerForm');
-    const registerBtn = document.getElementById('registerBtn');
-    const backToLogin = document.getElementById('backToLogin');
+    // Registration UI Toggles
+    const showRegisterOwner = document.getElementById('registerBtn');
+    const showJoinStaff = document.getElementById('joinStaffBtn');
+    const backToLoginButtons = document.querySelectorAll('.backToLogin');
 
-    if (registerBtn) {
-        registerBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('registerForm').classList.remove('hidden');
-        });
-    }
+    showRegisterOwner?.addEventListener('click', (e) => {
+        e.preventDefault();
+        hideAllForms();
+        document.getElementById('registerOwnerForm').classList.remove('hidden');
+    });
 
-    if (backToLogin) {
-        backToLogin.addEventListener('click', function() {
-            document.getElementById('registerForm').classList.add('hidden');
+    showJoinStaff?.addEventListener('click', (e) => {
+        e.preventDefault();
+        hideAllForms();
+        document.getElementById('joinStaffForm').classList.remove('hidden');
+    });
+
+    backToLoginButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            hideAllForms();
             document.getElementById('loginForm').classList.remove('hidden');
         });
+    });
+
+    function hideAllForms() {
+        document.getElementById('loginForm').classList.add('hidden');
+        document.getElementById('registerOwnerForm').classList.add('hidden');
+        document.getElementById('joinStaffForm').classList.add('hidden');
     }
 
-    if (registerForm) {
-        registerForm.addEventListener('submit', function(e) {
+    // Register Owner Form
+    const registerOwnerForm = document.getElementById('registerOwnerForm');
+    if (registerOwnerForm) {
+        registerOwnerForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const restaurantName = document.getElementById('restaurantName').value;
-            const email = document.getElementById('regEmail').value;
-            const password = document.getElementById('regPassword').value;
+            const restaurantName = document.getElementById('ownerRestaurantName').value;
+            const email = document.getElementById('ownerEmail').value;
+            const password = document.getElementById('ownerPassword').value;
             
-            showMessage('Creating account...', 'info');
+            showMessage('Creating restaurant account...', 'info');
             
-            auth.createUserWithEmailAndPassword(email, password)
-                .then(userCredential => {
-                    const user = userCredential.user;
-                    
-                    // Save restaurant info to Firestore
-                    return db.collection('restaurants').doc(user.uid).set({
-                        name: restaurantName,
-                        email: email,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        settings: {
-                            gstRate: 18,
-                            serviceCharge: 5,
-                            currency: '₹'
-                        }
-                    });
-                })
-                .then(() => {
-                    showMessage('Account created successfully!', 'success');
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1500);
-                })
-                .catch(error => {
-                    showMessage(error.message, 'error');
+            try {
+                const cred = await auth.createUserWithEmailAndPassword(email, password);
+                const user = cred.user;
+                const joinCode = generateJoinCode();
+
+                // 1. Create Restaurant Profile (Shared Data Container)
+                await db.collection('restaurants').doc(user.uid).set({
+                    name: restaurantName,
+                    ownerEmail: email,
+                    ownerUid: user.uid,
+                    joinCode: joinCode,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    settings: { gstRate: 18, serviceCharge: 5, currency: '₹' }
                 });
+
+                // 2. Create User Profile (User Metadata)
+                await db.collection('users').doc(user.uid).set({
+                    restaurantId: user.uid,
+                    role: 'owner',
+                    email: email,
+                    name: restaurantName + " Owner"
+                });
+
+                showMessage('Restaurant registered! Join Code: ' + joinCode, 'success');
+                setTimeout(() => { window.location.href = 'dashboard.html'; }, 3000);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+    }
+
+    // Join as Staff Form
+    const joinStaffForm = document.getElementById('joinStaffForm');
+    if (joinStaffForm) {
+        joinStaffForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const staffName = document.getElementById('staffName').value;
+            const joinCode = document.getElementById('joinCode').value.toUpperCase();
+            const email = document.getElementById('staffEmail').value;
+            const password = document.getElementById('staffPassword').value;
+
+            showMessage('Verifying join code...', 'info');
+
+            try {
+                // Verify join code exists
+                const resQuery = await db.collection('restaurants').where('joinCode', '==', joinCode).get();
+                if (resQuery.empty) {
+                    throw new Error('Invalid Join Code. Please ask your manager for the correct code.');
+                }
+
+                const restaurantDoc = resQuery.docs[0];
+                const restaurantId = restaurantDoc.id;
+
+                const cred = await auth.createUserWithEmailAndPassword(email, password);
+                const user = cred.user;
+
+                // Create Staff User Profile
+                await db.collection('users').doc(user.uid).set({
+                    restaurantId: restaurantId,
+                    role: 'staff',
+                    email: email,
+                    name: staffName,
+                    ownerUid: restaurantId,
+                    joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showMessage('Joined successfully!', 'success');
+                setTimeout(() => { window.location.href = 'dashboard.html'; }, 1500);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
         });
     }
 
     function showMessage(text, type) {
         const messageDiv = document.getElementById('message');
+        if (!messageDiv) return;
         messageDiv.textContent = text;
-        messageDiv.className = 'mt-4 p-3 rounded-lg';
+        messageDiv.className = 'mt-4 p-3 rounded-lg text-sm font-medium transition-all';
         
-        if (type === 'success') {
-            messageDiv.classList.add('bg-green-100', 'text-green-700', 'border', 'border-green-300');
-        } else if (type === 'error') {
-            messageDiv.classList.add('bg-red-100', 'text-red-700', 'border', 'border-red-300');
-        } else {
-            messageDiv.classList.add('bg-blue-100', 'text-blue-700', 'border', 'border-blue-300');
-        }
+        if (type === 'success') messageDiv.classList.add('bg-green-100', 'text-green-700', 'border', 'border-green-300');
+        else if (type === 'error') messageDiv.classList.add('bg-red-100', 'text-red-700', 'border', 'border-red-300');
+        else messageDiv.classList.add('bg-blue-100', 'text-blue-700', 'border', 'border-blue-300');
         
         messageDiv.classList.remove('hidden');
-        
-        setTimeout(() => {
-            messageDiv.classList.add('hidden');
-        }, 5000);
+        setTimeout(() => { messageDiv.classList.add('hidden'); }, 6000);
     }
 });

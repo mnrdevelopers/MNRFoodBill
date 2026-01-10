@@ -17,7 +17,6 @@ if (!firebase.apps.length) {
 
 const auth = firebase.auth();
 const db = firebase.firestore();
-const functions = firebase.functions();
 
 // IMPORTANT: Set settings BEFORE calling any other Firestore methods (like enablePersistence)
 db.settings({
@@ -41,3 +40,4 @@ db.enablePersistence()
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { auth, db, functions };
 }
+

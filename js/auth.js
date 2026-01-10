@@ -1,48 +1,47 @@
 // auth.js - Authentication with Role-Based Redirection
 document.addEventListener('DOMContentLoaded', function() {
     // Check if user is already logged in
-    auth.onAuthStateChanged(async user => {
-        if (user) {
-            try {
-                // Fetch user data to determine redirection
-                const userDoc = await db.collection('users').doc(user.uid).get();
+  auth.onAuthStateChanged(async user => {
+    if (user) {
+        try {
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            
+            if (userDoc.exists) {
+                const userData = userDoc.data();
                 
-                if (userDoc.exists) {
-                    const userData = userDoc.data();
+                // ROLE-BASED REDIRECTION LOGIC
+                if (userData.role === 'staff') {
+                    // Staff: NEVER redirect to settings, go directly to permitted area
+                    const permissions = userData.permissions || [];
+                    if (permissions.includes('billing')) {
+                        window.location.href = 'billing.html';
+                    } else if (permissions.includes('orders')) {
+                        window.location.href = 'orders.html';
+                    } else {
+                        window.location.href = 'dashboard.html';
+                    }
+                } else if (userData.role === 'owner') {
+                    // Owner: Check if restaurant is configured
+                    const restaurantDoc = await db.collection('restaurants')
+                        .doc(userData.restaurantId || user.uid).get();
                     
-                    // ROLE-BASED REDIRECTION LOGIC
-                    if (userData.role === 'staff') {
-                        // Staff always goes to Dashboard or Billing (based on their permissions)
-                        // They are NEVER redirected to settings setup
-                        const permissions = userData.permissions || [];
-                        if (permissions.includes('billing')) {
-                            window.location.href = 'billing.html';
-                        } else {
-                            window.location.href = 'dashboard.html';
-                        }
-                    } else if (userData.role === 'owner') {
-                        // Owner logic: Check if restaurant is configured
-                        const restaurantDoc = await db.collection('restaurants').doc(userData.restaurantId || user.uid).get();
-                        
-                        if (!restaurantDoc.exists || !restaurantDoc.data().name) {
-                            // First time login for owner - send to settings
-                            window.location.href = 'settings.html?setup=true';
-                        } else {
-                            window.location.href = 'dashboard.html';
-                        }
+                    if (!restaurantDoc.exists || !restaurantDoc.data().name) {
+                        window.location.href = 'settings.html?setup=true';
                     } else {
                         window.location.href = 'dashboard.html';
                     }
                 } else {
-                    // If no user document exists, redirect to dashboard
                     window.location.href = 'dashboard.html';
                 }
-            } catch (error) {
-                console.error("Auto-redirect error:", error);
+            } else {
                 window.location.href = 'dashboard.html';
             }
+        } catch (error) {
+            console.error("Auto-redirect error:", error);
+            window.location.href = 'dashboard.html';
         }
-    });
+    }
+});
 
     // Toggle password visibility
     const togglePassword = document.getElementById('togglePassword');
@@ -209,3 +208,4 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => messageDiv.classList.add('hidden'), 5000);
     }
 });
+

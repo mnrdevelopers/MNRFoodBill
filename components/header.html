@@ -23,12 +23,13 @@
             <!-- Right side: User info and logout -->
             <div class="flex items-center space-x-4">
                 <div class="hidden md:flex items-center space-x-4">
-                    <span class="text-gray-600" id="userEmail"></span>
-                    <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                    <!-- Ensure this ID is used in layout.js to set user.email -->
+                    <span class="text-gray-600 font-medium" id="userEmail"></span>
+                    <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center border border-red-200">
                         <i class="fas fa-user text-red-500"></i>
                     </div>
                 </div>
-                <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
+                <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition shadow-sm font-medium">
                     <i class="fas fa-sign-out-alt mr-2"></i>Logout
                 </button>
             </div>

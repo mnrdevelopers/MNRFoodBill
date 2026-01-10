@@ -9,11 +9,12 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="firebase-config.js"></script>
-    <!-- Role Manager must load before scripts that depend on it -->
-    <script src="js/role-manager.js" defer></script>
-    <script src="js/layout.js" defer></script>
-    <script src="js/dashboard.js" defer></script>
+   <!-- In dashboard.html head section -->
+<script src="firebase-config.js"></script>
+<!-- Role Manager must load before scripts that depend on it -->
+<script src="js/role-manager.js" defer></script>
+<script src="js/layout.js" defer></script>
+<script src="js/dashboard.js" defer></script>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -143,3 +144,4 @@
     </div>
 </body>
 </html>
+

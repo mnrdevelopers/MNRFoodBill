@@ -1,24 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
-    let userRole = '';
-    let restaurantId = '';
-
-    // Check auth and permissions
-    auth.onAuthStateChanged(async user => {
+    // Check auth
+    auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
-            // Get user role
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                userRole = userData.role;
-                restaurantId = userData.restaurantId || user.uid;
-                
-                updateGreeting();
-                loadRestaurantInfo(restaurantId);
-                loadDashboardStats(restaurantId);
-                loadRecentOrders(restaurantId);
-            }
+            updateGreeting();
+            loadRestaurantInfo();
+            loadDashboardStats();
+            loadRecentOrders();
         }
     });
 
@@ -35,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
         else if (hour < 17) greeting = "Good Afternoon";
         else greeting = "Good Evening";
 
-        greetingEl.textContent = `${greeting}, ${userRole === 'owner' ? 'Owner' : 'Staff'}!`;
+        greetingEl.textContent = `${greeting}, Admin!`;
 
         // Update date time
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -43,8 +32,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Load restaurant info
-    function loadRestaurantInfo(restaurantId) {
-        db.collection('restaurants').doc(restaurantId).get()
+    function loadRestaurantInfo() {
+        const user = auth.currentUser;
+        if (!user) return;
+        
+        db.collection('restaurants').doc(user.uid).get()
             .then(doc => {
                 if (doc.exists) {
                     const data = doc.data();
@@ -53,15 +45,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Also update greeting if user name exists in DB
                     if (data.ownerName) {
-                        document.getElementById('welcomeGreeting').textContent = 
-                            document.getElementById('welcomeGreeting').textContent.replace('Admin', data.ownerName);
+                        document.getElementById('welcomeGreeting').textContent = document.getElementById('welcomeGreeting').textContent.replace('Admin', data.ownerName);
                     }
                 }
             });
     }
 
     // Load dashboard stats
-    function loadDashboardStats(restaurantId) {
+    function loadDashboardStats() {
+        const user = auth.currentUser;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
@@ -69,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Total revenue and orders (All time)
         db.collection('orders')
-            .where('restaurantId', '==', restaurantId)
+            .where('restaurantId', '==', user.uid)
             .where('status', '==', 'completed')
             .get()
             .then(snapshot => {
@@ -90,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Total products
         db.collection('products')
-            .where('restaurantId', '==', restaurantId)
+            .where('restaurantId', '==', user.uid)
             .get()
             .then(snapshot => {
                 const prodEl = document.getElementById('totalProducts');
@@ -99,12 +91,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Load recent orders
-    function loadRecentOrders(restaurantId) {
+    function loadRecentOrders() {
+        const user = auth.currentUser;
         const tbody = document.getElementById('recentOrders');
         if (!tbody) return;
         
         db.collection('orders')
-            .where('restaurantId', '==', restaurantId)
+            .where('restaurantId', '==', user.uid)
             .orderBy('createdAt', 'desc')
             .limit(5)
             .get()

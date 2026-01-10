@@ -1,6 +1,11 @@
 document.addEventListener('DOMContentLoaded', function() {
     const settingsForm = document.getElementById('settingsForm');
+    const passwordForm = document.getElementById('passwordForm');
+    const deleteBtn = document.getElementById('deleteAccountBtn');
+    const reauthForm = document.getElementById('reauthForm');
     
+    let pendingAction = null; // 'password' or 'delete'
+
     // Check auth state
     auth.onAuthStateChanged(user => {
         if (!user) {
@@ -10,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Load existing settings from Firestore
+    // Load existing settings
     async function loadSettings() {
         const user = auth.currentUser;
         if (!user) return;
@@ -20,36 +25,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (doc.exists) {
                 const data = doc.data();
                 
-                // Populate basic info - Matching IDs in settings.html
-                if (document.getElementById('resName')) {
-                    document.getElementById('resName').value = data.name || '';
-                }
-                if (document.getElementById('resAddress')) {
-                    document.getElementById('resAddress').value = data.address || '';
-                }
-                if (document.getElementById('resPhone')) {
-                    document.getElementById('resPhone').value = data.phone || '';
-                }
+                if (document.getElementById('resName')) document.getElementById('resName').value = data.name || '';
+                if (document.getElementById('resAddress')) document.getElementById('resAddress').value = data.address || '';
+                if (document.getElementById('resPhone')) document.getElementById('resPhone').value = data.phone || '';
                 
-                // Populate settings object fields
                 const settings = data.settings || {};
-                if (document.getElementById('resCurrency')) {
-                    document.getElementById('resCurrency').value = settings.currency || '₹';
-                }
-                if (document.getElementById('resGst')) {
-                    document.getElementById('resGst').value = settings.gstRate || 0;
-                }
-                if (document.getElementById('resService')) {
-                    document.getElementById('resService').value = settings.serviceCharge || 0;
-                }
-                if (document.getElementById('resGSTIN')) {
-                    document.getElementById('resGSTIN').value = settings.gstin || '';
-                }
-                if (document.getElementById('resFSSAI')) {
-                    document.getElementById('resFSSAI').value = settings.fssai || '';
-                }
+                if (document.getElementById('resGst')) document.getElementById('resGst').value = settings.gstRate || 0;
+                if (document.getElementById('resService')) document.getElementById('resService').value = settings.serviceCharge || 0;
+                if (document.getElementById('resGSTIN')) document.getElementById('resGSTIN').value = settings.gstin || '';
+                if (document.getElementById('resFSSAI')) document.getElementById('resFSSAI').value = settings.fssai || '';
                 
-                // Update navigation/header name if element exists
                 const navName = document.getElementById('restaurantName');
                 if (navName && data.name) navName.textContent = data.name;
             }
@@ -59,26 +44,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Handle form submission
+    // Save Settings
     if (settingsForm) {
         settingsForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            
             const user = auth.currentUser;
-            if (!user) return;
-
             const submitBtn = settingsForm.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn.innerHTML;
+            
             submitBtn.disabled = true;
+            const originalText = submitBtn.innerHTML;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
 
-            // Gather data using IDs present in settings.html
             const updatedData = {
                 name: document.getElementById('resName').value.trim(),
                 address: document.getElementById('resAddress').value.trim(),
                 phone: document.getElementById('resPhone').value.trim(),
                 settings: {
-                    currency: document.getElementById('resCurrency').value.trim(),
+                    currency: '₹', // Hardcoded as per request to remove field
                     gstRate: parseFloat(document.getElementById('resGst').value) || 0,
                     serviceCharge: parseFloat(document.getElementById('resService').value) || 0,
                     gstin: document.getElementById('resGSTIN').value.trim(),
@@ -88,33 +70,97 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
-                // Use set with merge: true to avoid overwriting email or other root fields
                 await db.collection('restaurants').doc(user.uid).set(updatedData, { merge: true });
-                showNotification('Settings saved successfully!', 'success');
-                
-                // Update nav name immediately
+                showNotification('Settings updated successfully', 'success');
                 const navName = document.getElementById('restaurantName');
                 if (navName) navName.textContent = updatedData.name;
-                
             } catch (error) {
-                console.error("Error saving settings:", error);
-                showNotification('Failed to save settings: ' + error.message, 'error');
+                showNotification(error.message, 'error');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnText;
+                submitBtn.innerHTML = originalText;
             }
         });
     }
-});
 
-function showNotification(message, type) {
-    const n = document.createElement('div');
-    n.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white text-sm font-medium`;
-    n.textContent = message;
-    document.body.appendChild(n);
-    setTimeout(() => {
-        n.style.opacity = '0';
-        n.style.transform = 'translateX(20px)';
-        setTimeout(() => n.remove(), 300);
-    }, 3000);
-}
+    // Password Change Logic
+    if (passwordForm) {
+        passwordForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const newPass = document.getElementById('newPassword').value;
+            const confirmPass = document.getElementById('confirmPassword').value;
+
+            if (newPass !== confirmPass) {
+                showNotification('Passwords do not match', 'error');
+                return;
+            }
+
+            pendingAction = 'password';
+            openReauthModal();
+        });
+    }
+
+    // Delete Account Button
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            pendingAction = 'delete';
+            openReauthModal();
+        });
+    }
+
+    // Handle Re-authentication & Execute Actions
+    if (reauthForm) {
+        reauthForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const password = document.getElementById('reauthPassword').value;
+            const user = auth.currentUser;
+            
+            const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+            
+            try {
+                await user.reauthenticateWithCredential(credential);
+                
+                if (pendingAction === 'password') {
+                    const newPass = document.getElementById('newPassword').value;
+                    await user.updatePassword(newPass);
+                    showNotification('Password updated successfully', 'success');
+                    passwordForm.reset();
+                } else if (pendingAction === 'delete') {
+                    // Start deletion process
+                    const uid = user.uid;
+                    // Note: In a production app, you'd use a Cloud Function to clean up subcollections
+                    // Here we delete the main restaurant doc and then the user
+                    await db.collection('restaurants').doc(uid).delete();
+                    await user.delete();
+                    window.location.href = 'index.html';
+                }
+                
+                closeReauthModal();
+            } catch (error) {
+                showNotification('Authentication failed: ' + error.message, 'error');
+            }
+        });
+    }
+
+    function openReauthModal() {
+        document.getElementById('reauthModal').classList.remove('hidden');
+    }
+
+    window.closeReauthModal = function() {
+        document.getElementById('reauthModal').classList.add('hidden');
+        document.getElementById('reauthForm').reset();
+        pendingAction = null;
+    };
+
+    function showNotification(message, type) {
+        const n = document.createElement('div');
+        n.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-[9999] text-white text-sm font-medium transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+        n.textContent = message;
+        document.body.appendChild(n);
+        setTimeout(() => {
+            n.style.opacity = '0';
+            n.style.transform = 'translateY(-20px)';
+            setTimeout(() => n.remove(), 300);
+        }, 3000);
+    }
+});

@@ -1,32 +1,57 @@
 document.addEventListener('DOMContentLoaded', function() {
     const settingsForm = document.getElementById('settingsForm');
-    const userEmail = document.getElementById('userEmail');
-    const logoutBtn = document.getElementById('logoutBtn');
-
+    
+    // Check auth state
     auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
-            userEmail.textContent = user.email;
-            loadCurrentSettings(user.uid);
+            loadSettings();
         }
     });
 
-    async function loadCurrentSettings(uid) {
+    // Load existing settings from Firestore
+    async function loadSettings() {
+        const user = auth.currentUser;
+        if (!user) return;
+
         try {
-            const doc = await db.collection('restaurants').doc(uid).get();
+            const doc = await db.collection('restaurants').doc(user.uid).get();
             if (doc.exists) {
                 const data = doc.data();
-                document.getElementById('resName').value = data.name || '';
-                if (data.settings) {
-                    document.getElementById('resCurrency').value = data.settings.currency || '₹';
-                    document.getElementById('resGst').value = data.settings.gstRate || 0;
-                    document.getElementById('resService').value = data.settings.serviceCharge || 0;
-                    document.getElementById('resAddress').value = data.settings.address || '';
-                    document.getElementById('resPhone').value = data.settings.phone || '';
-                    document.getElementById('resGSTIN').value = data.settings.gstin || '';
-                    document.getElementById('resFSSAI').value = data.settings.fssai || '';
+                
+                // Populate basic info
+                if (document.getElementById('restaurantName')) {
+                    document.getElementById('restaurantName').value = data.name || '';
                 }
+                if (document.getElementById('restaurantAddress')) {
+                    document.getElementById('restaurantAddress').value = data.address || '';
+                }
+                if (document.getElementById('restaurantPhone')) {
+                    document.getElementById('restaurantPhone').value = data.phone || '';
+                }
+                if (document.getElementById('restaurantEmail')) {
+                    document.getElementById('restaurantEmail').value = data.email || '';
+                }
+
+                // Populate settings object fields
+                const settings = data.settings || {};
+                if (document.getElementById('currency')) {
+                    document.getElementById('currency').value = settings.currency || '₹';
+                }
+                if (document.getElementById('gstRate')) {
+                    document.getElementById('gstRate').value = settings.gstRate || 0;
+                }
+                if (document.getElementById('serviceCharge')) {
+                    document.getElementById('serviceCharge').value = settings.serviceCharge || 0;
+                }
+                if (document.getElementById('footerMessage')) {
+                    document.getElementById('footerMessage').value = settings.footerMessage || 'Thank you for visiting!';
+                }
+                
+                // Update UI elements that show the name
+                const navName = document.getElementById('navRestaurantName');
+                if (navName && data.name) navName.textContent = data.name;
             }
         } catch (error) {
             console.error("Error loading settings:", error);
@@ -34,70 +59,60 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    settingsForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const user = auth.currentUser;
-        if (!user) return;
+    // Handle form submission
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const user = auth.currentUser;
+            if (!user) return;
 
-        const name = document.getElementById('resName').value.trim();
-        const currency = document.getElementById('resCurrency').value.trim();
-        const gstRate = parseFloat(document.getElementById('resGst').value) || 0;
-        const serviceCharge = parseFloat(document.getElementById('resService').value) || 0;
-        const address = document.getElementById('resAddress').value.trim();
-        const phone = document.getElementById('resPhone').value.trim();
-        const gstin = document.getElementById('resGSTIN').value.trim().toUpperCase();
-        const fssai = document.getElementById('resFSSAI').value.trim();
+            const submitBtn = settingsForm.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
 
-        // Validate required fields
-        if (!name) {
-            showNotification('Restaurant name is required', 'error');
-            return;
-        }
-
-        try {
-            await db.collection('restaurants').doc(user.uid).set({
-                name: name,
+            const updatedData = {
+                name: document.getElementById('restaurantName').value,
+                address: document.getElementById('restaurantAddress').value,
+                phone: document.getElementById('restaurantPhone').value,
+                email: document.getElementById('restaurantEmail').value,
                 settings: {
-                    currency: currency || '₹',
-                    gstRate: gstRate || 0,
-                    serviceCharge: serviceCharge || 0,
-                    address: address || '',
-                    phone: phone || '',
-                    gstin: gstin || '',
-                    fssai: fssai || '',
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    currency: document.getElementById('currency').value,
+                    gstRate: parseFloat(document.getElementById('gstRate').value) || 0,
+                    serviceCharge: parseFloat(document.getElementById('serviceCharge').value) || 0,
+                    footerMessage: document.getElementById('footerMessage').value
                 },
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            };
 
-            showNotification('Settings saved successfully!', 'success');
-            
-            // Update restaurant name in other pages if needed
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } catch (error) {
-            console.error("Error saving settings:", error);
-            showNotification('Error saving settings: ' + error.message, 'error');
-        }
-    });
-
-    // Logout
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            auth.signOut().then(() => window.location.href = 'index.html');
+            try {
+                await db.collection('restaurants').doc(user.uid).set(updatedData, { merge: true });
+                showNotification('Settings saved successfully!', 'success');
+                
+                // Update nav name immediately
+                const navName = document.getElementById('navRestaurantName');
+                if (navName) navName.textContent = updatedData.name;
+                
+            } catch (error) {
+                console.error("Error saving settings:", error);
+                showNotification('Failed to save settings', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
         });
     }
 });
 
 function showNotification(message, type) {
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white font-semibold`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
+    const n = document.createElement('div');
+    n.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white text-sm font-medium`;
+    n.textContent = message;
+    document.body.appendChild(n);
     setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(100%)';
-        setTimeout(() => notification.remove(), 300);
+        n.style.opacity = '0';
+        n.style.transform = 'translateX(20px)';
+        setTimeout(() => n.remove(), 300);
     }, 3000);
 }

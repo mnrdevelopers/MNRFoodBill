@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Management - MNRFoodBill</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="js/layout.js" defer></script>
+    <script src="js/staff-management.js" defer></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header (loaded via layout.js) -->
+    <div id="header"></div>
+
+    <div class="container mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Sidebar (loaded via layout.js) -->
+            <div id="sidebar"></div>
+
+            <!-- Main Content -->
+            <div class="lg:col-span-3 space-y-6">
+                <!-- Header -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">Staff Management</h1>
+                        <p class="text-gray-500">Manage your restaurant staff members</p>
+                    </div>
+                    <button id="addStaffBtn" class="bg-red-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-600">
+                        <i class="fas fa-user-plus mr-2"></i> Add Staff
+                    </button>
+                </div>
+
+                <!-- Join Code Card -->
+                <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+                    <div class="flex flex-col md:flex-row justify-between items-center">
+                        <div class="mb-4 md:mb-0">
+                            <h3 class="text-xl font-bold mb-2">Staff Join Code</h3>
+                            <p class="text-blue-100">Share this code with your staff members to allow them to join</p>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-mono font-bold mb-2 bg-white/20 p-4 rounded-lg" id="joinCodeDisplay">
+                                Loading...
+                            </div>
+                            <button id="copyJoinCode" class="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100">
+                                <i class="fas fa-copy mr-2"></i> Copy Code
+                            </button>
+                            <button id="regenerateCode" class="ml-2 bg-white/20 text-white px-4 py-2 rounded-lg font-semibold hover:bg-white/30">
+                                <i class="fas fa-redo mr-2"></i> Regenerate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Staff List -->
+                <div class="bg-white rounded-xl shadow overflow-hidden">
+                    <div class="p-4 border-b bg-gray-50">
+                        <h3 class="font-bold text-gray-800">Staff Members</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-6 text-left">Name</th>
+                                    <th class="py-3 px-6 text-left">Email</th>
+                                    <th class="py-3 px-6 text-left">Role</th>
+                                    <th class="py-3 px-6 text-left">Joined</th>
+                                    <th class="py-3 px-6 text-left">Status</th>
+                                    <th class="py-3 px-6 text-left">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffTable">
+                                <!-- Staff will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Permissions Info -->
+                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+                    <h3 class="font-bold text-yellow-800 mb-2 flex items-center">
+                        <i class="fas fa-info-circle mr-2"></i> Staff Permissions
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <h4 class="font-semibold text-yellow-700 mb-1">Staff Can:</h4>
+                            <ul class="text-yellow-600 list-disc pl-5">
+                                <li>Create new bills</li>
+                                <li>Print receipts</li>
+                                <li>View products</li>
+                                <li>View order history</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-yellow-700 mb-1">Staff Cannot:</h4>
+                            <ul class="text-yellow-600 list-disc pl-5">
+                                <li>Add/edit/delete products</li>
+                                <li>Manage staff members</li>
+                                <li>Change restaurant settings</li>
+                                <li>Delete orders</li>
+                                <li>Access financial reports</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Staff Modal -->
+    <div id="addStaffModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto">
+        <div class="min-h-screen px-4 py-8 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-lg w-full max-w-md relative">
+                <div class="p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Add New Staff</h3>
+                    <form id="addStaffForm" class="space-y-4">
+                        <div>
+                            <label class="block text-gray-700 mb-2">Staff Name *</label>
+                            <input type="text" id="staffName" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                                   placeholder="Enter staff name" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">Email Address *</label>
+                            <input type="email" id="staffEmail" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                                   placeholder="staff@example.com" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">Temporary Password *</label>
+                            <input type="password" id="staffPassword" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                                   placeholder="Create password" required minlength="6">
+                            <p class="text-xs text-gray-500 mt-1">Staff will be asked to change this on first login</p>
+                        </div>
+                        <div class="pt-4 border-t">
+                            <div class="flex space-x-3">
+                                <button type="submit" 
+                                        class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                                    <i class="fas fa-user-plus mr-2"></i> Create Staff Account
+                                </button>
+                                <button type="button" onclick="closeAddStaffModal()"
+                                        class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Staff Modal -->
+    <div id="editStaffModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto">
+        <div class="min-h-screen px-4 py-8 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-lg w-full max-w-md relative">
+                <div class="p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Edit Staff</h3>
+                    <form id="editStaffForm" class="space-y-4">
+                        <input type="hidden" id="editStaffId">
+                        <div>
+                            <label class="block text-gray-700 mb-2">Staff Name *</label>
+                            <input type="text" id="editStaffName" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">Email Address *</label>
+                            <input type="email" id="editStaffEmail" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">Status</label>
+                            <select id="editStaffStatus" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="pt-4 border-t">
+                            <div class="flex space-x-3">
+                                <button type="submit" 
+                                        class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                                    <i class="fas fa-save mr-2"></i> Save Changes
+                                </button>
+                                <button type="button" onclick="closeEditStaffModal()"
+                                        class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div id="resetPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto">
+        <div class="min-h-screen px-4 py-8 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-lg w-full max-w-md relative">
+                <div class="p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Reset Password</h3>
+                    <p class="text-gray-600 mb-4">Set a new temporary password for this staff member:</p>
+                    <form id="resetPasswordForm" class="space-y-4">
+                        <input type="hidden" id="resetStaffId">
+                        <div>
+                            <label class="block text-gray-700 mb-2">New Temporary Password *</label>
+                            <input type="password" id="newTempPassword" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                                   placeholder="Enter new password" required minlength="6">
+                        </div>
+                        <div class="pt-4 border-t">
+                            <div class="flex space-x-3">
+                                <button type="submit" 
+                                        class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                                    <i class="fas fa-key mr-2"></i> Reset Password
+                                </button>
+                                <button type="button" onclick="closeResetPasswordModal()"
+                                        class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Staff Modal -->
+    <div id="deleteStaffModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto">
+        <div class="min-h-screen px-4 py-8 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-lg w-full max-w-md relative">
+                <div class="p-6">
+                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 text-center mb-2">Remove Staff Member</h3>
+                    <p class="text-gray-600 text-center mb-4" id="deleteStaffMessage">Are you sure you want to remove this staff member?</p>
+                    <p class="text-sm text-gray-500 text-center mb-6">They will no longer be able to access the system.</p>
+                    <div class="flex space-x-3">
+                        <button id="confirmDeleteStaff" 
+                                class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                            Yes, Remove
+                        </button>
+                        <button onclick="closeDeleteStaffModal()"
+                                class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

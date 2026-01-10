@@ -4,14 +4,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const ordersPerPage = 10;
     let selectedOrder = null;
     let orderToDelete = null;
+    let userRole = '';
+    let restaurantId = '';
 
-    // Check auth
-    auth.onAuthStateChanged(user => {
+    // Check auth and permissions
+    auth.onAuthStateChanged(async user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
-            loadOrders();
-            loadTodayStats();
+            // Get user role
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                userRole = userData.role;
+                restaurantId = userData.restaurantId || user.uid;
+                
+                // Orders page is accessible to both owners and staff
+                loadOrders();
+                loadTodayStats();
+            }
         }
     });
 
@@ -19,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadOrders(filters = {}) {
         const user = auth.currentUser;
         let query = db.collection('orders')
-            .where('restaurantId', '==', user.uid)
+            .where('restaurantId', '==', restaurantId)
             .orderBy('createdAt', 'desc');
 
         // Apply filters
@@ -54,14 +65,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load today's stats
     function loadTodayStats() {
-        const user = auth.currentUser;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         db.collection('orders')
-            .where('restaurantId', '==', user.uid)
+            .where('restaurantId', '==', restaurantId)
             .where('createdAt', '>=', today)
             .where('createdAt', '<', tomorrow)
             .where('status', '==', 'completed')
@@ -140,9 +150,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button class="print-order text-orange-500 hover:text-orange-700" data-id="${order.id}" title="Print Receipt">
                             <i class="fas fa-print"></i>
                         </button>
+                        ${userRole === 'owner' ? `
                         <button class="delete-order text-red-500 hover:text-red-700" data-id="${order.id}" title="Delete Order">
                             <i class="fas fa-trash"></i>
                         </button>
+                        ` : ''}
                     </div>
                 </td>
             `;
@@ -164,12 +176,15 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        document.querySelectorAll('.delete-order').forEach(button => {
-            button.addEventListener('click', function() {
-                const orderId = this.dataset.id;
-                showDeleteOrderModal(orderId);
+        // Only show delete button for owners
+        if (userRole === 'owner') {
+            document.querySelectorAll('.delete-order').forEach(button => {
+                button.addEventListener('click', function() {
+                    const orderId = this.dataset.id;
+                    showDeleteOrderModal(orderId);
+                });
             });
-        });
+        }
     }
 
     // Get status CSS class
@@ -249,6 +264,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     <span class="px-3 py-1 rounded-full text-sm ${getStatusClass(selectedOrder.status)}">
                         ${selectedOrder.status}
                     </span>
+                </div>
+                <div>
+                    <p class="text-gray-600">Created By</p>
+                    <p class="font-bold">${selectedOrder.createdByRole || 'Staff'}</p>
                 </div>
             </div>
             ${itemsHtml}
@@ -410,13 +429,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('prevPage').disabled = currentPage === 1;
         document.getElementById('nextPage').disabled = currentPage === totalPages;
     }
-
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        auth.signOut().then(() => {
-            window.location.href = 'index.html';
-        });
-    });
 
     function showNotification(message, type) {
         const notification = document.createElement('div');

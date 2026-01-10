@@ -340,37 +340,68 @@ window.addEventListener('load', function() {
 
 async function setupRoleBasedNavigation() {
     const role = await RoleManager.getCurrentUserRole();
-    const restaurantId = await RoleManager.getRestaurantId();
+    
+    // Get the current page path
+    const currentPage = window.location.pathname.split('/').pop();
+    
+    // Check permissions for current page
+    const pagePermissions = {
+        'dashboard.html': PERMISSIONS.VIEW_DASHBOARD,
+        'billing.html': PERMISSIONS.CREATE_BILL,
+        'products.html': PERMISSIONS.VIEW_PRODUCTS,
+        'orders.html': PERMISSIONS.VIEW_ORDERS,
+        'settings.html': PERMISSIONS.VIEW_SETTINGS,
+        'staff.html': PERMISSIONS.MANAGE_STAFF
+    };
+    
+    const requiredPermission = pagePermissions[currentPage];
+    
+    if (requiredPermission) {
+        const hasPermission = await RoleManager.hasPermission(requiredPermission);
+        if (!hasPermission) {
+            showNotification('Access Denied: You do not have permission to view this page', 'error');
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 2000);
+            return;
+        }
+    }
     
     // Update sidebar based on role
-    await RoleManager.initRoleBasedUI();
+    updateSidebarForRole(role);
+}
+
+function updateSidebarForRole(role) {
+    // Hide sidebar items based on role
+    const sidebarLinks = document.querySelectorAll('#sidebarNav a, #mobileSidebar a');
     
-    // Add staff management link for owners
+    sidebarLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        
+        // Define which pages each role can see
+        const allowedPages = {
+            [ROLES.OWNER]: ['dashboard.html', 'billing.html', 'products.html', 'orders.html', 'settings.html', 'staff.html'],
+            [ROLES.ADMIN]: ['dashboard.html', 'billing.html', 'products.html', 'orders.html'],
+            [ROLES.STAFF]: ['billing.html', 'products.html', 'orders.html']
+        };
+        
+        if (!allowedPages[role]?.includes(href)) {
+            link.style.display = 'none';
+        }
+    });
+    
+    // Add staff management link only for owners
     if (role === ROLES.OWNER) {
         const sidebarNav = document.getElementById('sidebarNav');
-        const mobileSidebar = document.querySelector('#mobileSidebar nav');
-        
-        if (sidebarNav) {
+        if (sidebarNav && !sidebarNav.querySelector('a[href="staff.html"]')) {
             const staffLink = document.createElement('a');
             staffLink.href = 'staff.html';
-            staffLink.className = 'flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition sidebar-link';
-            staffLink.setAttribute('data-tooltip', 'Staff Management');
+            staffLink.className = 'flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition';
             staffLink.innerHTML = `
-                <i class="fas fa-users"></i>
-                <span class="font-medium">Staff</span>
-            `;
-            sidebarNav.appendChild(staffLink);
-        }
-        
-        if (mobileSidebar) {
-            const mobileStaffLink = document.createElement('a');
-            mobileStaffLink.href = 'staff.html';
-            mobileStaffLink.className = 'flex items-center space-x-3 p-3 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-lg transition';
-            mobileStaffLink.innerHTML = `
                 <i class="fas fa-users"></i>
                 <span class="font-medium">Staff Management</span>
             `;
-            mobileSidebar.appendChild(mobileStaffLink);
+            sidebarNav.appendChild(staffLink);
         }
     }
 }

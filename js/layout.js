@@ -337,3 +337,40 @@ window.addEventListener('load', function() {
         }
     }, 100);
 });
+
+async function setupRoleBasedNavigation() {
+    const role = await RoleManager.getCurrentUserRole();
+    const restaurantId = await RoleManager.getRestaurantId();
+    
+    // Update sidebar based on role
+    await RoleManager.initRoleBasedUI();
+    
+    // Add staff management link for owners
+    if (role === ROLES.OWNER) {
+        const sidebarNav = document.getElementById('sidebarNav');
+        const mobileSidebar = document.querySelector('#mobileSidebar nav');
+        
+        if (sidebarNav) {
+            const staffLink = document.createElement('a');
+            staffLink.href = 'staff.html';
+            staffLink.className = 'flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition sidebar-link';
+            staffLink.setAttribute('data-tooltip', 'Staff Management');
+            staffLink.innerHTML = `
+                <i class="fas fa-users"></i>
+                <span class="font-medium">Staff</span>
+            `;
+            sidebarNav.appendChild(staffLink);
+        }
+        
+        if (mobileSidebar) {
+            const mobileStaffLink = document.createElement('a');
+            mobileStaffLink.href = 'staff.html';
+            mobileStaffLink.className = 'flex items-center space-x-3 p-3 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-lg transition';
+            mobileStaffLink.innerHTML = `
+                <i class="fas fa-users"></i>
+                <span class="font-medium">Staff Management</span>
+            `;
+            mobileSidebar.appendChild(mobileStaffLink);
+        }
+    }
+}

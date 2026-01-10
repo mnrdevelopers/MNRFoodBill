@@ -27,16 +27,20 @@ document.addEventListener('DOMContentLoaded', function() {
             
             showMessage('Signing in...', 'info');
             
-            auth.signInWithEmailAndPassword(email, password)
-                .then(userCredential => {
-                    showMessage('Login successful! Redirecting...', 'success');
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1000);
-                })
-                .catch(error => {
-                    showMessage(error.message, 'error');
-                });
+       auth.signInWithEmailAndPassword(email, password)
+    .then(userCredential => {
+        showMessage('Login successful! Redirecting...', 'success');
+        
+        // Store user email in localStorage for immediate access
+        localStorage.setItem('userEmail', userCredential.user.email);
+        
+        setTimeout(() => {
+            window.location.href = 'dashboard.html';
+        }, 1000);
+    })
+    .catch(error => {
+        showMessage(error.message, 'error');
+    });
         });
     }
 
@@ -117,3 +121,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     }
 });
+

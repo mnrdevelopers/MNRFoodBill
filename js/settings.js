@@ -4,9 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const deleteBtn = document.getElementById('deleteAccountBtn');
     const reauthForm = document.getElementById('reauthForm');
     
-    let pendingAction = null; // 'password' or 'delete'
+    let pendingAction = null;
 
-    // Check auth state
     auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
@@ -15,36 +14,47 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Load existing settings
     async function loadSettings() {
         const user = auth.currentUser;
         if (!user) return;
 
         try {
-            const doc = await db.collection('restaurants').doc(user.uid).get();
-            if (doc.exists) {
-                const data = doc.data();
+            const resDoc = await db.collection('restaurants').doc(user.uid).get();
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            
+            if (resDoc.exists) {
+                const data = resDoc.data();
+                const settings = data.settings || {};
                 
+                // Restaurant info
                 if (document.getElementById('resName')) document.getElementById('resName').value = data.name || '';
                 if (document.getElementById('resAddress')) document.getElementById('resAddress').value = data.address || '';
                 if (document.getElementById('resPhone')) document.getElementById('resPhone').value = data.phone || '';
                 
-                const settings = data.settings || {};
+                // Tax settings
                 if (document.getElementById('resGst')) document.getElementById('resGst').value = settings.gstRate || 0;
                 if (document.getElementById('resService')) document.getElementById('resService').value = settings.serviceCharge || 0;
                 if (document.getElementById('resGSTIN')) document.getElementById('resGSTIN').value = settings.gstin || '';
                 if (document.getElementById('resFSSAI')) document.getElementById('resFSSAI').value = settings.fssai || '';
                 
-                const navName = document.getElementById('restaurantName');
-                if (navName && data.name) navName.textContent = data.name;
+                // Owner info (can come from restaurant or users doc)
+                if (document.getElementById('ownerName')) document.getElementById('ownerName').value = data.ownerName || '';
+                if (document.getElementById('ownerPhone')) document.getElementById('ownerPhone').value = data.ownerPhone || data.phone || '';
             }
+            
+            // Fallback owner info check from users collection
+            if (userDoc.exists && !document.getElementById('ownerName').value) {
+                const userData = userDoc.data();
+                document.getElementById('ownerName').value = userData.name || '';
+                document.getElementById('ownerPhone').value = userData.phone || '';
+            }
+
         } catch (error) {
             console.error("Error loading settings:", error);
             showNotification('Failed to load settings', 'error');
         }
     }
 
-    // Save Settings
     if (settingsForm) {
         settingsForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -55,12 +65,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const originalText = submitBtn.innerHTML;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
 
+            const ownerName = document.getElementById('ownerName').value.trim();
+            const ownerPhone = document.getElementById('ownerPhone').value.trim();
+
             const updatedData = {
                 name: document.getElementById('resName').value.trim(),
+                ownerName: ownerName,
+                ownerPhone: ownerPhone,
                 address: document.getElementById('resAddress').value.trim(),
                 phone: document.getElementById('resPhone').value.trim(),
                 settings: {
-                    currency: '₹', // Hardcoded as per request to remove field
+                    currency: '₹',
                     gstRate: parseFloat(document.getElementById('resGst').value) || 0,
                     serviceCharge: parseFloat(document.getElementById('resService').value) || 0,
                     gstin: document.getElementById('resGSTIN').value.trim(),
@@ -70,8 +85,16 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
-                await db.collection('restaurants').doc(user.uid).set(updatedData, { merge: true });
-                showNotification('Settings updated successfully', 'success');
+                // Update both restaurant and user docs
+                await Promise.all([
+                    db.collection('restaurants').doc(user.uid).set(updatedData, { merge: true }),
+                    db.collection('users').doc(user.uid).update({
+                        name: ownerName,
+                        phone: ownerPhone
+                    })
+                ]);
+                
+                showNotification('All settings updated successfully', 'success');
                 const navName = document.getElementById('restaurantName');
                 if (navName) navName.textContent = updatedData.name;
             } catch (error) {
@@ -83,24 +106,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Password Change Logic
     if (passwordForm) {
-        passwordForm.addEventListener('submit', function(e) {
+        passwordForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const newPass = document.getElementById('newPassword').value;
-            const confirmPass = document.getElementById('confirmPassword').value;
-
-            if (newPass !== confirmPass) {
-                showNotification('Passwords do not match', 'error');
-                return;
+            if (document.getElementById('newPassword').value !== document.getElementById('confirmPassword').value) {
+                return showNotification('Passwords do not match', 'error');
             }
-
             pendingAction = 'password';
             openReauthModal();
         });
     }
 
-    // Delete Account Button
     if (deleteBtn) {
         deleteBtn.addEventListener('click', () => {
             pendingAction = 'delete';
@@ -108,47 +124,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handle Re-authentication & Execute Actions
     if (reauthForm) {
-        reauthForm.addEventListener('submit', async function(e) {
+        reauthForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const password = document.getElementById('reauthPassword').value;
             const user = auth.currentUser;
-            
             const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
             
             try {
                 await user.reauthenticateWithCredential(credential);
-                
                 if (pendingAction === 'password') {
-                    const newPass = document.getElementById('newPassword').value;
-                    await user.updatePassword(newPass);
-                    showNotification('Password updated successfully', 'success');
+                    await user.updatePassword(document.getElementById('newPassword').value);
+                    showNotification('Password updated!', 'success');
                     passwordForm.reset();
                 } else if (pendingAction === 'delete') {
-                    // Start deletion process
-                    const uid = user.uid;
-                    // Note: In a production app, you'd use a Cloud Function to clean up subcollections
-                    // Here we delete the main restaurant doc and then the user
-                    await db.collection('restaurants').doc(uid).delete();
+                    await db.collection('restaurants').doc(user.uid).delete();
+                    await db.collection('users').doc(user.uid).delete();
                     await user.delete();
                     window.location.href = 'index.html';
                 }
-                
                 closeReauthModal();
             } catch (error) {
-                showNotification('Authentication failed: ' + error.message, 'error');
+                showNotification('Auth failed: ' + error.message, 'error');
             }
         });
     }
 
-    function openReauthModal() {
-        document.getElementById('reauthModal').classList.remove('hidden');
-    }
-
-    window.closeReauthModal = function() {
+    function openReauthModal() { document.getElementById('reauthModal').classList.remove('hidden'); }
+    window.closeReauthModal = function() { 
         document.getElementById('reauthModal').classList.add('hidden');
-        document.getElementById('reauthForm').reset();
+        reauthForm.reset();
         pendingAction = null;
     };
 

@@ -40,7 +40,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Toggle Register UI
+    // Register form
+    const registerForm = document.getElementById('registerForm');
     const registerBtn = document.getElementById('registerBtn');
     const backToLogin = document.getElementById('backToLogin');
 
@@ -59,8 +60,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Register form logic - storing email in Firestore
-    const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -74,10 +73,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(userCredential => {
                     const user = userCredential.user;
                     
-                    // Save restaurant info AND email to Firestore
+                    // Save restaurant info to Firestore
                     return db.collection('restaurants').doc(user.uid).set({
                         name: restaurantName,
-                        email: email, // Store email explicitly
+                        email: email,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         settings: {
                             gstRate: 18,

@@ -1,4 +1,3 @@
-// Your Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBFL6RkTZIkFsr1PsYa5oVsOdP3orjdRKc",
   authDomain: "mnrfoodbill-a8cf6.firebaseapp.com",
@@ -18,6 +17,7 @@ if (!firebase.apps.length) {
 
 const auth = firebase.auth();
 const db = firebase.firestore();
+const functions = firebase.functions();
 
 // IMPORTANT: Set settings BEFORE calling any other Firestore methods (like enablePersistence)
 db.settings({
@@ -37,4 +37,7 @@ db.enablePersistence()
     }
   });
 
-
+// Export for use in other files
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { auth, db, functions };
+}

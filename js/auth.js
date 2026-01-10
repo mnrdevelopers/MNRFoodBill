@@ -2,7 +2,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if user is already logged in
     auth.onAuthStateChanged(user => {
         if (user) {
-            window.location.href = 'dashboard.html';
+            // Check if user has a role
+            db.collection('users').doc(user.uid).get()
+                .then(doc => {
+                    if (doc.exists) {
+                        // User has role, go to dashboard
+                        window.location.href = 'dashboard.html';
+                    } else {
+                        // User needs migration
+                        window.location.href = 'migrate.html';
+                    }
+                })
+                .catch(() => {
+                    // Error checking, go to migration page
+                    window.location.href = 'migrate.html';
+                });
         }
     });
 
@@ -64,26 +78,57 @@ document.addEventListener('DOMContentLoaded', function() {
             
             auth.signInWithEmailAndPassword(email, password)
                 .then(userCredential => {
-                    // Check user role
-                    return db.collection('users').doc(userCredential.user.uid).get();
+                    const user = userCredential.user;
+                    
+                    // Check if user document exists
+                    return db.collection('users').doc(user.uid).get()
+                        .then(doc => {
+                            if (!doc.exists) {
+                                // Auto-create as owner (for existing users)
+                                return db.collection('restaurants').doc(user.uid).get()
+                                    .then(restaurantDoc => {
+                                        if (restaurantDoc.exists) {
+                                            // Existing owner
+                                            const restaurantData = restaurantDoc.data();
+                                            const joinCode = restaurantData.joinCode || generateJoinCode();
+                                            
+                                            // Update restaurant with join code if missing
+                                            if (!restaurantData.joinCode) {
+                                                db.collection('restaurants').doc(user.uid).update({
+                                                    joinCode: joinCode
+                                                });
+                                            }
+                                            
+                                            // Create user document
+                                            return db.collection('users').doc(user.uid).set({
+                                                email: user.email,
+                                                role: 'owner',
+                                                restaurantId: user.uid,
+                                                name: restaurantData.name + ' Owner',
+                                                joinCode: joinCode,
+                                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                                            });
+                                        } else {
+                                            // New user - redirect to role selection
+                                            window.location.href = 'migrate.html';
+                                            return Promise.reject('New user needs setup');
+                                        }
+                                    });
+                            }
+                            return doc;
+                        });
                 })
-                .then(doc => {
-                    if (doc.exists) {
-                        const userData = doc.data();
-                        if (userData.role === 'owner') {
-                            showMessage('Login successful! Redirecting...', 'success');
-                            setTimeout(() => {
-                                window.location.href = 'dashboard.html';
-                            }, 1000);
-                        } else {
-                            auth.signOut();
-                            showMessage('This account is not an owner account', 'error');
-                        }
-                    } else {
-                        showMessage('User data not found', 'error');
-                    }
+                .then(() => {
+                    showMessage('Login successful! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1000);
                 })
                 .catch(error => {
+                    if (error.message === 'New user needs setup') {
+                        // This is expected, don't show error
+                        return;
+                    }
                     showMessage(error.message, 'error');
                 });
         });
@@ -103,29 +148,73 @@ document.addEventListener('DOMContentLoaded', function() {
             // First authenticate
             auth.signInWithEmailAndPassword(email, password)
                 .then(userCredential => {
-                    // Verify staff credentials and join code
-                    return db.collection('users').doc(userCredential.user.uid).get();
+                    const user = userCredential.user;
+                    
+                    // Check if user document exists
+                    return db.collection('users').doc(user.uid).get()
+                        .then(doc => {
+                            if (!doc.exists) {
+                                // Staff user needs to verify join code first
+                                return verifyStaffJoinCode(joinCode)
+                                    .then(restaurantData => {
+                                        if (restaurantData) {
+                                            // Create staff user document
+                                            return db.collection('users').doc(user.uid).set({
+                                                email: user.email,
+                                                role: 'staff',
+                                                restaurantId: restaurantData.id,
+                                                name: user.email.split('@')[0] + ' (Staff)',
+                                                joinCode: joinCode,
+                                                status: 'active',
+                                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                                            });
+                                        } else {
+                                            throw new Error('Invalid join code');
+                                        }
+                                    });
+                            } else {
+                                // Existing staff user - verify join code matches
+                                const userData = doc.data();
+                                if (userData.role === 'staff' && userData.joinCode === joinCode) {
+                                    return doc;
+                                } else {
+                                    throw new Error('Invalid join code or account type');
+                                }
+                            }
+                        });
                 })
-                .then(doc => {
-                    if (doc.exists) {
-                        const userData = doc.data();
-                        if (userData.role === 'staff' && userData.joinCode === joinCode) {
-                            showMessage('Staff login successful! Redirecting...', 'success');
-                            setTimeout(() => {
-                                window.location.href = 'dashboard.html';
-                            }, 1000);
-                        } else {
-                            auth.signOut();
-                            showMessage('Invalid join code or account type', 'error');
-                        }
-                    } else {
-                        showMessage('Staff account not found', 'error');
-                    }
+                .then(() => {
+                    showMessage('Staff login successful! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1000);
                 })
                 .catch(error => {
-                    showMessage(error.message, 'error');
+                    if (error.message === 'Invalid join code') {
+                        showMessage('Invalid join code. Please check with your owner.', 'error');
+                    } else {
+                        showMessage(error.message, 'error');
+                    }
                 });
         });
+    }
+
+    // Verify staff join code
+    function verifyStaffJoinCode(joinCode) {
+        return db.collection('restaurants')
+            .where('joinCode', '==', joinCode)
+            .limit(1)
+            .get()
+            .then(snapshot => {
+                if (snapshot.empty) {
+                    return null;
+                }
+                const doc = snapshot.docs[0];
+                return {
+                    id: doc.id,
+                    ...doc.data()
+                };
+            });
     }
 
     // Register form (Owner registration)

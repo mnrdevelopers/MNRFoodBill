@@ -8,9 +8,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Check auth state
     auth.onAuthStateChanged(user => {
-        if (!user) {
-            window.location.href = 'index.html';
-        } else {
+    if (!user) {
+        window.location.href = 'index.html';
+    } else {
+        // Set email immediately from auth
+        const emailEl = document.getElementById('userEmail');
+        if (emailEl) {
+            emailEl.textContent = user.email;
+        }
             loadSettings();
         }
     });

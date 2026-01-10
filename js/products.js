@@ -1,32 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     let products = [];
     let productToDelete = null;
-    let userRole = '';
-    let restaurantId = '';
 
-    // Check auth and permissions
-    auth.onAuthStateChanged(async user => {
+    // Check auth
+    auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
-            // Get user role
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                userRole = userData.role;
-                restaurantId = userData.restaurantId || user.uid;
-                
-                // For products.js - restrict access to owners only
-                if (userData.role !== 'owner') {
-                    showNotification('Only owners can manage products', 'error');
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 2000);
-                    return;
-                }
-                
-                loadProducts();
-            }
+            loadProducts();
         }
     });
 
@@ -36,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!user) return;
 
         db.collection('products')
-            .where('restaurantId', '==', restaurantId)
+            .where('restaurantId', '==', user.uid)
             .orderBy('name')
             .get()
             .then(snapshot => {
@@ -197,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 category: document.getElementById('productCategory').value,
                 price: parseFloat(document.getElementById('productPrice').value),
                 description: document.getElementById('productDescription').value.trim(),
-                restaurantId: restaurantId,
+                restaurantId: user.uid,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 

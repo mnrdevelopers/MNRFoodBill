@@ -7,19 +7,20 @@ document.addEventListener('DOMContentLoaded', function() {
     let pendingAction = null; // 'password' or 'delete'
 
     // Check auth state
-   auth.onAuthStateChanged(async user => {
+  auth.onAuthStateChanged(async user => {
     if (!user) {
         window.location.href = 'index.html';
     } else {
         // Check permission for viewing settings
         const hasPermission = await RoleManager.hasPermission(PERMISSIONS.VIEW_SETTINGS);
         if (!hasPermission) {
-            window.location.href = 'dashboard.html';
-            return;
+            // Instead of redirecting, show read-only mode
+            disableSettingsEditing();
+            showNotification('You can view settings but not modify them', 'info');
         }
-            loadSettings();
-        }
-    });
+        loadSettings();
+    }
+});
 
     // Load existing settings
     async function loadSettings() {
@@ -170,3 +171,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 });
+
+function disableSettingsEditing() {
+    const inputs = document.querySelectorAll('input, textarea, button[type="submit"]');
+    inputs.forEach(input => {
+        input.disabled = true;
+        input.readOnly = true;
+        input.classList.add('opacity-50', 'cursor-not-allowed');
+    });
+    
+    // Hide delete account button for non-owners
+    const deleteBtn = document.getElementById('deleteAccountBtn');
+    if (deleteBtn) deleteBtn.style.display = 'none';
+}

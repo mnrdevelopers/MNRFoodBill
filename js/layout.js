@@ -1,8 +1,7 @@
 // js/layout.js - FIXED VERSION
+let sidebarOpen = true; // Declare globally at the top
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Sidebar state - true = open (expanded), false = collapsed
-    let sidebarOpen = true;
-    
     // Check authentication
     auth.onAuthStateChanged(user => {
         if (!user) {
@@ -10,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        console.log("Auth state changed - User email:", user.email); // Debug
+        console.log("Auth state changed - User email:", user.email);
         
         // Load restaurant name
         db.collection('restaurants').doc(user.uid).get()
@@ -24,10 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Load quick stats
         loadQuickStats(user.uid);
         
-        // Set user email - using multiple approaches to ensure it works
+        // Set user email
         setUserEmailWithRetry(user.email);
         
-        // Also try direct approach
         setTimeout(() => {
             const emailEl = document.getElementById('userEmail');
             if (emailEl && user.email) {
@@ -57,9 +55,9 @@ function setUserEmailWithRetry(email) {
         return;
     }
     
-    const maxRetries = 15; // Increased retries
+    const maxRetries = 15;
     let retryCount = 0;
-    const retryInterval = 200; // ms
+    const retryInterval = 200;
     
     const trySetEmail = () => {
         const userEmailElement = document.getElementById('userEmail');
@@ -80,7 +78,6 @@ function setUserEmailWithRetry(email) {
         }
     };
     
-    // Start trying immediately
     setTimeout(trySetEmail, 100);
 }
 
@@ -96,10 +93,8 @@ function loadHeader() {
                 headerContainer.innerHTML = html;
                 attachHeaderEvents();
                 
-                // Check if we already have a user when header loads
                 const user = auth.currentUser;
                 if (user && user.email) {
-                    // Try to set email immediately
                     const emailEl = document.getElementById('userEmail');
                     if (emailEl) {
                         emailEl.textContent = user.email;
@@ -128,7 +123,6 @@ function loadSidebar() {
                 const savedState = localStorage.getItem('sidebarOpen');
                 if (savedState !== null) {
                     sidebarOpen = savedState === 'true';
-                    // Apply the state after a small delay to ensure DOM is ready
                     setTimeout(() => {
                         if (!sidebarOpen) {
                             collapseSidebar();
@@ -193,12 +187,16 @@ function collapseSidebar() {
     if (!sidebar) return;
     
     sidebar.classList.add('sidebar-collapsed');
+    
+    // Update grid classes
     sidebar.classList.remove('lg:col-span-1');
     sidebar.classList.add('lg:w-16');
     
+    // Hide text elements
     const sidebarLinks = document.querySelectorAll('.sidebar-link span');
     sidebarLinks.forEach(link => link.classList.add('hidden'));
     
+    // Hide stats and update toggle icon
     if (sidebarStats) sidebarStats.classList.add('hidden');
     if (toggleIcon) {
         toggleIcon.classList.remove('fa-chevron-left');
@@ -218,9 +216,11 @@ function expandSidebar() {
     sidebar.classList.remove('sidebar-collapsed', 'lg:w-16');
     sidebar.classList.add('lg:col-span-1');
     
+    // Show text elements
     const sidebarLinks = document.querySelectorAll('.sidebar-link span');
     sidebarLinks.forEach(link => link.classList.remove('hidden'));
     
+    // Show stats and update toggle icon
     if (sidebarStats) sidebarStats.classList.remove('hidden');
     if (toggleIcon) {
         toggleIcon.classList.remove('fa-chevron-right');
@@ -243,7 +243,6 @@ function updateMainContentGrid(isCollapsed) {
 }
 
 function attachHeaderEvents() {
-    // Placeholder for any specific header initialization logic
     console.log("Header events attached");
 }
 
@@ -331,11 +330,28 @@ function updateRestaurantName(name) {
     if (mobileRestaurantName) mobileRestaurantName.textContent = name;
 }
 
+// Add CSS for sidebar collapsed state
+const sidebarStyles = document.createElement('style');
+sidebarStyles.textContent = `
+    .sidebar-collapsed .sidebar-text {
+        display: none !important;
+    }
+    .sidebar-collapsed .sidebar-stats-box {
+        display: none !important;
+    }
+    .sidebar-collapsed .sidebar-link {
+        justify-content: center;
+    }
+    .sidebar-collapsed .sidebar-link i {
+        margin-right: 0;
+    }
+`;
+document.head.appendChild(sidebarStyles);
+
 // Backup function to ensure email is always set
 window.setUserEmailDirectly = function(email) {
     if (!email) return;
     
-    // Try multiple times with increasing delays
     const attempts = [
         { delay: 100, log: "Attempt 1" },
         { delay: 500, log: "Attempt 2" },

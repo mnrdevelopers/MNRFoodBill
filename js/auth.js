@@ -1,8 +1,43 @@
+// auth.js - Authentication with Role-Based Redirection
 document.addEventListener('DOMContentLoaded', function() {
     // Check if user is already logged in
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async user => {
         if (user) {
-            window.location.href = 'dashboard.html';
+            try {
+                // Fetch user data to determine redirection
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    
+                    // ROLE-BASED REDIRECTION LOGIC
+                    if (userData.role === 'staff') {
+                        // Staff always goes to Dashboard or Billing (based on their permissions)
+                        const permissions = userData.permissions || [];
+                        if (permissions.includes('billing')) {
+                            window.location.href = 'billing.html';
+                        } else {
+                            window.location.href = 'dashboard.html';
+                        }
+                    } else {
+                        // Owner logic: Check if restaurant is configured
+                        const restaurantDoc = await db.collection('restaurants').doc(userData.restaurantId).get();
+                        
+                        if (!restaurantDoc.exists || !restaurantDoc.data().name) {
+                            // First time login for owner - send to settings
+                            window.location.href = 'settings.html?setup=true';
+                        } else {
+                            window.location.href = 'dashboard.html';
+                        }
+                    }
+                } else {
+                    // If no user document exists, redirect to dashboard (will handle there)
+                    window.location.href = 'dashboard.html';
+                }
+            } catch (error) {
+                console.error("Auto-redirect error:", error);
+                window.location.href = 'dashboard.html';
+            }
         }
     });
 
@@ -38,26 +73,64 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Login logic
+    // Login logic with role-based redirection
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
+        loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
             
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Signing in...';
             showMessage('Signing in...', 'info');
-            
-            auth.signInWithEmailAndPassword(email, password)
-                .then(() => {
-                    showMessage('Login successful! Redirecting...', 'success');
-                    setTimeout(() => window.location.href = 'dashboard.html', 1000);
-                })
-                .catch(error => showMessage(error.message, 'error'));
+
+            try {
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                // Fetch user role and restaurant info immediately after login
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                
+                if (!userDoc.exists) {
+                    throw new Error("User profile not found. Please contact support.");
+                }
+
+                const userData = userDoc.data();
+                
+                // ROLE-BASED REDIRECTION LOGIC
+                let redirectUrl = 'dashboard.html';
+                
+                if (userData.role === 'staff') {
+                    // Staff always goes to Dashboard or Billing (based on their permissions)
+                    const permissions = userData.permissions || [];
+                    if (permissions.includes('billing')) {
+                        redirectUrl = 'billing.html';
+                    }
+                } else {
+                    // Owner logic: Check if restaurant is configured
+                    const restaurantDoc = await db.collection('restaurants').doc(userData.restaurantId).get();
+                    
+                    if (!restaurantDoc.exists || !restaurantDoc.data().name) {
+                        // First time login for owner - send to settings
+                        redirectUrl = 'settings.html?setup=true';
+                    }
+                }
+
+                showMessage('Login successful! Redirecting...', 'success');
+                setTimeout(() => window.location.href = redirectUrl, 1000);
+                
+            } catch (error) {
+                console.error("Login error:", error);
+                showMessage(error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Sign In';
+            }
         });
     }
 
-    // Registration logic
+    // Registration logic (for owners only)
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', function(e) {
@@ -103,9 +176,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(() => {
                     showMessage(`Account created! Your staff join code: ${joinCode}`, 'success');
-                    setTimeout(() => window.location.href = 'dashboard.html', 2500);
+                    setTimeout(() => window.location.href = 'settings.html?setup=true', 2500);
                 })
-                .catch(error => showMessage(error.message, 'error'));
+                .catch(error => {
+                    showMessage(error.message, 'error');
+                    const submitBtn = registerForm.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Register';
+                    }
+                });
         });
     }
 
@@ -123,5 +203,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }`;
         messageDiv.classList.remove('hidden');
         setTimeout(() => messageDiv.classList.add('hidden'), 5000);
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        } else {
+            alert(message);
+        }
     }
 });

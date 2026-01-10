@@ -14,6 +14,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Helper function to safely get input values
+    const getVal = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+    };
+
+    // Helper function to safely set input values
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || '';
+    };
+
     async function loadSettings() {
         const user = auth.currentUser;
         if (!user) return;
@@ -27,26 +39,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 const settings = data.settings || {};
                 
                 // Restaurant info
-                if (document.getElementById('resName')) document.getElementById('resName').value = data.name || '';
-                if (document.getElementById('resAddress')) document.getElementById('resAddress').value = data.address || '';
-                if (document.getElementById('resPhone')) document.getElementById('resPhone').value = data.phone || '';
+                setVal('resName', data.name);
+                setVal('resAddress', data.address);
+                setVal('resPhone', data.phone);
                 
                 // Tax settings
-                if (document.getElementById('resGst')) document.getElementById('resGst').value = settings.gstRate || 0;
-                if (document.getElementById('resService')) document.getElementById('resService').value = settings.serviceCharge || 0;
-                if (document.getElementById('resGSTIN')) document.getElementById('resGSTIN').value = settings.gstin || '';
-                if (document.getElementById('resFSSAI')) document.getElementById('resFSSAI').value = settings.fssai || '';
+                setVal('resGst', settings.gstRate);
+                setVal('resService', settings.serviceCharge);
+                setVal('resGSTIN', settings.gstin);
+                setVal('resFSSAI', settings.fssai);
                 
-                // Owner info (can come from restaurant or users doc)
-                if (document.getElementById('ownerName')) document.getElementById('ownerName').value = data.ownerName || '';
-                if (document.getElementById('ownerPhone')) document.getElementById('ownerPhone').value = data.ownerPhone || data.phone || '';
+                // Owner info
+                setVal('ownerName', data.ownerName);
+                setVal('ownerPhone', data.ownerPhone || data.phone);
             }
             
             // Fallback owner info check from users collection
-            if (userDoc.exists && !document.getElementById('ownerName').value) {
+            if (userDoc.exists && !getVal('ownerName')) {
                 const userData = userDoc.data();
-                document.getElementById('ownerName').value = userData.name || '';
-                document.getElementById('ownerPhone').value = userData.phone || '';
+                setVal('ownerName', userData.name);
+                setVal('ownerPhone', userData.phone);
             }
 
         } catch (error) {
@@ -65,21 +77,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const originalText = submitBtn.innerHTML;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
 
-            const ownerName = document.getElementById('ownerName').value.trim();
-            const ownerPhone = document.getElementById('ownerPhone').value.trim();
+            const ownerName = getVal('ownerName');
+            const ownerPhone = getVal('ownerPhone');
 
             const updatedData = {
-                name: document.getElementById('resName').value.trim(),
+                name: getVal('resName'),
                 ownerName: ownerName,
                 ownerPhone: ownerPhone,
-                address: document.getElementById('resAddress').value.trim(),
-                phone: document.getElementById('resPhone').value.trim(),
+                address: getVal('resAddress'),
+                phone: getVal('resPhone'),
                 settings: {
                     currency: '₹',
-                    gstRate: parseFloat(document.getElementById('resGst').value) || 0,
-                    serviceCharge: parseFloat(document.getElementById('resService').value) || 0,
-                    gstin: document.getElementById('resGSTIN').value.trim(),
-                    fssai: document.getElementById('resFSSAI').value.trim()
+                    gstRate: parseFloat(getVal('resGst')) || 0,
+                    serviceCharge: parseFloat(getVal('resService')) || 0,
+                    gstin: getVal('resGSTIN'),
+                    fssai: getVal('resFSSAI')
                 },
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
@@ -109,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (passwordForm) {
         passwordForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            if (document.getElementById('newPassword').value !== document.getElementById('confirmPassword').value) {
+            if (getVal('newPassword') !== getVal('confirmPassword')) {
                 return showNotification('Passwords do not match', 'error');
             }
             pendingAction = 'password';
@@ -127,14 +139,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (reauthForm) {
         reauthForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const password = document.getElementById('reauthPassword').value;
+            const password = getVal('reauthPassword');
             const user = auth.currentUser;
             const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
             
             try {
                 await user.reauthenticateWithCredential(credential);
                 if (pendingAction === 'password') {
-                    await user.updatePassword(document.getElementById('newPassword').value);
+                    await user.updatePassword(getVal('newPassword'));
                     showNotification('Password updated!', 'success');
                     passwordForm.reset();
                 } else if (pendingAction === 'delete') {
@@ -150,10 +162,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function openReauthModal() { document.getElementById('reauthModal').classList.remove('hidden'); }
+    function openReauthModal() { 
+        const modal = document.getElementById('reauthModal');
+        if (modal) modal.classList.remove('hidden'); 
+    }
+    
     window.closeReauthModal = function() { 
-        document.getElementById('reauthModal').classList.add('hidden');
-        reauthForm.reset();
+        const modal = document.getElementById('reauthModal');
+        if (modal) modal.classList.add('hidden');
+        if (reauthForm) reauthForm.reset();
         pendingAction = null;
     };
 

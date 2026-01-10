@@ -63,10 +63,24 @@ function setUserEmailWithRetry(email) {
         const userEmailElement = document.getElementById('userEmail');
         const mobileEmailElement = document.getElementById('mobileUserEmail');
         
-        if (userEmailElement && mobileEmailElement) {
+        let success = true;
+        
+        if (userEmailElement) {
             userEmailElement.textContent = email;
+            console.log("Desktop email set:", email);
+        } else {
+            success = false;
+        }
+        
+        if (mobileEmailElement) {
             mobileEmailElement.textContent = email;
-            console.log("Email successfully set in header and mobile sidebar:", email);
+            console.log("Mobile email set:", email);
+        } else {
+            success = false;
+        }
+        
+        if (success) {
+            console.log("Email successfully set in both places");
             return true;
         } 
         
@@ -330,12 +344,14 @@ function loadQuickStatsForSidebar() {
 function updateRestaurantName(name) {
     if (!name) return;
     
+    // Update desktop header
     const restaurantNameElements = document.querySelectorAll('#restaurantName');
     restaurantNameElements.forEach(el => {
         if (el) el.textContent = name;
     });
     
-    const mobileRestaurantName = document.querySelector('#mobileSidebar .text-xl');
+    // Update mobile sidebar
+    const mobileRestaurantName = document.getElementById('mobileRestaurantName');
     if (mobileRestaurantName) mobileRestaurantName.textContent = name;
 }
 

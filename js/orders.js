@@ -6,16 +6,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let orderToDelete = null;
 
     // Check auth
-   auth.onAuthStateChanged(async user => {
-    if (!user) {
-        window.location.href = 'index.html';
-    } else {
-        // Check permission for viewing orders
-        const hasPermission = await RoleManager.hasPermission(PERMISSIONS.VIEW_ORDERS);
-        if (!hasPermission) {
-            window.location.href = 'dashboard.html';
-            return;
-        }
+    auth.onAuthStateChanged(user => {
+        if (!user) {
+            window.location.href = 'index.html';
+        } else {
             loadOrders();
             loadTodayStats();
         }
@@ -436,4 +430,3 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 });
-

@@ -5,15 +5,22 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedOrder = null;
     let orderToDelete = null;
 
+    let isStaff = false;
+
     // Check auth
-    auth.onAuthStateChanged(user => {
-        if (!user) {
-            window.location.href = 'index.html';
-        } else {
-            loadOrders();
-            loadTodayStats();
+   auth.onAuthStateChanged(async user => {
+    if (!user) {
+        window.location.href = 'index.html';
+    } else {
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            isStaff = userData.role === 'staff';
         }
-    });
+        loadOrders();
+        loadTodayStats();
+    }
+});
 
     // Load orders
     function loadOrders(filters = {}) {
@@ -145,7 +152,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                     </div>
                 </td>
-            `;
+             <td class="py-4 px-6">
+            <div class="flex space-x-2">
+                <button class="view-order text-blue-500 hover:text-blue-700" data-id="${order.id}" title="View Details">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="print-order text-orange-500 hover:text-orange-700" data-id="${order.id}" title="Print Receipt">
+                    <i class="fas fa-print"></i>
+                </button>
+                ${!isStaff ? `
+                    <button class="delete-order text-red-500 hover:text-red-700" data-id="${order.id}" title="Delete Order">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                ` : ''}
+            </div>
+        </td>
+    `;
             tbody.appendChild(row);
         });
 
@@ -430,3 +452,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 });
+

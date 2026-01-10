@@ -6,30 +6,22 @@ let restaurantSettings = {
     serviceCharge: 0,
     currency: ''
 };
-let userRole = '';
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Check auth and permissions
-    auth.onAuthStateChanged(async user => {
+    // Check auth
+    auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
-            // Get user role
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                userRole = userData.role;
-                
-                // Billing page is accessible to both owners and staff
-                loadRestaurantSettings(userData.restaurantId || user.uid);
-                loadProducts(userData.restaurantId || user.uid);
-            }
+            loadRestaurantSettings();
+            loadProducts();
         }
     });
 
     // Load restaurant settings from Firestore (Source of Truth)
-    function loadRestaurantSettings(restaurantId) {
-        db.collection('restaurants').doc(restaurantId).get()
+    function loadRestaurantSettings() {
+        const user = auth.currentUser;
+        db.collection('restaurants').doc(user.uid).get()
             .then(doc => {
                 if (doc.exists) {
                     const data = doc.data();
@@ -133,12 +125,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function loadProducts(restaurantId) {
-        if (!restaurantId) return;
+    function loadProducts() {
+        const user = auth.currentUser;
+        if (!user) return;
 
         if (isOnline()) {
             db.collection('products')
-                .where('restaurantId', '==', restaurantId)
+                .where('restaurantId', '==', user.uid)
                 .get()
                 .then(snapshot => {
                     const productsData = [];
@@ -421,13 +414,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const user = auth.currentUser;
-            // Get user data to get restaurantId
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (!userDoc.exists) return;
-            
-            const userData = userDoc.data();
-            const restaurantId = userData.restaurantId || user.uid;
-            
             const currency = restaurantSettings.currency || '₹';
             const totalText = document.getElementById('totalAmount').textContent;
             const total = parseFloat(totalText.replace(currency, '')) || 0;
@@ -442,9 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const orderData = {
-                restaurantId: restaurantId,
-                createdBy: user.uid,
-                createdByRole: userRole,
+                restaurantId: user.uid,
                 items: JSON.parse(JSON.stringify(cart)), 
                 customerName: document.getElementById('customerName').value || 'Walk-in Customer',
                 customerPhone: document.getElementById('customerPhone').value || '',

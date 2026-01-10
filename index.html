@@ -29,26 +29,26 @@
                 <i class="fas fa-utensils text-white text-3xl"></i>
             </div>
             <h1 class="text-3xl font-bold text-gray-800">MNRFoodBill</h1>
-            <p class="text-gray-600 mt-2">Sign in to your account</p>
+            <p class="text-gray-600 mt-2" id="loginTypeTitle">Owner Login</p>
         </div>
 
-        <form id="loginForm" class="space-y-6">
+        <form id="loginForm" class="space-y-4">
             <div>
-                <label class="block text-gray-700 mb-2">Email Address</label>
+                <label class="block text-gray-700 mb-1 text-sm font-semibold">Email Address</label>
                 <div class="relative">
                     <i class="fas fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     <input type="email" id="email" 
-                           class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                           class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
                            placeholder="Enter your email" required>
                 </div>
             </div>
 
             <div>
-                <label class="block text-gray-700 mb-2">Password</label>
+                <label class="block text-gray-700 mb-1 text-sm font-semibold">Password</label>
                 <div class="relative">
                     <i class="fas fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     <input type="password" id="password" 
-                           class="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                           class="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
                            placeholder="Enter your password" required>
                     <button type="button" id="togglePassword" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                         <i class="fas fa-eye"></i>
@@ -57,54 +57,75 @@
             </div>
 
             <button type="submit" 
-                    class="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-lg font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center">
+                    class="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-lg font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center shadow-md">
                 <i class="fas fa-sign-in-alt mr-2"></i> Sign In
             </button>
 
             <div class="text-center">
-                <a href="#" id="registerBtn" class="text-red-500 hover:text-red-600 font-medium">Create new account</a>
+                <a href="#" id="registerBtn" class="text-red-500 hover:text-red-600 font-medium">Create new owner account</a>
             </div>
         </form>
 
-        <form id="registerForm" class="space-y-6 hidden">
+        <form id="registerForm" class="space-y-4 hidden">
             <div>
-                <label class="block text-gray-700 mb-2">Restaurant Name</label>
+                <label class="block text-gray-700 mb-1 text-sm font-semibold">Restaurant Name</label>
                 <div class="relative">
                     <i class="fas fa-store absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     <input type="text" id="restaurantName" 
-                           class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                           placeholder="Enter restaurant name" required>
+                           class="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                           placeholder="e.g. MNR Food Court" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4">
+                <div>
+                    <label class="block text-gray-700 mb-1 text-sm font-semibold">Owner Full Name</label>
+                    <div class="relative">
+                        <i class="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="regOwnerName" 
+                               class="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                               placeholder="Enter your name" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-1 text-sm font-semibold">Phone Number</label>
+                    <div class="relative">
+                        <i class="fas fa-phone absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input type="tel" id="regOwnerPhone" 
+                               class="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                               placeholder="+91 9876543210" required>
+                    </div>
                 </div>
             </div>
 
             <div>
-                <label class="block text-gray-700 mb-2">Email Address</label>
+                <label class="block text-gray-700 mb-1 text-sm font-semibold">Email Address</label>
                 <div class="relative">
                     <i class="fas fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     <input type="email" id="regEmail" 
-                           class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                           class="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
                            placeholder="Enter your email" required>
                 </div>
             </div>
 
             <div>
-                <label class="block text-gray-700 mb-2">Password</label>
+                <label class="block text-gray-700 mb-1 text-sm font-semibold">Password</label>
                 <div class="relative">
                     <i class="fas fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     <input type="password" id="regPassword" 
-                           class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                           placeholder="Create password (min 6 characters)" required minlength="6">
+                           class="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                           placeholder="Min 6 characters" required minlength="6">
                 </div>
             </div>
 
-            <div class="flex space-x-4">
+            <div class="flex space-x-3 mt-4">
                 <button type="button" id="backToLogin" 
-                        class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300">
-                    <i class="fas fa-arrow-left mr-2"></i> Back
+                        class="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300">
+                    Back
                 </button>
                 <button type="submit" 
-                        class="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-300">
-                    <i class="fas fa-user-plus mr-2"></i> Register
+                        class="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-2.5 rounded-lg font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-md">
+                    Register
                 </button>
             </div>
         </form>
@@ -113,13 +134,7 @@
     </div>
 
     <div class="absolute bottom-4 text-center text-white w-full">
-        <p>MNRFoodBill System v1.0 • Thermal Print Ready</p>
+        <p>MNRFoodBill System v1.1 • Professional POS</p>
     </div>
-
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
-}
-</script>
 </body>
 </html>

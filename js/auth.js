@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Check if user is already logged in
-    auth.onAuthStateChanged(async user => {
+    auth.onAuthStateChanged(user => {
         if (user) {
             window.location.href = 'dashboard.html';
         }
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Toggle join code visibility
+    // Toggle staff join code visibility
     const toggleJoinCodeBtn = document.getElementById('toggleJoinCodeBtn');
     if (toggleJoinCodeBtn) {
         toggleJoinCodeBtn.addEventListener('click', function() {
@@ -28,117 +28,71 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Show/Hide login forms
+    // Show/Hide staff login form
     const showStaffLoginBtn = document.getElementById('showStaffLoginBtn');
     const showOwnerLoginBtn = document.getElementById('showOwnerLoginBtn');
-    const registerBtn = document.getElementById('registerBtn');
-    const backToLogin = document.getElementById('backToLogin');
-
+    
     if (showStaffLoginBtn) {
         showStaffLoginBtn.addEventListener('click', function(e) {
             e.preventDefault();
             document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('staffLoginForm').classList.remove('hidden');
             document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('staffLoginForm').classList.remove('hidden');
             document.getElementById('loginTypeTitle').textContent = 'Staff Login';
         });
     }
 
     if (showOwnerLoginBtn) {
-        showOwnerLoginBtn.addEventListener('click', function() {
-            document.getElementById('staffLoginForm').classList.add('hidden');
-            document.getElementById('loginForm').classList.remove('hidden');
-            document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('loginTypeTitle').textContent = 'Owner Login';
-        });
-    }
-
-    if (registerBtn) {
-        registerBtn.addEventListener('click', function(e) {
+        showOwnerLoginBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            document.getElementById('loginForm').classList.add('hidden');
             document.getElementById('staffLoginForm').classList.add('hidden');
-            document.getElementById('registerForm').classList.remove('hidden');
-            document.getElementById('loginTypeTitle').textContent = 'Register Restaurant';
-        });
-    }
-
-    if (backToLogin) {
-        backToLogin.addEventListener('click', function() {
             document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('staffLoginForm').classList.add('hidden');
             document.getElementById('loginForm').classList.remove('hidden');
             document.getElementById('loginTypeTitle').textContent = 'Owner Login';
         });
     }
 
-    // Owner Login form
+    // Login form (Owner)
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
-        loginForm.addEventListener('submit', async function(e) {
+        loginForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             
             showMessage('Signing in as Owner...', 'info');
             
-            try {
-                const userCredential = await auth.signInWithEmailAndPassword(email, password);
-                const user = userCredential.user;
-                
-                // Check if user exists in users collection
-                const userDoc = await db.collection('users').doc(user.uid).get();
-                
-                if (!userDoc.exists) {
-                    // First time login, create user document
-                    await db.collection('users').doc(user.uid).set({
-                        email: email,
-                        role: ROLES.OWNER,
-                        restaurantId: user.uid,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        isActive: true
-                    });
-                    
-                    // Also create/update restaurant document
-                    const restaurantDoc = await db.collection('restaurants').doc(user.uid).get();
-                    if (!restaurantDoc.exists) {
-                        await db.collection('restaurants').doc(user.uid).set({
-                            name: 'My Restaurant',
-                            email: email,
-                            ownerId: user.uid,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                            settings: {
-                                gstRate: 18,
-                                serviceCharge: 5,
-                                currency: '₹'
-                            }
-                        });
+            auth.signInWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    // Check user role
+                    return db.collection('users').doc(userCredential.user.uid).get();
+                })
+                .then(doc => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        if (userData.role === 'owner') {
+                            showMessage('Login successful! Redirecting...', 'success');
+                            setTimeout(() => {
+                                window.location.href = 'dashboard.html';
+                            }, 1000);
+                        } else {
+                            auth.signOut();
+                            showMessage('This account is not an owner account', 'error');
+                        }
+                    } else {
+                        showMessage('User data not found', 'error');
                     }
-                } else {
-                    // Existing user, verify role
-                    const userData = userDoc.data();
-                    if (userData.role !== ROLES.OWNER) {
-                        showMessage('This account is not an owner account', 'error');
-                        await auth.signOut();
-                        return;
-                    }
-                }
-                
-                showMessage('Login successful! Redirecting...', 'success');
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1000);
-                
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
+                })
+                .catch(error => {
+                    showMessage(error.message, 'error');
+                });
         });
     }
 
     // Staff Login form
     const staffLoginForm = document.getElementById('staffLoginForm');
     if (staffLoginForm) {
-        staffLoginForm.addEventListener('submit', async function(e) {
+        staffLoginForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const email = document.getElementById('staffEmail').value;
             const password = document.getElementById('staffPassword').value;
@@ -146,107 +100,117 @@ document.addEventListener('DOMContentLoaded', function() {
             
             showMessage('Signing in as Staff...', 'info');
             
-            try {
-                // First, sign in with email/password
-                const userCredential = await auth.signInWithEmailAndPassword(email, password);
-                const user = userCredential.user;
-                
-                // Check user document
-                const userDoc = await db.collection('users').doc(user.uid).get();
-                if (!userDoc.exists) {
-                    showMessage('Staff account not found. Please ask owner to create account.', 'error');
-                    await auth.signOut();
-                    return;
-                }
-                
-                const userData = userDoc.data();
-                
-                // Verify join code with restaurant
-                const joinResult = await RoleManager.verifyJoinCode(joinCode, userData.restaurantId);
-                
-                if (!joinResult.valid) {
-                    showMessage('Invalid join code', 'error');
-                    await auth.signOut();
-                    return;
-                }
-                
-                // Verify this staff member matches the join code
-                if (joinResult.staff.staffId !== user.uid) {
-                    showMessage('Join code does not match this account', 'error');
-                    await auth.signOut();
-                    return;
-                }
-                
-                // Check if account is active
-                if (!userData.isActive) {
-                    showMessage('Account is deactivated. Contact owner.', 'error');
-                    await auth.signOut();
-                    return;
-                }
-                
-                showMessage('Staff login successful! Redirecting...', 'success');
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1000);
-                
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
+            // First authenticate
+            auth.signInWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    // Verify staff credentials and join code
+                    return db.collection('users').doc(userCredential.user.uid).get();
+                })
+                .then(doc => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        if (userData.role === 'staff' && userData.joinCode === joinCode) {
+                            showMessage('Staff login successful! Redirecting...', 'success');
+                            setTimeout(() => {
+                                window.location.href = 'dashboard.html';
+                            }, 1000);
+                        } else {
+                            auth.signOut();
+                            showMessage('Invalid join code or account type', 'error');
+                        }
+                    } else {
+                        showMessage('Staff account not found', 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage(error.message, 'error');
+                });
         });
     }
 
-    // Owner Register form
+    // Register form (Owner registration)
     const registerForm = document.getElementById('registerForm');
+    const registerBtn = document.getElementById('registerBtn');
+    const backToLogin = document.getElementById('backToLogin');
+
+    if (registerBtn) {
+        registerBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('staffLoginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+            document.getElementById('loginTypeTitle').textContent = 'Register as Owner';
+        });
+    }
+
+    if (backToLogin) {
+        backToLogin.addEventListener('click', function() {
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('loginTypeTitle').textContent = 'Owner Login';
+        });
+    }
+
     if (registerForm) {
-        registerForm.addEventListener('submit', async function(e) {
+        registerForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const restaurantName = document.getElementById('restaurantName').value;
             const email = document.getElementById('regEmail').value;
             const password = document.getElementById('regPassword').value;
             
-            showMessage('Creating restaurant account...', 'info');
+            showMessage('Creating owner account...', 'info');
             
-            try {
-                // Create user in Firebase Auth
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                const user = userCredential.user;
-                
-                // Create user document with owner role
-                await db.collection('users').doc(user.uid).set({
-                    email: email,
-                    role: ROLES.OWNER,
-                    restaurantId: user.uid,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    isActive: true
+            // Generate unique join code for staff
+            const joinCode = generateJoinCode();
+            
+            auth.createUserWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    const user = userCredential.user;
+                    
+                    // Save restaurant info to Firestore
+                    return Promise.all([
+                        db.collection('restaurants').doc(user.uid).set({
+                            name: restaurantName,
+                            email: email,
+                            ownerId: user.uid,
+                            joinCode: joinCode,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            settings: {
+                                gstRate: 18,
+                                serviceCharge: 5,
+                                currency: '₹'
+                            }
+                        }),
+                        db.collection('users').doc(user.uid).set({
+                            email: email,
+                            role: 'owner',
+                            restaurantId: user.uid,
+                            name: restaurantName + ' Owner',
+                            joinCode: joinCode,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        })
+                    ]);
+                })
+                .then(() => {
+                    showMessage(`Account created! Your staff join code is: ${joinCode}`, 'success');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 3000);
+                })
+                .catch(error => {
+                    showMessage(error.message, 'error');
                 });
-                
-                // Create restaurant document
-                await db.collection('restaurants').doc(user.uid).set({
-                    name: restaurantName,
-                    email: email,
-                    ownerId: user.uid,
-                    ownerEmail: email,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    settings: {
-                        gstRate: 18,
-                        serviceCharge: 5,
-                        currency: '₹',
-                        address: '',
-                        phone: '',
-                        gstin: '',
-                        fssai: ''
-                    }
-                });
-                
-                showMessage('Restaurant created successfully!', 'success');
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1500);
-                
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
         });
+    }
+
+    function generateJoinCode() {
+        // Generate a 6-character alphanumeric code
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
     }
 
     function showMessage(text, type) {

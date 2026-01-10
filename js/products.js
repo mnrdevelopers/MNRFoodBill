@@ -1,3 +1,18 @@
+let isStaff = false;
+
+auth.onAuthStateChanged(async user => {
+    if (!user) {
+        window.location.href = 'index.html';
+    } else {
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            isStaff = userData.role === 'staff';
+        }
+        loadProducts();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     let products = [];
     let productToDelete = null;
@@ -85,9 +100,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                     </div>
                 </td>
-            `;
-            tbody.appendChild(row);
-        });
+            <td class="py-4 px-6">
+                <div class="flex space-x-2">
+                    ${!isStaff ? `
+                        <button class="edit-product text-blue-500 hover:text-blue-700" data-id="${product.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="delete-product text-red-500 hover:text-red-700" data-id="${product.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : '<span class="text-gray-400 text-sm">View only</span>'}
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
 
         // Add event listeners
         document.querySelectorAll('.edit-product').forEach(button => {
@@ -206,3 +233,4 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => n.remove(), 3000);
     }
 });
+

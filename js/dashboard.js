@@ -1,9 +1,15 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Check auth
-    auth.onAuthStateChanged(user => {
-        if (!user) {
-            window.location.href = 'index.html';
-        } else {
+   auth.onAuthStateChanged(async user => {
+    if (!user) {
+        window.location.href = 'index.html';
+    } else {
+        // Check permission
+        const hasPermission = await RoleManager.hasPermission(PERMISSIONS.VIEW_DASHBOARD);
+        if (!hasPermission) {
+            window.location.href = 'billing.html'; // Redirect to billing page
+            return;
+        }
             updateGreeting();
             loadRestaurantInfo();
             loadDashboardStats();
@@ -142,3 +148,4 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 });
+

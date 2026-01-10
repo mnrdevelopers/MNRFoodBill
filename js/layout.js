@@ -1,51 +1,71 @@
 // js/layout.js - Enhanced with RBAC
 document.addEventListener('DOMContentLoaded', function() {
-    let sidebarOpen = true;
     let currentUserData = null;
     
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async (user) => {
         if (!user) {
-            window.location.href = 'index.html';
+            if (!window.location.pathname.endsWith('index.html')) {
+                window.location.href = 'index.html';
+            }
             return;
         }
-        
-        // Load User Profile and check role/permissions
-        db.collection('users').doc(user.uid).get()
-            .then(doc => {
-                if (doc.exists) {
-                    currentUserData = doc.data();
-                    
-                    // RBAC: Check access for current page
-                    checkPageAccess(currentUserData);
-                    
-                    // RBAC: Adjust sidebar visibility
-                    adjustSidebarModules(currentUserData);
-                    
-                    // Load Restaurant Info
-                    return db.collection('restaurants').doc(currentUserData.restaurantId).get();
+
+        try {
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (!userDoc.exists) {
+                auth.signOut();
+                return;
+            }
+
+            currentUserData = userDoc.data();
+            const role = currentUserData.role;
+            const restaurantId = currentUserData.restaurantId;
+            const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+
+            // --- REDIRECTION LOGIC ---
+            
+            if (role === 'owner') {
+                // Only owners are checked for "First Time Setup"
+                if (currentPage !== 'settings.html') {
+                    const restDoc = await db.collection('restaurants').doc(restaurantId).get();
+                    if (!restDoc.exists || !restDoc.data().name) {
+                        window.location.href = 'settings.html?setup=required';
+                        return;
+                    }
                 }
-            })
-            .then(doc => {
-                if (doc && doc.exists) {
-                    const data = doc.data();
-                    const restaurantName = document.getElementById('restaurantName');
-                    if (restaurantName) restaurantName.textContent = data.name;
-                    
-                    const mobileRestaurantName = document.querySelector('#mobileSidebar .text-xl');
-                    if (mobileRestaurantName) mobileRestaurantName.textContent = data.name;
+            } else if (role === 'staff') {
+                // Staff bypasses restaurant setup check entirely.
+                // We only check if they have permission for the page they are on.
+                const permissions = currentUserData.permissions || [];
+                const pageMap = {
+                    'billing.html': 'billing',
+                    'products.html': 'products',
+                    'orders.html': 'orders',
+                    'settings.html': 'settings'
+                };
+
+                const requiredPerm = pageMap[currentPage];
+                if (currentPage === 'staff.html' || (requiredPerm && !permissions.includes(requiredPerm))) {
+                    // Redirect staff to their first available page
+                    if (permissions.includes('billing')) {
+                        window.location.href = 'billing.html';
+                    } else {
+                        window.location.href = 'dashboard.html';
+                    }
+                    return;
                 }
-            });
-        
-        const userEmail = document.getElementById('userEmail');
-        if (userEmail) userEmail.textContent = user.email;
-        
-        loadQuickStats(user.uid);
+            }
+
+            // --- UI RENDER ---
+            adjustSidebarModules(currentUserData);
+            loadHeader();
+            loadSidebar();
+            
+        } catch (error) {
+            console.error("Layout initialization error:", error);
+        }
     });
-    
-    loadHeader();
-    loadSidebar();
-    setupMobileSidebar();
-    setupDesktopSidebarToggle();
+
     setupLogout();
 });
 
@@ -103,50 +123,27 @@ function checkPageAccess(userData) {
 }
 
 function adjustSidebarModules(userData) {
-    // Wait for sidebar to be injected
     const observer = new MutationObserver(() => {
-        const sidebarNav = document.getElementById('sidebarNav');
-        const mobileNav = document.querySelector('#mobileSidebar nav');
-        
-        if (sidebarNav || mobileNav) {
+        const nav = document.getElementById('sidebarNav') || document.querySelector('#mobileSidebar nav');
+        if (nav) {
             const role = userData.role;
             const permissions = userData.permissions || [];
+            const links = nav.querySelectorAll('a');
             
-            // List of restricted links and their permission requirement
-            const restrictedLinks = [
-                { href: 'billing.html', key: 'billing' },
-                { href: 'products.html', key: 'products' },
-                { href: 'orders.html', key: 'orders' },
-                { href: 'settings.html', key: 'settings' },
-                { href: 'staff.html', key: 'staff-admin' }
-            ];
-
-            const handleNav = (nav) => {
-                if (!nav) return;
-                const links = nav.querySelectorAll('a');
-                links.forEach(link => {
-                    const href = link.getAttribute('href');
-                    const config = restrictedLinks.find(l => l.href === href);
-                    
-                    if (config) {
-                        // Only hide if it's staff AND they lack the specific permission
-                        if (role === 'staff' && !permissions.includes(config.key)) {
-                            link.style.display = 'none';
-                        }
-                        // Hide staff management from staff entirely
-                        if (role === 'staff' && config.key === 'staff-admin') {
-                            link.style.display = 'none';
-                        }
-                    }
-                });
-            };
-
-            handleNav(sidebarNav);
-            handleNav(mobileNav);
+            links.forEach(link => {
+                const href = link.getAttribute('href');
+                if (role === 'staff') {
+                    // Hide pages staff doesn't have permissions for
+                    if (href === 'staff.html') link.style.display = 'none';
+                    if (href === 'billing.html' && !permissions.includes('billing')) link.style.display = 'none';
+                    if (href === 'products.html' && !permissions.includes('products')) link.style.display = 'none';
+                    if (href === 'orders.html' && !permissions.includes('orders')) link.style.display = 'none';
+                    if (href === 'settings.html' && !permissions.includes('settings')) link.style.display = 'none';
+                }
+            });
             observer.disconnect();
         }
     });
-
     observer.observe(document.body, { childList: true, subtree: true });
 }
 

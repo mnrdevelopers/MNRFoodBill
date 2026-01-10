@@ -56,49 +56,52 @@ function checkPageAccess(userData) {
     const role = userData.role;
     const permissions = userData.permissions || [];
 
-    // 1. OWNER LOGIC
+    // 1. STAFF LOGIC - Never force to settings
+    if (role === 'staff') {
+        // Staff should NEVER be forced to settings
+        if (page === 'settings.html' && !permissions.includes('settings')) {
+            redirectToPermittedArea(permissions);
+            return;
+        }
+        
+        // Check other page permissions
+        const pagePermissionMap = {
+            'billing.html': 'billing',
+            'products.html': 'products',
+            'orders.html': 'orders',
+            'staff.html': 'staff-admin' 
+        };
+
+        const requiredPermission = pagePermissionMap[page];
+        
+        if (requiredPermission && !permissions.includes(requiredPermission)) {
+            redirectToPermittedArea(permissions);
+        }
+        return; // Staff logic ends here
+    }
+
+    // 2. OWNER LOGIC - Only check setup on non-settings pages
     if (role === 'owner') {
-        // If owner is on any page except settings, check if they finished setup
         if (page !== 'settings.html') {
-            db.collection('restaurants').doc(userData.restaurantId).get().then(doc => {
+            db.collection('restaurants').doc(userData.restaurantId || auth.currentUser.uid).get().then(doc => {
                 if (!doc.exists || !doc.data().name) {
-                    // Force owner to settings if setup is missing
                     window.location.href = 'settings.html?setup=required';
                 }
             });
         }
-        return; // Owner has access to everything once setup is done
+        return; // Owner has access to everything
     }
+}
 
-    // 2. STAFF LOGIC
-    // Staff should NEVER be forced to settings unless they have permission
-    const pagePermissionMap = {
-        'billing.html': 'billing',
-        'products.html': 'products',
-        'orders.html': 'orders',
-        'settings.html': 'settings',
-        'staff.html': 'staff-admin' 
-    };
-
-    const requiredPermission = pagePermissionMap[page];
-    
-    // If they are on a page that requires specific permission
-    if (requiredPermission) {
-        const hasAccess = permissions.includes(requiredPermission);
-        
-        // Block staff from 'Staff Management' entirely
-        if (requiredPermission === 'staff-admin' || !hasAccess) {
-            console.warn("Access Denied: Redirecting to permitted area.");
-            
-            // Redirect to their primary work area
-            if (permissions.includes('billing')) {
-                window.location.href = 'billing.html';
-            } else if (permissions.includes('orders')) {
-                window.location.href = 'orders.html';
-            } else {
-                window.location.href = 'dashboard.html';
-            }
-        }
+function redirectToPermittedArea(permissions) {
+    if (permissions.includes('billing')) {
+        window.location.href = 'billing.html';
+    } else if (permissions.includes('orders')) {
+        window.location.href = 'orders.html';
+    } else if (permissions.includes('products')) {
+        window.location.href = 'products.html';
+    } else {
+        window.location.href = 'dashboard.html';
     }
 }
 

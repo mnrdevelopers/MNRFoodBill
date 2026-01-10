@@ -1,11 +1,14 @@
+// role-manager.js - Fixed Version
 // Role-based Access Control System
 
+// Define ROLES first
 const ROLES = {
     OWNER: 'owner',
     STAFF: 'staff',
     ADMIN: 'admin'
 };
 
+// Define PERMISSIONS next
 const PERMISSIONS = {
     // Dashboard
     VIEW_DASHBOARD: 'view_dashboard',
@@ -49,8 +52,8 @@ const ROLE_PERMISSIONS = {
         PERMISSIONS.CREATE_BILL,
         PERMISSIONS.PRINT_BILL,
         PERMISSIONS.VIEW_PRODUCTS,
-        PERMISSIONS.VIEW_ORDERS
-        PERMISSIONS.VIEW_SETTINGS
+        PERMISSIONS.VIEW_ORDERS,
+        PERMISSIONS.VIEW_SETTINGS  // Staff can view but not edit
     ],
     
     [ROLES.ADMIN]: [
@@ -113,7 +116,7 @@ const RoleManager = {
     async redirectIfUnauthorized(requiredPermission, redirectTo = 'dashboard.html') {
         const hasPerm = await this.hasPermission(requiredPermission);
         if (!hasPerm) {
-            showNotification('You do not have permission to access this page', 'error');
+            this.showNotification('You do not have permission to access this page', 'error');
             setTimeout(() => {
                 window.location.href = redirectTo;
             }, 2000);
@@ -300,6 +303,24 @@ const RoleManager = {
             console.error("Error removing staff:", error);
             return { success: false, error: error.message };
         }
+    },
+    
+    // Helper function for notifications
+    showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existing = document.querySelectorAll('.global-notification');
+        existing.forEach(n => n.remove());
+        
+        const notification = document.createElement('div');
+        notification.className = `global-notification fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : type === 'info' ? 'bg-blue-500' : 'bg-gray-800'} text-white text-sm font-medium`;
+        notification.textContent = message;
+        notification.style.animation = 'slideIn 0.3s ease-out';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 };
 

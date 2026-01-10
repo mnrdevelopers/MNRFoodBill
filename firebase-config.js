@@ -1,3 +1,4 @@
+// Your Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBFL6RkTZIkFsr1PsYa5oVsOdP3orjdRKc",
   authDomain: "mnrfoodbill-a8cf6.firebaseapp.com",
@@ -35,9 +36,4 @@ db.enablePersistence()
         console.warn("Browser doesn't support persistence.");
     }
   });
-
-// Export for use in other files
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { auth, db, functions };
-}
 

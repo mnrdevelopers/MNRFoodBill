@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        console.log("Auth state changed - User email:", user.email); // Debug
+        
         // Load restaurant name
         db.collection('restaurants').doc(user.uid).get()
             .then(doc => {
@@ -22,8 +24,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // Load quick stats
         loadQuickStats(user.uid);
         
-        // Ensure user email is set
-        setUserEmail(user.email);
+        // Set user email - using multiple approaches to ensure it works
+        setUserEmailWithRetry(user.email);
+        
+        // Also try direct approach
+        setTimeout(() => {
+            const emailEl = document.getElementById('userEmail');
+            if (emailEl && user.email) {
+                emailEl.textContent = user.email;
+                console.log("Email set via direct approach");
+            }
+        }, 1000);
     });
     
     // Load header and sidebar
@@ -38,23 +49,39 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
- * Sets the user email in the header.
- * Uses a small retry logic to handle the race condition of async header loading.
+ * Sets the user email in the header with retry logic.
  */
-function setUserEmail(email) {
-    if (!email) return;
-
-    const updateUI = () => {
+function setUserEmailWithRetry(email) {
+    if (!email) {
+        console.log("No email to set");
+        return;
+    }
+    
+    const maxRetries = 15; // Increased retries
+    let retryCount = 0;
+    const retryInterval = 200; // ms
+    
+    const trySetEmail = () => {
         const userEmailElement = document.getElementById('userEmail');
+        
         if (userEmailElement) {
             userEmailElement.textContent = email;
-            console.log("Email set in header:", email);
+            console.log("Email successfully set in header:", email);
+            return true;
+        } 
+        
+        retryCount++;
+        if (retryCount < maxRetries) {
+            console.log(`Retry ${retryCount}/${maxRetries} - waiting for userEmail element...`);
+            setTimeout(trySetEmail, retryInterval);
         } else {
-            // If header isn't injected yet, retry shortly
-            setTimeout(updateUI, 200);
+            console.error("Failed to find userEmail element after", maxRetries, "retries");
+            return false;
         }
     };
-    updateUI();
+    
+    // Start trying immediately
+    setTimeout(trySetEmail, 100);
 }
 
 function loadHeader() {
@@ -69,11 +96,15 @@ function loadHeader() {
                 headerContainer.innerHTML = html;
                 attachHeaderEvents();
                 
-                // Immediately check if we already have a user to set the email
+                // Check if we already have a user when header loads
                 const user = auth.currentUser;
                 if (user && user.email) {
-                    const el = document.getElementById('userEmail');
-                    if (el) el.textContent = user.email;
+                    // Try to set email immediately
+                    const emailEl = document.getElementById('userEmail');
+                    if (emailEl) {
+                        emailEl.textContent = user.email;
+                        console.log("Email set during header load");
+                    }
                 }
             }
         })
@@ -213,6 +244,7 @@ function updateMainContentGrid(isCollapsed) {
 
 function attachHeaderEvents() {
     // Placeholder for any specific header initialization logic
+    console.log("Header events attached");
 }
 
 function setupLogout() {
@@ -297,4 +329,35 @@ function updateRestaurantName(name) {
     
     const mobileRestaurantName = document.querySelector('#mobileSidebar .text-xl');
     if (mobileRestaurantName) mobileRestaurantName.textContent = name;
+}
+
+// Backup function to ensure email is always set
+window.setUserEmailDirectly = function(email) {
+    if (!email) return;
+    
+    // Try multiple times with increasing delays
+    const attempts = [
+        { delay: 100, log: "Attempt 1" },
+        { delay: 500, log: "Attempt 2" },
+        { delay: 1000, log: "Attempt 3" },
+        { delay: 2000, log: "Attempt 4" }
+    ];
+    
+    attempts.forEach((attempt, index) => {
+        setTimeout(() => {
+            const el = document.getElementById('userEmail');
+            if (el) {
+                el.textContent = email;
+                console.log(`${attempt.log}: Email set directly`);
+            } else if (index === attempts.length - 1) {
+                console.error("userEmail element not found after all attempts");
+            }
+        }, attempt.delay);
+    });
+};
+
+// Call this from auth state change
+function setUserEmail(email) {
+    setUserEmailWithRetry(email);
+    window.setUserEmailDirectly(email);
 }

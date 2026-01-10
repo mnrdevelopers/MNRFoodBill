@@ -1,7 +1,6 @@
 // js/layout.js
 document.addEventListener('DOMContentLoaded', function() {
-    // Sidebar state - true = open, false = collapsed
-    let sidebarOpen = true;
+    let sidebarOpen = localStorage.getItem('sidebarOpen') !== 'false';
     
     // Check authentication
     auth.onAuthStateChanged(user => {
@@ -15,33 +14,29 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(doc => {
                 if (doc.exists) {
                     const data = doc.data();
-                    const restaurantName = document.getElementById('restaurantName');
-                    if (restaurantName) restaurantName.textContent = data.name;
-                    
-                    const mobileRestaurantName = document.querySelector('#mobileSidebar .text-xl');
-                    if (mobileRestaurantName) mobileRestaurantName.textContent = data.name;
+                    const restaurantNameElements = document.querySelectorAll('#restaurantName, #mobileSidebar .text-xl');
+                    restaurantNameElements.forEach(el => {
+                        if (el) el.textContent = data.name;
+                    });
                 }
             });
         
-        // Set user email
         const userEmail = document.getElementById('userEmail');
         if (userEmail) userEmail.textContent = user.email;
         
-        // Load quick stats
         loadQuickStats(user.uid);
     });
     
-    // Load header and sidebar
     loadHeader();
-    loadSidebar();
+    loadSidebar(() => {
+        // Initialize state after sidebar is loaded
+        if (!sidebarOpen) {
+            applySidebarState(false);
+        }
+    });
     
-    // Setup mobile sidebar toggle (existing functionality)
     setupMobileSidebar();
-    
-    // Setup desktop sidebar toggle (new functionality)
     setupDesktopSidebarToggle();
-    
-    // Setup logout button
     setupLogout();
 });
 
@@ -50,290 +45,121 @@ function loadHeader() {
         .then(response => response.text())
         .then(html => {
             document.getElementById('header').innerHTML = html;
-            attachHeaderEvents();
-        })
-        .catch(err => {
-            console.error('Error loading header:', err);
-            document.getElementById('header').innerHTML = '<p>Error loading header</p>';
         });
 }
 
-function loadSidebar() {
+function loadSidebar(callback) {
     fetch('components/sidebar.html')
         .then(response => response.text())
         .then(html => {
-            document.getElementById('sidebar').innerHTML = html;
-            updateActiveLink();
-            loadQuickStatsForSidebar();
-            
-            // Restore sidebar state from localStorage
-            const savedState = localStorage.getItem('sidebarOpen');
-            if (savedState !== null) {
-                sidebarOpen = savedState === 'true';
-                if (!sidebarOpen) {
-                    collapseSidebar();
-                }
+            const sidebarContainer = document.getElementById('sidebar');
+            if (sidebarContainer) {
+                sidebarContainer.innerHTML = html;
+                updateActiveLink();
+                loadQuickStats();
+                if (callback) callback();
             }
-        })
-        .catch(err => {
-            console.error('Error loading sidebar:', err);
-            document.getElementById('sidebar').innerHTML = '<p>Error loading sidebar</p>';
         });
 }
 
-function updateMainContentGrid() {
-    const mainContent = document.querySelector('#mainContent, .lg\\:col-span-3, .lg\\:col-span-4');
-    if (!mainContent) return;
-    
-    if (sidebarOpen) {
-        mainContent.classList.remove('lg:col-span-4', 'lg:col-span-5');
-        mainContent.classList.add('lg:col-span-3');
-    } else {
-        mainContent.classList.remove('lg:col-span-3', 'lg:col-span-4');
-        mainContent.classList.add('lg:col-span-4');
-    }
-}
-
 function setupDesktopSidebarToggle() {
-    // Desktop toggle in sidebar
     document.addEventListener('click', function(e) {
-        if (e.target.closest('#sidebarToggleDesktop') || 
-            e.target.closest('#sidebarToggleDesktopHeader')) {
-            toggleDesktopSidebar();
+        if (e.target.closest('#sidebarToggleDesktop') || e.target.closest('#sidebarToggleDesktopHeader')) {
+            const sidebar = document.getElementById('sidebar');
+            const isOpen = !sidebar.classList.contains('sidebar-collapsed');
+            applySidebarState(!isOpen);
         }
     });
 }
 
-function toggleDesktopSidebar() {
-    if (sidebarOpen) {
-        collapseSidebar();
+function applySidebarState(open) {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const icon = document.getElementById('sidebarToggleIcon');
+    
+    if (!sidebar || !mainContent) return;
+
+    if (open) {
+        sidebar.classList.remove('sidebar-collapsed', 'lg:col-span-1');
+        sidebar.classList.add('lg:col-span-3');
+        mainContent.classList.remove('lg:col-span-11');
+        mainContent.classList.add('lg:col-span-9');
+        if (icon) icon.classList.replace('fa-chevron-right', 'fa-chevron-left');
     } else {
-        expandSidebar();
+        sidebar.classList.add('sidebar-collapsed', 'lg:col-span-1');
+        sidebar.classList.remove('lg:col-span-3');
+        mainContent.classList.remove('lg:col-span-9');
+        mainContent.classList.add('lg:col-span-11');
+        if (icon) icon.classList.replace('fa-chevron-left', 'fa-chevron-right');
     }
-    sidebarOpen = !sidebarOpen;
     
-    // Save state to localStorage
-    localStorage.setItem('sidebarOpen', sidebarOpen);
-}
-
-function collapseSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const sidebarNav = document.querySelector('#sidebarNav');
-    const sidebarStats = document.getElementById('sidebarStats');
-    const toggleIcon = document.getElementById('sidebarToggleIcon');
-    const mainContent = document.querySelector('.lg\\:col-span-3');
-    const sidebarLinks = document.querySelectorAll('.sidebar-link span');
-    
-    if (sidebar && sidebarNav && sidebarStats && toggleIcon && mainContent) {
-        // Collapse sidebar
-        sidebar.classList.add('lg:col-span-1', 'lg:max-w-16');
-        sidebar.classList.remove('lg:col-span-1');
-        
-        // Hide text in links
-        sidebarLinks.forEach(link => {
-            link.style.opacity = '0';
-            link.style.width = '0';
-            link.style.overflow = 'hidden';
-            link.style.transition = 'all 0.3s ease';
-        });
-        
-        // Hide stats section
-        sidebarStats.style.opacity = '0';
-        sidebarStats.style.height = '0';
-        sidebarStats.style.overflow = 'hidden';
-        sidebarStats.style.marginTop = '0';
-        
-        // Adjust toggle icon
-        toggleIcon.classList.remove('fa-chevron-left');
-        toggleIcon.classList.add('fa-chevron-right');
-        
-        // Expand main content
-        if (mainContent) {
-            mainContent.classList.remove('lg:col-span-3');
-            mainContent.classList.add('lg:col-span-4');
-        }
-
-        // Update main content grid
-        updateMainContentGrid();
-        
-        // Add collapsed class for styling
-        sidebar.classList.add('sidebar-collapsed');
-    }
-}
-
-function expandSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const sidebarNav = document.querySelector('#sidebarNav');
-    const sidebarStats = document.getElementById('sidebarStats');
-    const toggleIcon = document.getElementById('sidebarToggleIcon');
-    const mainContent = document.querySelector('.lg\\:col-span-4, .lg\\:col-span-3');
-    const sidebarLinks = document.querySelectorAll('.sidebar-link span');
-    
-    if (sidebar && sidebarNav && sidebarStats && toggleIcon && mainContent) {
-        // Expand sidebar
-        sidebar.classList.remove('lg:col-span-1', 'lg:max-w-16', 'sidebar-collapsed');
-        sidebar.classList.add('lg:col-span-1');
-        
-        // Show text in links
-        sidebarLinks.forEach(link => {
-            link.style.opacity = '1';
-            link.style.width = 'auto';
-            link.style.overflow = 'visible';
-        });
-        
-        // Show stats section
-        sidebarStats.style.opacity = '1';
-        sidebarStats.style.height = 'auto';
-        sidebarStats.style.overflow = 'visible';
-        sidebarStats.style.marginTop = '2rem';
-        
-        // Adjust toggle icon
-        toggleIcon.classList.remove('fa-chevron-right');
-        toggleIcon.classList.add('fa-chevron-left');
-
-         // Update main content grid
-         updateMainContentGrid();
-        
-        // Adjust main content
-        mainContent.classList.remove('lg:col-span-4');
-        mainContent.classList.add('lg:col-span-3');
-    }
-}
-
-function attachHeaderEvents() {
-    // This will be called after header is loaded
-    // The actual events are attached in setupMobileSidebar() and setupDesktopSidebarToggle()
+    localStorage.setItem('sidebarOpen', open);
 }
 
 function setupMobileSidebar() {
-    // Toggle mobile sidebar
     document.addEventListener('click', function(e) {
+        const mobileSidebar = document.getElementById('mobileSidebar');
+        const overlay = document.getElementById('mobileSidebarOverlay');
+        
         if (e.target.closest('#sidebarToggleMobile')) {
-            document.getElementById('mobileSidebar').classList.remove('-translate-x-full');
-            document.getElementById('mobileSidebarOverlay').classList.remove('hidden');
+            mobileSidebar?.classList.remove('-translate-x-full');
+            overlay?.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
         
         if (e.target.closest('#closeSidebar') || e.target.closest('#mobileSidebarOverlay')) {
-            document.getElementById('mobileSidebar').classList.add('-translate-x-full');
-            document.getElementById('mobileSidebarOverlay').classList.add('hidden');
+            mobileSidebar?.classList.add('-translate-x-full');
+            overlay?.classList.add('hidden');
             document.body.style.overflow = '';
-        }
-    });
-    
-    // Close sidebar when clicking outside on mobile
-    document.addEventListener('click', function(e) {
-        const sidebar = document.getElementById('mobileSidebar');
-        const overlay = document.getElementById('mobileSidebarOverlay');
-        
-        if (sidebar && !sidebar.classList.contains('-translate-x-full') && 
-            !sidebar.contains(e.target) && 
-            !e.target.closest('#sidebarToggleMobile') && 
-            e.target !== overlay) {
-            sidebar.classList.add('-translate-x-full');
-            overlay.classList.add('hidden');
-            document.body.style.overflow = '';
-        }
-    });
-}
-
-function setupLogout() {
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('#logoutBtn')) {
-            auth.signOut().then(() => {
-                window.location.href = 'index.html';
-            });
         }
     });
 }
 
 function updateActiveLink() {
-    const currentPage = window.location.pathname.split('/').pop();
-    const sidebarLinks = document.querySelectorAll('#sidebar a');
-    const mobileLinks = document.querySelectorAll('#mobileSidebar a');
-    
-    // Update desktop sidebar links
-    sidebarLinks.forEach(link => {
-        link.classList.remove('bg-red-50', 'text-red-600');
-        link.classList.add('text-gray-600', 'hover:bg-gray-50');
-        
-        const linkHref = link.getAttribute('href');
-        if (linkHref === currentPage) {
-            link.classList.remove('text-gray-600', 'hover:bg-gray-50');
+    const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href === currentPage) {
             link.classList.add('bg-red-50', 'text-red-600');
-        }
-    });
-    
-    // Update mobile sidebar links
-    mobileLinks.forEach(link => {
-        link.classList.remove('bg-red-50', 'text-red-600');
-        
-        const linkHref = link.getAttribute('href');
-        if (linkHref === currentPage) {
-            link.classList.add('bg-red-50', 'text-red-600');
+            link.classList.remove('text-gray-600');
+        } else {
+            link.classList.remove('bg-red-50', 'text-red-600');
+            link.classList.add('text-gray-600');
         }
     });
 }
 
 function loadQuickStats(userId = null) {
-    if (!userId) {
-        const user = auth.currentUser;
-        if (!user) return;
-        userId = user.uid;
-    }
-    
+    const user = userId ? {uid: userId} : auth.currentUser;
+    if (!user) return;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Today's sales and orders
     db.collection('orders')
-        .where('restaurantId', '==', userId)
+        .where('restaurantId', '==', user.uid)
         .where('createdAt', '>=', today)
         .where('createdAt', '<', tomorrow)
         .where('status', '==', 'completed')
         .get()
         .then(snapshot => {
-            let todaySales = 0;
-            let todayOrders = 0;
+            let sales = 0;
+            snapshot.forEach(doc => sales += doc.data().total || 0);
             
-            snapshot.forEach(doc => {
-                const order = doc.data();
-                todaySales += order.total || 0;
-                todayOrders++;
-            });
+            const salesEls = document.querySelectorAll('#todaySales, #mobileTodaySales');
+            const countEls = document.querySelectorAll('#todayOrders, #mobileTodayOrders');
             
-            // Update desktop sidebar
-            const todaySalesEl = document.getElementById('todaySales');
-            const todayOrdersEl = document.getElementById('todayOrders');
-            
-            if (todaySalesEl) todaySalesEl.textContent = `₹${todaySales.toFixed(2)}`;
-            if (todayOrdersEl) todayOrdersEl.textContent = todayOrders;
-            
-            // Update mobile sidebar
-            const mobileTodaySales = document.getElementById('mobileTodaySales');
-            const mobileTodayOrders = document.getElementById('mobileTodayOrders');
-            
-            if (mobileTodaySales) mobileTodaySales.textContent = `₹${todaySales.toFixed(2)}`;
-            if (mobileTodayOrders) mobileTodayOrders.textContent = todayOrders;
+            salesEls.forEach(el => el.textContent = `₹${sales.toFixed(2)}`);
+            countEls.forEach(el => el.textContent = snapshot.size);
         });
 }
 
-function loadQuickStatsForSidebar() {
-    const user = auth.currentUser;
-    if (user) {
-        loadQuickStats(user.uid);
-    }
-}
-
-// Initialize sidebar state on page load
-window.addEventListener('load', function() {
-    // Small delay to ensure DOM is fully loaded
-    setTimeout(() => {
-        const savedState = localStorage.getItem('sidebarOpen');
-        if (savedState === 'false') {
-            collapseSidebar();
+function setupLogout() {
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('#logoutBtn')) {
+            auth.signOut().then(() => window.location.href = 'index.html');
         }
-    }, 100);
-});
+    });
+}

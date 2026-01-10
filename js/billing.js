@@ -183,12 +183,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.category-tab').forEach(tab => {
             tab.addEventListener('click', function() {
                 document.querySelectorAll('.category-tab').forEach(t => {
-                    t.classList.remove('active', 'bg-red-500', 'text-white');
+                    t.classList.remove('active', 'bg-red-50', 'text-white');
                     t.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
                 });
                 
                 this.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
-                this.classList.add('active', 'bg-red-500', 'text-white');
+                this.classList.add('active', 'bg-red-50', 'text-white');
                 
                 filterProducts(this.dataset.category);
             });
@@ -375,11 +375,17 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('serviceCharge').textContent = `${currency}${serviceCharge.toFixed(2)}`;
         document.getElementById('totalAmount').textContent = `${currency}${total.toFixed(2)}`;
         
-        const gstLabel = document.querySelector('span:contains("GST")');
-        if (gstLabel) gstLabel.textContent = `GST (${gstRate}%)`;
+        // Use standard JS to find labels by text content
+        const allSpans = document.querySelectorAll('span');
         
-        const serviceLabel = document.querySelector('span:contains("Service Charge")');
-        if (serviceLabel) serviceLabel.textContent = `Service Charge (${serviceRate}%)`;
+        allSpans.forEach(span => {
+            if (span.textContent.includes('GST')) {
+                span.textContent = `GST (${gstRate}%)`;
+            }
+            if (span.textContent.includes('Service Charge')) {
+                span.textContent = `Service Charge (${serviceRate}%)`;
+            }
+        });
         
         if (document.getElementById('paymentMode')?.value === 'cash') {
             calculateChange();

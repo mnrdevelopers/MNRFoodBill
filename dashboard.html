@@ -25,6 +25,17 @@
 
             <!-- Main Content -->
             <div class="lg:col-span-3">
+                <!-- Welcome Section with Dynamic Greeting -->
+                <div class="bg-white rounded-xl shadow p-6 mb-6 flex flex-col md:flex-row justify-between items-center border-l-4 border-red-500">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800" id="welcomeGreeting">Welcome back!</h1>
+                        <p class="text-gray-500 mt-1" id="currentDateTime"></p>
+                    </div>
+                    <div class="mt-4 md:mt-0 bg-red-50 px-4 py-2 rounded-lg">
+                        <span class="text-red-600 font-semibold" id="dashboardRestaurantName">MNRFoodBill</span>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                     <!-- Stats Cards -->
                     <div class="stat-card bg-white rounded-xl shadow p-6">
@@ -130,5 +141,3 @@
     </div>
 </body>
 </html>
-
-

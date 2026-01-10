@@ -13,15 +13,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     // ROLE-BASED REDIRECTION LOGIC
                     if (userData.role === 'staff') {
                         // Staff always goes to Dashboard or Billing (based on their permissions)
+                        // They are NEVER redirected to settings setup
                         const permissions = userData.permissions || [];
                         if (permissions.includes('billing')) {
                             window.location.href = 'billing.html';
                         } else {
                             window.location.href = 'dashboard.html';
                         }
-                    } else {
+                    } else if (userData.role === 'owner') {
                         // Owner logic: Check if restaurant is configured
-                        const restaurantDoc = await db.collection('restaurants').doc(userData.restaurantId).get();
+                        const restaurantDoc = await db.collection('restaurants').doc(userData.restaurantId || user.uid).get();
                         
                         if (!restaurantDoc.exists || !restaurantDoc.data().name) {
                             // First time login for owner - send to settings
@@ -29,9 +30,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         } else {
                             window.location.href = 'dashboard.html';
                         }
+                    } else {
+                        window.location.href = 'dashboard.html';
                     }
                 } else {
-                    // If no user document exists, redirect to dashboard (will handle there)
+                    // If no user document exists, redirect to dashboard
                     window.location.href = 'dashboard.html';
                 }
             } catch (error) {
@@ -103,14 +106,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 let redirectUrl = 'dashboard.html';
                 
                 if (userData.role === 'staff') {
-                    // Staff always goes to Dashboard or Billing (based on their permissions)
+                    // Staff always goes to Dashboard or Billing
                     const permissions = userData.permissions || [];
                     if (permissions.includes('billing')) {
                         redirectUrl = 'billing.html';
                     }
-                } else {
+                } else if (userData.role === 'owner') {
                     // Owner logic: Check if restaurant is configured
-                    const restaurantDoc = await db.collection('restaurants').doc(userData.restaurantId).get();
+                    const restaurantDoc = await db.collection('restaurants').doc(userData.restaurantId || user.uid).get();
                     
                     if (!restaurantDoc.exists || !restaurantDoc.data().name) {
                         // First time login for owner - send to settings
@@ -195,6 +198,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showMessage(text, type) {
         const messageDiv = document.getElementById('message');
+        if (!messageDiv) return;
         messageDiv.textContent = text;
         messageDiv.className = `mt-4 p-3 rounded-lg text-sm font-medium ${
             type === 'success' ? 'bg-green-100 text-green-700 border border-green-200' : 
@@ -203,15 +207,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }`;
         messageDiv.classList.remove('hidden');
         setTimeout(() => messageDiv.classList.add('hidden'), 5000);
-    }
-
-    function showError(message) {
-        const errorDiv = document.getElementById('errorMessage');
-        if (errorDiv) {
-            errorDiv.textContent = message;
-            errorDiv.classList.remove('hidden');
-        } else {
-            alert(message);
-        }
     }
 });

@@ -1,45 +1,47 @@
-<!-- components/sidebar.html - CORRECTED VERSION -->
-<div class="bg-white rounded-xl shadow p-4 h-full overflow-y-auto relative transition-all duration-300">
-    <!-- Desktop Toggle Button - VISIBLE ONLY ON DESKTOP (lg and above) -->
-    <button id="sidebarToggleDesktop" 
-            class="absolute -right-3 top-6 bg-red-500 text-white w-6 h-6 rounded-full items-center justify-center z-10 hover:bg-red-600 transition-transform duration-300 shadow-md hidden lg:flex"
-            title="Toggle Sidebar">
-        <i id="sidebarToggleIcon" class="fas fa-chevron-left text-xs"></i>
-    </button>
-    
-    <nav id="sidebarNav" class="space-y-2">
-        <a href="dashboard.html" class="flex items-center space-x-3 p-3 rounded-lg sidebar-link transition-all duration-200" data-tooltip="Dashboard">
-            <i class="fas fa-tachometer-alt w-5 text-center"></i>
-            <span class="font-medium truncate sidebar-text">Dashboard</span>
-        </a>
-        <a href="billing.html" class="flex items-center space-x-3 p-3 rounded-lg sidebar-link transition-all duration-200" data-tooltip="Billing">
-            <i class="fas fa-cash-register w-5 text-center"></i>
-            <span class="font-medium truncate sidebar-text">Billing</span>
-        </a>
-        <a href="products.html" class="flex items-center space-x-3 p-3 rounded-lg sidebar-link transition-all duration-200" data-tooltip="Products">
-            <i class="fas fa-hamburger w-5 text-center"></i>
-            <span class="font-medium truncate sidebar-text">Products</span>
-        </a>
-        <a href="orders.html" class="flex items-center space-x-3 p-3 rounded-lg sidebar-link transition-all duration-200" data-tooltip="Orders">
-            <i class="fas fa-receipt w-5 text-center"></i>
-            <span class="font-medium truncate sidebar-text">Orders</span>
-        </a>
-        <a href="settings.html" class="flex items-center space-x-3 p-3 rounded-lg sidebar-link transition-all duration-200" data-tooltip="Settings">
-            <i class="fas fa-gear w-5 text-center"></i>
-            <span class="font-medium truncate sidebar-text">Settings</span>
-        </a>
-    </nav>
+<!-- components/sidebar.html -->
+<div id="sidebar" class="lg:col-span-1 transition-all duration-300 ease-in-out">
+    <div class="bg-white rounded-xl shadow p-4 h-full overflow-y-auto relative">
+        <!-- Toggle Button for Desktop -->
+        <button id="sidebarToggleDesktop" 
+                class="lg:flex hidden absolute -right-3 top-6 bg-red-500 text-white w-6 h-6 rounded-full items-center justify-center z-10 hover:bg-red-600 transition-transform duration-300"
+                title="Toggle Sidebar">
+            <i id="sidebarToggleIcon" class="fas fa-chevron-left text-xs"></i>
+        </button>
+        
+       <nav id="sidebarNav" class="space-y-2 transition-all duration-300">
+    <a href="dashboard.html" class="flex items-center space-x-3 p-3 bg-red-50 text-red-600 rounded-lg sidebar-link" data-tooltip="Dashboard">
+        <i class="fas fa-tachometer-alt"></i>
+        <span class="font-medium">Dashboard</span>
+    </a>
+    <a href="billing.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition sidebar-link" data-tooltip="Billing">
+        <i class="fas fa-cash-register"></i>
+        <span class="font-medium">Billing</span>
+    </a>
+    <a href="products.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition sidebar-link" data-tooltip="Products">
+        <i class="fas fa-hamburger"></i>
+        <span class="font-medium">Products</span>
+    </a>
+    <a href="orders.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition sidebar-link" data-tooltip="Orders">
+        <i class="fas fa-receipt"></i>
+        <span class="font-medium">Orders</span>
+    </a>
+    <a href="settings.html" class="flex items-center space-x-3 p-3 text-gray-600 hover:bg-gray-50 rounded-lg transition sidebar-link" data-tooltip="Settings">
+        <i class="fas fa-gear"></i>
+        <span class="font-medium">Settings</span>
+    </a>
+</nav>
 
-    <div id="sidebarStats" class="mt-8 p-4 bg-blue-50 rounded-lg transition-all duration-300 sidebar-stats-box">
-        <h3 class="font-bold text-blue-800 mb-2 text-sm sidebar-text">Quick Stats</h3>
-        <div class="space-y-2 text-xs">
-            <div class="flex justify-between items-center">
-                <span class="text-blue-600 sidebar-text">Sales</span>
-                <span class="font-bold text-blue-900" id="todaySales">₹0</span>
-            </div>
-            <div class="flex justify-between items-center">
-                <span class="text-blue-600 sidebar-text">Orders</span>
-                <span class="font-bold text-blue-900" id="todayOrders">0</span>
+        <div id="sidebarStats" class="mt-8 p-4 bg-blue-50 rounded-lg transition-all duration-300">
+            <h3 class="font-bold text-blue-800 mb-2">Quick Stats</h3>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-blue-600">Today's Sales</span>
+                    <span class="font-bold" id="todaySales">₹0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-blue-600">Today's Orders</span>
+                    <span class="font-bold" id="todayOrders">0</span>
+                </div>
             </div>
         </div>
     </div>

@@ -20,37 +20,37 @@ document.addEventListener('DOMContentLoaded', function() {
             if (doc.exists) {
                 const data = doc.data();
                 
-                // Populate basic info
-                if (document.getElementById('restaurantName')) {
-                    document.getElementById('restaurantName').value = data.name || '';
+                // Populate basic info - Matching IDs in settings.html
+                if (document.getElementById('resName')) {
+                    document.getElementById('resName').value = data.name || '';
                 }
-                if (document.getElementById('restaurantAddress')) {
-                    document.getElementById('restaurantAddress').value = data.address || '';
+                if (document.getElementById('resAddress')) {
+                    document.getElementById('resAddress').value = data.address || '';
                 }
-                if (document.getElementById('restaurantPhone')) {
-                    document.getElementById('restaurantPhone').value = data.phone || '';
-                }
-                if (document.getElementById('restaurantEmail')) {
-                    document.getElementById('restaurantEmail').value = data.email || '';
-                }
-
-                // Populate settings object fields
-                const settings = data.settings || {};
-                if (document.getElementById('currency')) {
-                    document.getElementById('currency').value = settings.currency || '₹';
-                }
-                if (document.getElementById('gstRate')) {
-                    document.getElementById('gstRate').value = settings.gstRate || 0;
-                }
-                if (document.getElementById('serviceCharge')) {
-                    document.getElementById('serviceCharge').value = settings.serviceCharge || 0;
-                }
-                if (document.getElementById('footerMessage')) {
-                    document.getElementById('footerMessage').value = settings.footerMessage || 'Thank you for visiting!';
+                if (document.getElementById('resPhone')) {
+                    document.getElementById('resPhone').value = data.phone || '';
                 }
                 
-                // Update UI elements that show the name
-                const navName = document.getElementById('navRestaurantName');
+                // Populate settings object fields
+                const settings = data.settings || {};
+                if (document.getElementById('resCurrency')) {
+                    document.getElementById('resCurrency').value = settings.currency || '₹';
+                }
+                if (document.getElementById('resGst')) {
+                    document.getElementById('resGst').value = settings.gstRate || 0;
+                }
+                if (document.getElementById('resService')) {
+                    document.getElementById('resService').value = settings.serviceCharge || 0;
+                }
+                if (document.getElementById('resGSTIN')) {
+                    document.getElementById('resGSTIN').value = settings.gstin || '';
+                }
+                if (document.getElementById('resFSSAI')) {
+                    document.getElementById('resFSSAI').value = settings.fssai || '';
+                }
+                
+                // Update navigation/header name if element exists
+                const navName = document.getElementById('restaurantName');
                 if (navName && data.name) navName.textContent = data.name;
             }
         } catch (error) {
@@ -72,31 +72,33 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
 
+            // Gather data using IDs present in settings.html
             const updatedData = {
-                name: document.getElementById('restaurantName').value,
-                address: document.getElementById('restaurantAddress').value,
-                phone: document.getElementById('restaurantPhone').value,
-                email: document.getElementById('restaurantEmail').value,
+                name: document.getElementById('resName').value.trim(),
+                address: document.getElementById('resAddress').value.trim(),
+                phone: document.getElementById('resPhone').value.trim(),
                 settings: {
-                    currency: document.getElementById('currency').value,
-                    gstRate: parseFloat(document.getElementById('gstRate').value) || 0,
-                    serviceCharge: parseFloat(document.getElementById('serviceCharge').value) || 0,
-                    footerMessage: document.getElementById('footerMessage').value
+                    currency: document.getElementById('resCurrency').value.trim(),
+                    gstRate: parseFloat(document.getElementById('resGst').value) || 0,
+                    serviceCharge: parseFloat(document.getElementById('resService').value) || 0,
+                    gstin: document.getElementById('resGSTIN').value.trim(),
+                    fssai: document.getElementById('resFSSAI').value.trim()
                 },
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             try {
+                // Use set with merge: true to avoid overwriting email or other root fields
                 await db.collection('restaurants').doc(user.uid).set(updatedData, { merge: true });
                 showNotification('Settings saved successfully!', 'success');
                 
                 // Update nav name immediately
-                const navName = document.getElementById('navRestaurantName');
+                const navName = document.getElementById('restaurantName');
                 if (navName) navName.textContent = updatedData.name;
                 
             } catch (error) {
                 console.error("Error saving settings:", error);
-                showNotification('Failed to save settings', 'error');
+                showNotification('Failed to save settings: ' + error.message, 'error');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalBtnText;

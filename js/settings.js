@@ -5,23 +5,39 @@ document.addEventListener('DOMContentLoaded', function() {
     const reauthForm = document.getElementById('reauthForm');
     
     let pendingAction = null; // 'password' or 'delete'
+    let userRole = '';
+    let restaurantId = '';
 
-    // Check auth state
-    auth.onAuthStateChanged(user => {
+    // Check auth and permissions
+    auth.onAuthStateChanged(async user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
-            loadSettings();
+            // Get user role
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                userRole = userData.role;
+                restaurantId = userData.restaurantId || user.uid;
+                
+                // For settings.js - restrict access to owners only
+                if (userData.role !== 'owner') {
+                    showNotification('Only owners can access settings', 'error');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 2000);
+                    return;
+                }
+                
+                loadSettings();
+            }
         }
     });
 
     // Load existing settings
     async function loadSettings() {
-        const user = auth.currentUser;
-        if (!user) return;
-
         try {
-            const doc = await db.collection('restaurants').doc(user.uid).get();
+            const doc = await db.collection('restaurants').doc(restaurantId).get();
             if (doc.exists) {
                 const data = doc.data();
                 
@@ -48,7 +64,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (settingsForm) {
         settingsForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const user = auth.currentUser;
             const submitBtn = settingsForm.querySelector('button[type="submit"]');
             
             submitBtn.disabled = true;
@@ -60,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 address: document.getElementById('resAddress').value.trim(),
                 phone: document.getElementById('resPhone').value.trim(),
                 settings: {
-                    currency: '₹', // Hardcoded as per request to remove field
+                    currency: '₹',
                     gstRate: parseFloat(document.getElementById('resGst').value) || 0,
                     serviceCharge: parseFloat(document.getElementById('resService').value) || 0,
                     gstin: document.getElementById('resGSTIN').value.trim(),
@@ -70,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
-                await db.collection('restaurants').doc(user.uid).set(updatedData, { merge: true });
+                await db.collection('restaurants').doc(restaurantId).set(updatedData, { merge: true });
                 showNotification('Settings updated successfully', 'success');
                 const navName = document.getElementById('restaurantName');
                 if (navName) navName.textContent = updatedData.name;
@@ -127,11 +142,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     passwordForm.reset();
                 } else if (pendingAction === 'delete') {
                     // Start deletion process
-                    const uid = user.uid;
-                    // Note: In a production app, you'd use a Cloud Function to clean up subcollections
-                    // Here we delete the main restaurant doc and then the user
-                    await db.collection('restaurants').doc(uid).delete();
-                    await user.delete();
+                    // Note: In a production app, you'd use a Cloud Function to clean up all data
+                    // Here we just delete the restaurant document
+                    await db.collection('restaurants').doc(restaurantId).delete();
+                    
+                    // Sign out and redirect
+                    await auth.signOut();
                     window.location.href = 'index.html';
                 }
                 

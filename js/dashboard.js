@@ -5,14 +5,14 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = 'index.html';
         } else {
             updateGreeting();
-            loadRestaurantInfo();
+            loadRestaurantAndUserInfo();
             loadDashboardStats();
             loadRecentOrders();
         }
     });
 
-    // Update greeting based on time
-    function updateGreeting() {
+    // Update greeting based on time and name
+    function updateGreeting(name = null) {
         const greetingEl = document.getElementById('welcomeGreeting');
         const dateTimeEl = document.getElementById('currentDateTime');
         if (!greetingEl) return;
@@ -24,18 +24,20 @@ document.addEventListener('DOMContentLoaded', function() {
         else if (hour < 17) greeting = "Good Afternoon";
         else greeting = "Good Evening";
 
-        greetingEl.textContent = `${greeting}, Admin!`;
+        const displayName = name || "Admin";
+        greetingEl.textContent = `${greeting}, ${displayName}!`;
 
         // Update date time
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        dateTimeEl.textContent = new Date().toLocaleDateString('en-IN', options);
+        if (dateTimeEl) dateTimeEl.textContent = new Date().toLocaleDateString('en-IN', options);
     }
 
-    // Load restaurant info
-    function loadRestaurantInfo() {
+    // Load restaurant and user info
+    function loadRestaurantAndUserInfo() {
         const user = auth.currentUser;
         if (!user) return;
         
+        // Parallel fetch for restaurant and personal user data
         db.collection('restaurants').doc(user.uid).get()
             .then(doc => {
                 if (doc.exists) {
@@ -43,9 +45,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const nameEl = document.getElementById('dashboardRestaurantName');
                     if (nameEl) nameEl.textContent = data.name;
                     
-                    // Also update greeting if user name exists in DB
+                    // Priority: ownerName from restaurant doc
                     if (data.ownerName) {
-                        document.getElementById('welcomeGreeting').textContent = document.getElementById('welcomeGreeting').textContent.replace('Admin', data.ownerName);
+                        updateGreeting(data.ownerName);
+                    } else {
+                        // Fallback: check users collection
+                        db.collection('users').doc(user.uid).get().then(uDoc => {
+                            if (uDoc.exists && uDoc.data().name) {
+                                updateGreeting(uDoc.data().name);
+                            }
+                        });
                     }
                 }
             });
@@ -54,10 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load dashboard stats
     function loadDashboardStats() {
         const user = auth.currentUser;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        if (!user) return;
 
         // Total revenue and orders (All time)
         db.collection('orders')
@@ -126,13 +132,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td class="py-3 px-4">
                             <div class="font-mono text-sm">${order.orderId || doc.id.substring(0, 8)}</div>
                         </td>
-                        <td class="py-3 px-4">
+                        <td class="py-3 px-4 text-sm text-gray-600">
                             ${orderDate.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'})}
                         </td>
-                        <td class="py-3 px-4">${itemCount} items</td>
-                        <td class="py-3 px-4 font-bold">₹${order.total ? order.total.toFixed(2) : '0.00'}</td>
+                        <td class="py-3 px-4 text-sm">${itemCount} items</td>
+                        <td class="py-3 px-4 font-bold text-gray-800">₹${order.total ? order.total.toFixed(2) : '0.00'}</td>
                         <td class="py-3 px-4">
-                            <span class="px-2 py-1 text-xs rounded-full ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${
+                                order.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                                order.status === 'cancelled' ? 'bg-red-100 text-red-700' : 
+                                'bg-yellow-100 text-yellow-700'
+                            }">
                                 ${order.status}
                             </span>
                         </td>

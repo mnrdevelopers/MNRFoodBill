@@ -4,6 +4,7 @@ const StaffManager = {
     // Initialize staff management
     async init() {
         await this.loadStaffList();
+        await this.loadStaffStats();
         this.setupEventListeners();
     },
     
@@ -245,6 +246,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+async loadStaffStats() {
+    const restaurantId = await RoleManager.getRestaurantId();
+    try {
+        const staffList = await RoleManager.getStaffList(restaurantId);
+        
+        // Calculate stats
+        const totalStaff = staffList.length;
+        const activeStaff = staffList.filter(s => s.isActive !== false).length;
+        const adminStaff = staffList.filter(s => s.role === ROLES.ADMIN).length;
+        
+        // Update DOM
+        const totalEl = document.getElementById('totalStaff');
+        const activeEl = document.getElementById('activeStaff');
+        const adminEl = document.getElementById('adminStaff');
+        
+        if (totalEl) totalEl.textContent = totalStaff;
+        if (activeEl) activeEl.textContent = activeStaff;
+        if (adminEl) adminEl.textContent = adminStaff;
+        
+    } catch (error) {
+        console.error("Error loading staff stats:", error);
+    }
+}
 
 // Make globally available
 window.StaffManager = StaffManager;

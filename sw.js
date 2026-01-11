@@ -1,76 +1,98 @@
-const CACHE_NAME = 'mnrfoodbill-v1';
+const CACHE_NAME = 'mnrfoodbill-v1.0.0';
 const ASSETS_TO_CACHE = [
-    '/',
-    '/index.html',
-    '/dashboard.html',
-    '/billing.html',
-    '/products.html',
-    '/orders.html',
-    '/settings.html',
-    '/css/styles.css',
-    '/js/auth.js',
-    '/js/dashboard.js',
-    '/js/billing.js',
-    '/js/products.js',
-    '/js/orders.js',
-    '/js/settings.js',
-    '/js/layout.js',
-    '/firebase-config.js',
-    '/manifest.json',
-    'https://cdn.tailwindcss.com',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+  '/',
+  '/index.html',
+  '/dashboard.html',
+  '/billing.html',
+  '/products.html',
+  '/orders.html',
+  '/settings.html',
+  '/staff.html',
+  '/css/styles.css',
+  '/js/auth.js',
+  '/js/dashboard.js',
+  '/js/billing.js',
+  '/js/products.js',
+  '/js/orders.js',
+  '/js/settings.js',
+  '/js/layout.js',
+  '/js/print.js',
+  '/js/staff.js',
+  '/js/product-images.js',
+  '/firebase-config.js',
+  '/manifest.json',
+  '/sw.js'
 ];
 
-// Install Event
+// Install Event - Cache all assets
 self.addEventListener('install', event => {
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('Caching app shell');
-                return cache.addAll(ASSETS_TO_CACHE);
-            })
-            .then(() => self.skipWaiting())
-    );
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Caching app shell and assets');
+        return cache.addAll(ASSETS_TO_CACHE);
+      })
+      .then(() => self.skipWaiting())
+  );
 });
 
-// Activate Event
+// Activate Event - Clean up old caches
 self.addEventListener('activate', event => {
-    event.waitUntil(
-        caches.keys().then(keyList => {
-            return Promise.all(keyList.map(key => {
-                if (key !== CACHE_NAME) {
-                    console.log('Removing old cache', key);
-                    return caches.delete(key);
-                }
-            }));
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
         })
-    );
-    return self.clients.claim();
+      );
+    }).then(() => {
+      console.log('Service Worker activated');
+      return self.clients.claim();
+    })
+  );
 });
 
-// Fetch Event (Network First for data, Cache First for assets)
+// Fetch Event - Network First, then Cache
 self.addEventListener('fetch', event => {
-    // Skip non-GET requests and Firebase API calls (let Firebase handle its own persistence)
-    if (event.request.method !== 'GET' || event.request.url.includes('firestore.googleapis.com')) {
-        return;
-    }
+  // Skip non-GET requests and Firebase API calls
+  if (event.request.method !== 'GET' || 
+      event.request.url.includes('firestore.googleapis.com') ||
+      event.request.url.includes('firebaseapp.com')) {
+    return;
+  }
 
-    event.respondWith(
-        caches.match(event.request).then(response => {
-            return response || fetch(event.request).then(fetchRes => {
-                return caches.open(CACHE_NAME).then(cache => {
-                    // Cache new assets on the fly
-                    if (event.request.url.startsWith(self.location.origin)) {
-                        cache.put(event.request.url, fetchRes.clone());
-                    }
-                    return fetchRes;
-                });
-            });
-        }).catch(() => {
-            // Offline fallback
-            if (event.request.mode === 'navigate') {
-                return caches.match('/index.html');
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        // Cache the new version
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseClone);
+        });
+        return response;
+      })
+      .catch(() => {
+        // If network fails, serve from cache
+        return caches.match(event.request)
+          .then(response => {
+            if (response) {
+              return response;
             }
-        })
-    );
+            // If not in cache, return offline page
+            if (event.request.mode === 'navigate') {
+              return caches.match('/index.html');
+            }
+          });
+      })
+  );
+});
+
+// Listen for messages to skip waiting
+self.addEventListener('message', event => {
+  if (event.data === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });

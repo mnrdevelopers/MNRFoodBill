@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mnrfoodbill-v2.0.0';
+const CACHE_NAME = 'mnrfoodbill-v2.0.1';
 const BASE_PATH = '/MNRFoodBill/';
 
 // Assets to cache

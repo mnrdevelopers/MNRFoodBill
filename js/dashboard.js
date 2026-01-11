@@ -206,3 +206,55 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 });
+
+// PWA Update Check Function
+function checkForPWAUpdates() {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: 'CHECK_FOR_UPDATES' });
+    
+    // Listen for update messages
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event.data.type === 'UPDATE_AVAILABLE') {
+        showUpdateNotification();
+      }
+    });
+  }
+}
+
+function showUpdateNotification() {
+  // Check if we're in standalone mode
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                      window.navigator.standalone === true;
+  
+  if (isStandalone) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    notification.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <i class="fas fa-sync-alt animate-spin"></i>
+          <div>
+            <p class="font-bold">Update Available</p>
+            <p class="text-sm">New version is ready to install</p>
+          </div>
+        </div>
+        <button onclick="window.location.reload()" class="ml-4 bg-white text-blue-500 px-4 py-1 rounded font-bold hover:bg-gray-100">
+          Update
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 10000);
+  }
+}
+
+// Call this when dashboard loads
+checkForPWAUpdates();
+

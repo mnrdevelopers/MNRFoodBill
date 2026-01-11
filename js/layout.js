@@ -58,7 +58,7 @@ function checkPageAccess(userData) {
 
     // 1. STAFF LOGIC - Never force to settings
     if (role === 'staff') {
-        // Staff should NEVER be forced to settings
+        // Staff should NEVER be forced to settings or allowed there without permission
         if (page === 'settings.html' && !permissions.includes('settings')) {
             redirectToPermittedArea(permissions);
             return;
@@ -310,7 +310,6 @@ function expandSidebar() {
 
 function attachHeaderEvents() {
     // This will be called after header is loaded
-    // The actual events are attached in setupMobileSidebar() and setupDesktopSidebarToggle()
 }
 
 function setupMobileSidebar() {
@@ -360,7 +359,6 @@ function updateActiveLink() {
     const sidebarLinks = document.querySelectorAll('#sidebar a');
     const mobileLinks = document.querySelectorAll('#mobileSidebar a');
     
-    // Update desktop sidebar links
     sidebarLinks.forEach(link => {
         link.classList.remove('bg-red-50', 'text-red-600');
         link.classList.add('text-gray-600', 'hover:bg-gray-50');
@@ -372,7 +370,6 @@ function updateActiveLink() {
         }
     });
     
-    // Update mobile sidebar links
     mobileLinks.forEach(link => {
         link.classList.remove('bg-red-50', 'text-red-600');
         
@@ -395,7 +392,6 @@ function loadQuickStats(userId = null) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Today's sales and orders
     db.collection('orders')
         .where('restaurantId', '==', userId)
         .where('createdAt', '>=', today)
@@ -412,14 +408,9 @@ function loadQuickStats(userId = null) {
                 todayOrders++;
             });
             
-            // Update desktop sidebar
             const todaySalesEl = document.getElementById('todaySales');
-            const todayOrdersEl = document.getElementById('todayOrders');
-            
             if (todaySalesEl) todaySalesEl.textContent = `₹${todaySales.toFixed(2)}`;
-            if (todayOrdersEl) todayOrdersEl.textContent = todayOrders;
             
-            // Update mobile sidebar
             const mobileTodaySales = document.getElementById('mobileTodaySales');
             const mobileTodayOrders = document.getElementById('mobileTodayOrders');
             
@@ -435,9 +426,7 @@ function loadQuickStatsForSidebar() {
     }
 }
 
-// Initialize sidebar state on page load
 window.addEventListener('load', function() {
-    // Small delay to ensure DOM is fully loaded
     setTimeout(() => {
         const savedState = localStorage.getItem('sidebarOpen');
         if (savedState === 'false') {

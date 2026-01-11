@@ -1,47 +1,48 @@
 // auth.js - Authentication with Role-Based Redirection
 document.addEventListener('DOMContentLoaded', function() {
     // Check if user is already logged in
-  auth.onAuthStateChanged(async user => {
-    if (user) {
-        try {
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            
-            if (userDoc.exists) {
-                const userData = userDoc.data();
+    auth.onAuthStateChanged(async user => {
+        if (user) {
+            try {
+                const userDoc = await db.collection('users').doc(user.uid).get();
                 
-                // ROLE-BASED REDIRECTION LOGIC
-                if (userData.role === 'staff') {
-                    // Staff: NEVER redirect to settings, go directly to permitted area
-                    const permissions = userData.permissions || [];
-                    if (permissions.includes('billing')) {
-                        window.location.href = 'billing.html';
-                    } else if (permissions.includes('orders')) {
-                        window.location.href = 'orders.html';
-                    } else {
-                        window.location.href = 'dashboard.html';
-                    }
-                } else if (userData.role === 'owner') {
-                    // Owner: Check if restaurant is configured
-                    const restaurantDoc = await db.collection('restaurants')
-                        .doc(userData.restaurantId || user.uid).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
                     
-                    if (!restaurantDoc.exists || !restaurantDoc.data().name) {
-                        window.location.href = 'settings.html?setup=true';
+                    // ROLE-BASED REDIRECTION LOGIC
+                    if (userData.role === 'staff') {
+                        // Staff: NEVER redirect to settings, go directly to permitted area
+                        const permissions = userData.permissions || [];
+                        if (permissions.includes('billing')) {
+                            window.location.href = 'billing.html';
+                        } else if (permissions.includes('orders')) {
+                            window.location.href = 'orders.html';
+                        } else {
+                            window.location.href = 'dashboard.html';
+                        }
+                    } else if (userData.role === 'owner') {
+                        // Owner: Check if restaurant is configured
+                        const restaurantDoc = await db.collection('restaurants')
+                            .doc(userData.restaurantId || user.uid).get();
+                        
+                        if (!restaurantDoc.exists || !restaurantDoc.data().name) {
+                            window.location.href = 'settings.html?setup=true';
+                        } else {
+                            window.location.href = 'dashboard.html';
+                        }
                     } else {
                         window.location.href = 'dashboard.html';
                     }
                 } else {
+                    // Fallback for missing user profile
                     window.location.href = 'dashboard.html';
                 }
-            } else {
+            } catch (error) {
+                console.error("Auto-redirect error:", error);
                 window.location.href = 'dashboard.html';
             }
-        } catch (error) {
-            console.error("Auto-redirect error:", error);
-            window.location.href = 'dashboard.html';
         }
-    }
-});
+    });
 
     // Toggle password visibility
     const togglePassword = document.getElementById('togglePassword');
@@ -105,17 +106,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 let redirectUrl = 'dashboard.html';
                 
                 if (userData.role === 'staff') {
-                    // Staff always goes to Dashboard or Billing
+                    // Staff logic: Never check for restaurant configuration, go to permissioned area
                     const permissions = userData.permissions || [];
                     if (permissions.includes('billing')) {
                         redirectUrl = 'billing.html';
+                    } else if (permissions.includes('orders')) {
+                        redirectUrl = 'orders.html';
                     }
                 } else if (userData.role === 'owner') {
-                    // Owner logic: Check if restaurant is configured
+                    // Owner logic: Only force setup if business details are missing
                     const restaurantDoc = await db.collection('restaurants').doc(userData.restaurantId || user.uid).get();
                     
                     if (!restaurantDoc.exists || !restaurantDoc.data().name) {
-                        // First time login for owner - send to settings
                         redirectUrl = 'settings.html?setup=true';
                     }
                 }
@@ -208,4 +210,3 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => messageDiv.classList.add('hidden'), 5000);
     }
 });
-

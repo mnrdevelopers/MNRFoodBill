@@ -210,3 +210,31 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => messageDiv.classList.add('hidden'), 5000);
     }
 });
+
+// Offline Detection
+window.addEventListener('online', () => {
+  const indicator = document.getElementById('offlineIndicator');
+  if (indicator) indicator.classList.add('hidden');
+  showNotification('Back online', 'success');
+});
+
+window.addEventListener('offline', () => {
+  const indicator = document.getElementById('offlineIndicator');
+  if (indicator) indicator.classList.remove('hidden');
+  showNotification('You are offline', 'warning');
+});
+
+// Check initial status
+if (!navigator.onLine) {
+  const indicator = document.getElementById('offlineIndicator');
+  if (indicator) indicator.classList.remove('hidden');
+}
+
+function showNotification(message, type) {
+  const n = document.createElement('div');
+  n.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 text-white ${type === 'success' ? 'bg-green-500' : 'bg-yellow-500'}`;
+  n.textContent = message;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 3000);
+}
+

@@ -672,82 +672,169 @@ img[src*="githubusercontent"] {
 }
 
 /* PWA Specific Styles */
+/* Fix scrolling in standalone mode */
 @media (display-mode: standalone) {
-  body {
-    -webkit-tap-highlight-color: transparent;
-  }
-  
-  /* Prevent bounce on iOS */
-  html, body {
-    overscroll-behavior: none;
-    overflow: hidden;
-    height: 100%;
-  }
-}
-
-/* Install Button Animation */
-@keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.animate-bounce {
-  animation: bounce 2s infinite;
-}
-
-/* Update Notification Animation */
-@keyframes slideDown {
-  from {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-#updateNotification {
-  animation: slideDown 0.3s ease-out;
-}
-
-/* Offline Indicator */
-#offlineIndicator {
-  animation: slideDown 0.3s ease-out;
-}
-
-/* PWA-specific optimizations */
-@media (max-width: 640px) {
-  /* Better touch targets */
-  button, 
-  [role="button"],
-  input[type="submit"],
-  input[type="button"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  /* Prevent text size adjustment */
-  input, 
-  textarea, 
-  select {
-    font-size: 16px;
-  }
-}
-
-/* Standalone mode adjustments */
-@media (display-mode: standalone) {
-  /* Add padding for iOS status bar */
+  /* iOS Safe Areas */
   body {
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+    -webkit-overflow-scrolling: touch !important;
+    overflow-y: auto !important;
+    position: relative !important;
+    height: auto !important;
+    min-height: 100vh !important;
+  }
+  
+  html {
+    height: 100% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Fix scrolling container */
+  .container {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Fix main content scrolling */
+  #mainContent,
+  .lg\\:col-span-3,
+  .lg\\:col-span-4 {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: calc(100vh - 120px) !important;
+  }
+  
+  /* Fix cart scrolling */
+  #cartItems {
+    max-height: 200px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Prevent body from being fixed */
+  body {
+    position: relative !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
   }
 }
+
+/* Global scrolling fixes */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix for iOS momentum scrolling */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for all scrollable containers */
+.overflow-y-auto,
+.overflow-auto,
+.max-h-64,
+.max-h-96 {
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Special fix for iOS PWA */
+@supports (-webkit-touch-callout: none) {
+  .min-h-screen {
+    min-height: -webkit-fill-available !important;
+  }
+  
+  body {
+    min-height: -webkit-fill-available !important;
+  }
+}
+
+/* Install Button Animations */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 15px 35px rgba(239, 68, 68, 0.5);
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Update Notification Animation */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Prevent text size adjustment on mobile */
+input, 
+textarea, 
+select {
+  font-size: 16px !important;
+}
+
+/* Better touch feedback */
+button:active,
+[role="button"]:active {
+  opacity: 0.8;
+  transform: scale(0.98);
+  transition: all 0.1s ease;
+}
+
+/* Standalone mode adjustments */
+@media (display-mode: standalone) and (max-width: 768px) {
+  /* Full height for standalone */
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+  
+  html {
+    height: -webkit-fill-available;
+  }
+  
+  /* Fix modal scrolling */
+  #printModal,
+  #orderModal,
+  #deleteModal,
+  #productModal,
+  #staffModal,
+  #reauthModal {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Fix table scrolling */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
 
 

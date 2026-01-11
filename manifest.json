@@ -2,7 +2,7 @@
   "name": "MNRFoodBill POS",
   "short_name": "MNRFoodBill",
   "description": "Professional Food Billing & Restaurant Management System",
-  "start_url": ".",
+  "start_url": "https://mnrdevelopers.github.io/MNRFoodBill/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ef4444",

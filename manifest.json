@@ -2,31 +2,68 @@
   "name": "MNRFoodBill POS",
   "short_name": "MNRFoodBill",
   "description": "Professional Food Billing & Restaurant Management System",
-  "start_url": "/index.html",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ef4444",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3170/3170733.png",
+      "src": "icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3170/3170733.png",
+      "src": "icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "food"],
-  "screenshots": [
+  "categories": ["business", "food", "productivity"],
+  "shortcuts": [
     {
-      "src": "https://raw.githubusercontent.com/mnrdevelopers/mnrfoodbill/main/screenshot.png",
-      "sizes": "1280x720",
-      "type": "image/png"
+      "name": "New Bill",
+      "short_name": "Bill",
+      "description": "Create new bill",
+      "url": "/billing.html"
+    },
+    {
+      "name": "Orders",
+      "short_name": "Orders",
+      "description": "View orders",
+      "url": "/orders.html"
     }
   ]
 }

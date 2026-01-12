@@ -257,3 +257,39 @@ function showUpdateNotification() {
 
 // Call this when dashboard loads
 checkForPWAUpdates();
+
+// Update the loadDashboardData function
+async function loadDashboardData(user) {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    
+    try {
+        // Show loading state
+        if (loadingOverlay) {
+            loadingOverlay.classList.remove('fade-out');
+        }
+        
+        // Load data in parallel
+        await Promise.all([
+            loadRestaurantAndUserInfo(user),
+            loadDashboardStats(user),
+            loadRecentOrders(user)
+        ]);
+        
+        console.log('Dashboard data loaded successfully');
+        
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+        showNotification('Dashboard loaded with limited data', 'warning');
+    } finally {
+        // Hide loading overlay
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('fade-out');
+            setTimeout(() => {
+                if (loadingOverlay.parentNode) {
+                    loadingOverlay.remove();
+                }
+            }, 300);
+        }
+    }
+}
+

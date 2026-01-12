@@ -1,5 +1,5 @@
-// Initialize empty state. No more hardcoded tax values.
 let cart = [];
+let currentView = 'grid';
 let products = []; // This global array must be populated for addToCart to work
 let restaurantSettings = {
     gstRate: 0,
@@ -9,12 +9,14 @@ let restaurantSettings = {
 
 document.addEventListener('DOMContentLoaded', function() {
     // Check auth
-    auth.onAuthStateChanged(user => {
+     auth.onAuthStateChanged(user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
             loadRestaurantSettings();
             loadProducts();
+            setupViewToggle(); // Add this line
+            setupPaymentHandlers();
         }
     });
 
@@ -205,23 +207,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function filterProducts(category) {
-        const searchTerm = document.getElementById('productSearch')?.value.toLowerCase() || '';
-        let filtered = products;
-        
-        if (category !== 'all') {
-            filtered = filtered.filter(p => p.category === category);
-        }
-        
-        if (searchTerm) {
-            filtered = filtered.filter(p => 
-                p.name.toLowerCase().includes(searchTerm) ||
-                (p.description && p.description.toLowerCase().includes(searchTerm))
-            );
-        }
-        renderProducts(filtered);
+    const searchTerm = document.getElementById('productSearch')?.value.toLowerCase() || '';
+    let filtered = products;
+    
+    if (category !== 'all') {
+        filtered = filtered.filter(p => p.category === category);
     }
+    
+    if (searchTerm) {
+        filtered = filtered.filter(p => 
+            p.name.toLowerCase().includes(searchTerm) ||
+            (p.description && p.description.toLowerCase().includes(searchTerm)) ||
+            (p.category && p.category.toLowerCase().includes(searchTerm))
+        );
+    }
+    
+    if (currentView === 'grid') {
+        renderProductsInGridView(filtered);
+    } else {
+        renderProductsInListView(filtered);
+    }
+}
 
    function renderProducts(productsToShow) {
+    // Store filtered products
+    window.filteredProducts = productsToShow;
+    
+    if (currentView === 'grid') {
+        renderProductsInGridView(productsToShow);
+    } else {
+        renderProductsInListView(productsToShow);
+    }
+}
+
+function renderProductsInGridView(productsToShow) {
     const container = document.getElementById('productsGrid');
     if (!container) return;
     container.innerHTML = '';
@@ -229,7 +248,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const currency = restaurantSettings.currency || '₹';
 
     if (productsToShow.length === 0) {
-        container.innerHTML = '<div class="col-span-full py-10 text-center text-gray-500">No products found</div>';
+        container.innerHTML = `
+            <div class="col-span-full py-8 text-center text-gray-400">
+                <i class="fas fa-search text-2xl mb-2"></i>
+                <p class="text-sm">No products found</p>
+            </div>
+        `;
         return;
     }
 
@@ -238,39 +262,46 @@ document.addEventListener('DOMContentLoaded', function() {
         const imageUrl = product.imageUrl || (typeof getProductImage === 'function' ? getProductImage(product.name) : null);
         
         const card = document.createElement('div');
-        card.className = 'bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition cursor-pointer group';
+        card.className = 'compact-card bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer';
         
         card.innerHTML = `
-            <div class="h-40 relative bg-gray-100 flex items-center justify-center overflow-hidden">
+            <div class="h-20 bg-gray-50 flex items-center justify-center overflow-hidden relative">
                 ${imageUrl 
                     ? `<img src="${imageUrl}" alt="${product.name}" 
-                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          onerror="this.onerror=null; this.outerHTML='<i class=\'fas fa-hamburger text-gray-300 text-4xl\'></i>'">`
-                    : `<i class="fas fa-hamburger text-gray-300 text-4xl"></i>`
+                          class="w-full h-full object-cover product-image"
+                          onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                    : ''
                 }
-            </div>
-            <div class="p-4">
-                <div class="flex justify-between items-start mb-2">
-                    <div class="flex-1">
-                        <h3 class="font-bold text-gray-800 truncate">${product.name}</h3>
-                        <p class="text-xs text-gray-500 mt-1 truncate">${product.description || ''}</p>
-                    </div>
-                    <span class="font-bold text-red-500 ml-2">${currency}${Number(product.price || 0).toFixed(2)}</span>
+                <div class="w-full h-full flex items-center justify-center ${imageUrl ? 'hidden' : ''}">
+                    <i class="fas fa-hamburger text-gray-300 text-xl"></i>
                 </div>
-                <div class="flex items-center justify-between mt-4">
-                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${product.category}</span>
-                    <button class="add-to-cart bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600 transition" 
-                            data-id="${product.id}">
-                        <i class="fas fa-plus mr-1"></i> Add
+                <div class="absolute bottom-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                    ${currency}${Number(product.price || 0).toFixed(2)}
+                </div>
+            </div>
+            <div class="p-2">
+                <h3 class="product-name font-medium text-gray-800 mb-1">${product.name}</h3>
+                <div class="flex items-center justify-between">
+                    <span class="product-category text-xs text-gray-500">${product.category}</span>
+                    <button class="add-to-cart bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition" 
+                            data-id="${product.id}"
+                            title="Add to cart">
+                        <i class="fas fa-plus"></i>
                     </button>
                 </div>
             </div>
         `;
         
-        card.addEventListener('click', () => addToCart(product.id));
+        card.addEventListener('click', (e) => {
+            if (!e.target.closest('.add-to-cart')) {
+                addToCart(product.id);
+            }
+        });
+        
         container.appendChild(card);
     });
     
+    // Add event listeners to add-to-cart buttons
     document.querySelectorAll('.add-to-cart').forEach(button => {
         button.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -279,6 +310,77 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 }
 
+function renderProductsInListView(productsToShow) {
+    const container = document.getElementById('productsList');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const currency = restaurantSettings.currency || '₹';
+
+    if (productsToShow.length === 0) {
+        container.innerHTML = `
+            <div class="py-8 text-center text-gray-400">
+                <i class="fas fa-search text-xl mb-2"></i>
+                <p class="text-sm">No products found</p>
+            </div>
+        `;
+        return;
+    }
+
+    productsToShow.forEach(product => {
+        // Use imageUrl from Firestore or fallback to default
+        const imageUrl = product.imageUrl || (typeof getProductImage === 'function' ? getProductImage(product.name) : null);
+        
+        const listItem = document.createElement('div');
+        listItem.className = 'list-item bg-white';
+        
+        listItem.innerHTML = `
+            <div class="flex-shrink-0">
+                <div class="relative">
+                    ${imageUrl 
+                        ? `<img src="${imageUrl}" alt="${product.name}" 
+                              class="list-image"
+                              onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                        : ''
+                    }
+                    <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center ${imageUrl ? 'hidden' : ''}">
+                        <i class="fas fa-hamburger text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="list-details">
+                <div class="flex justify-between items-start">
+                    <h4 class="list-name">${product.name}</h4>
+                    <span class="list-price">${currency}${Number(product.price || 0).toFixed(2)}</span>
+                </div>
+                ${product.description ? `<p class="list-description">${product.description}</p>` : ''}
+                <span class="list-category">${product.category}</span>
+            </div>
+            <button class="add-to-cart-list bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center ml-2 hover:bg-red-600 transition" 
+                    data-id="${product.id}"
+                    title="Add to cart">
+                <i class="fas fa-plus text-xs"></i>
+            </button>
+        `;
+        
+        listItem.addEventListener('click', (e) => {
+            if (!e.target.closest('.add-to-cart-list')) {
+                addToCart(product.id);
+            }
+        });
+        
+        container.appendChild(listItem);
+    });
+    
+    // Add event listeners to list view add-to-cart buttons
+    document.querySelectorAll('.add-to-cart-list').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation();
+            addToCart(this.dataset.id);
+        });
+    });
+}
+    
     function addToCart(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) {
@@ -489,13 +591,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const productSearchInput = document.getElementById('productSearch');
-    if (productSearchInput) {
-        productSearchInput.addEventListener('input', function() {
-            const activeTab = document.querySelector('.category-tab.active');
-            filterProducts(activeTab ? activeTab.dataset.category : 'all');
-        });
-    }
+   const productSearchInput = document.getElementById('productSearch');
+if (productSearchInput) {
+    productSearchInput.addEventListener('input', function() {
+        const activeTab = document.querySelector('.category-tab.active');
+        filterProducts(activeTab ? activeTab.dataset.category : 'all');
+    });
+}
 
     window.renderCart = renderCart;
     window.updateTotals = updateTotals;
@@ -512,4 +614,38 @@ function showNotification(message, type) {
         setTimeout(() => n.remove(), 300);
     }, 3000);
 }
+
+function setupViewToggle() {
+    const gridViewBtn = document.getElementById('gridViewBtn');
+    const listViewBtn = document.getElementById('listViewBtn');
+    const productsGrid = document.getElementById('productsGrid');
+    const productsList = document.getElementById('productsList');
+    
+    if (!gridViewBtn || !listViewBtn) return;
+    
+    gridViewBtn.addEventListener('click', () => {
+        if (currentView === 'list') {
+            currentView = 'grid';
+            gridViewBtn.classList.add('active');
+            listViewBtn.classList.remove('active');
+            productsGrid.classList.remove('hidden');
+            productsList.classList.add('hidden');
+            // Re-render products in grid view
+            renderProductsInView(products);
+        }
+    });
+    
+    listViewBtn.addEventListener('click', () => {
+        if (currentView === 'grid') {
+            currentView = 'list';
+            listViewBtn.classList.add('active');
+            gridViewBtn.classList.remove('active');
+            productsList.classList.remove('hidden');
+            productsGrid.classList.add('hidden');
+            // Re-render products in list view
+            renderProductsInListView(products);
+        }
+    });
+}
+
 

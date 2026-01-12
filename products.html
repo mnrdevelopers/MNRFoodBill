@@ -110,23 +110,41 @@
                         </div>
                         
                         <!-- Simple Image Selection -->
-                        <div>
-                            <label class="block text-gray-700 mb-2">Select Product Image</label>
-                            <div class="border rounded-lg p-4 bg-gray-50">
-                                <p class="text-sm text-gray-600 mb-3">Images will be automatically matched by product name</p>
-                                <div class="flex items-center space-x-3">
-                                    <div id="imagePreview" class="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-white">
-                                        <i class="fas fa-image text-gray-400"></i>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm font-medium">Auto-matched from library</p>
-                                        <p class="text-xs text-gray-500">Based on product name</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
+                       <div>
+    <label class="block text-gray-700 mb-2">Product Image *</label>
+    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-red-300 transition-colors cursor-pointer" id="imageUploadArea">
+        <input type="file" id="productImageInput" accept="image/*" class="hidden">
+        <div class="space-y-3" id="uploadContent">
+            <div class="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
+                <i class="fas fa-cloud-upload-alt text-red-500 text-xl"></i>
+            </div>
+            <div>
+                <p class="font-medium text-gray-700">Click to upload product image</p>
+                <p class="text-xs text-gray-500 mt-1">PNG, JPG, WebP up to 5MB</p>
+            </div>
+            <button type="button" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">
+                Browse Files
+            </button>
+        </div>
+        <div id="imagePreviewContainer" class="hidden">
+            <div class="relative inline-block">
+                <img id="imagePreview" class="w-32 h-32 object-cover rounded-lg shadow" src="" alt="Preview">
+                <button type="button" id="removeImage" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Click image to change</p>
+        </div>
+    </div>
+    <div class="mt-2">
+        <div class="progress-bar hidden">
+            <div class="bg-gray-200 rounded-full h-2">
+                <div id="uploadProgress" class="bg-green-500 h-2 rounded-full w-0 transition-all duration-300"></div>
+            </div>
+            <p id="uploadStatus" class="text-xs text-gray-600 mt-1"></p>
+        </div>
+    </div>
+</div>
                     <div class="flex space-x-3 pt-4 border-t">
                         <button type="submit" 
                                 class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
@@ -169,4 +187,5 @@
     </div>
 </body>
 </html>
+
 

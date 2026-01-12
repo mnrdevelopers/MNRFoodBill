@@ -104,9 +104,23 @@ async function compressImage(file, maxWidth = 800, maxHeight = 800) {
 }
 
 // Optimize image with multiple compression passes if needed
+// Optimize image with multiple compression passes if needed
 async function optimizeImage(file, targetSizeKB = 100) {
+    const compressionStatus = document.getElementById('compressionStatus');
+    const sizeInfo = document.getElementById('sizeInfo');
+    
+    if (compressionStatus) {
+        compressionStatus.textContent = 'Starting compression...';
+    }
+    
+    // First compression
     let compressed = await compressImage(file);
     const targetSize = targetSizeKB * 1024;
+    
+    // Show initial compression info
+    if (sizeInfo) {
+        sizeInfo.textContent = `${(compressed.originalSize / 1024).toFixed(0)}KB → ${(compressed.compressedSize / 1024).toFixed(0)}KB`;
+    }
     
     // If still too large, reduce quality in steps
     if (compressed.compressedSize > targetSize) {
@@ -116,15 +130,37 @@ async function optimizeImage(file, targetSizeKB = 100) {
         
         while (compressed.compressedSize > targetSize && attempts < maxAttempts && currentQuality > 0.3) {
             currentQuality -= 0.1; // Reduce quality by 10% each attempt
-            compressed = await compressImage(file, 800, 800, currentQuality);
             attempts++;
+            
+            if (compressionStatus) {
+                compressionStatus.textContent = `Optimizing (pass ${attempts})...`;
+            }
+            
+            compressed = await compressImage(file, 800, 800, currentQuality);
+            
+            if (sizeInfo) {
+                sizeInfo.textContent = `${(compressed.originalSize / 1024).toFixed(0)}KB → ${(compressed.compressedSize / 1024).toFixed(0)}KB`;
+            }
+            
             console.log(`Compression attempt ${attempts}: ${(compressed.compressedSize / 1024).toFixed(2)}KB (Quality: ${(currentQuality * 100).toFixed(0)}%)`);
         }
     }
     
     // If still too large, reduce dimensions
     if (compressed.compressedSize > targetSize) {
+        if (compressionStatus) {
+            compressionStatus.textContent = 'Reducing dimensions...';
+        }
+        
         compressed = await compressImage(file, 600, 600, 0.7);
+        
+        if (sizeInfo) {
+            sizeInfo.textContent = `${(compressed.originalSize / 1024).toFixed(0)}KB → ${(compressed.compressedSize / 1024).toFixed(0)}KB`;
+        }
+    }
+    
+    if (compressionStatus) {
+        compressionStatus.textContent = 'Compression complete';
     }
     
     return compressed;
@@ -218,35 +254,63 @@ async function uploadToImgBB(file) {
         }
     }
 
-    // Show compression progress
+    // Get UI elements
+    const progressBar = document.getElementById('uploadProgress');
     const uploadStatus = document.getElementById('uploadStatus');
+    const compressionStatus = document.getElementById('compressionStatus');
+    const sizeInfo = document.getElementById('sizeInfo');
     const progressContainer = document.querySelector('.progress-bar');
     
-    if (uploadStatus && progressContainer) {
+    // Show compression progress
+    if (progressContainer) {
         progressContainer.classList.remove('hidden');
-        uploadStatus.textContent = 'Compressing image...';
+    }
+    
+    if (compressionStatus) {
+        compressionStatus.textContent = 'Starting compression...';
+    }
+    
+    if (sizeInfo) {
+        sizeInfo.textContent = `${(file.size / 1024 / 1024).toFixed(2)}MB`;
     }
 
     // Compress image first
     let compressed;
     try {
+        if (compressionStatus) {
+            compressionStatus.textContent = 'Compressing image...';
+        }
+        
         compressed = await optimizeImage(file, 100); // Target 100KB
         
-        if (uploadStatus) {
-            uploadStatus.textContent = `Compressed: ${(compressed.originalSize / 1024).toFixed(0)}KB → ${(compressed.compressedSize / 1024).toFixed(0)}KB`;
+        if (compressionStatus) {
+            compressionStatus.textContent = 'Compression complete';
+        }
+        
+        if (sizeInfo) {
+            sizeInfo.textContent = `${(compressed.originalSize / 1024).toFixed(0)}KB → ${(compressed.compressedSize / 1024).toFixed(0)}KB`;
         }
         
         // Show preview of compressed image
         const imagePreview = document.getElementById('imagePreview');
-        if (imagePreview) {
+        if (imagePreview && compressed.dataUrl) {
             imagePreview.src = compressed.dataUrl;
         }
         
-    } catch (error) {
+        // Update status for upload
         if (uploadStatus) {
-            uploadStatus.textContent = 'Compression failed, uploading original';
+            uploadStatus.textContent = 'Ready to upload';
         }
-        compressed = { file: file, compressedSize: file.size };
+        
+        // Small delay to show compression complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+    } catch (error) {
+        console.error('Compression error:', error);
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Compression failed, using original';
+        }
+        compressed = { file: file, compressedSize: file.size, originalSize: file.size };
     }
 
     // Prepare for upload
@@ -263,28 +327,54 @@ async function uploadToImgBB(file) {
         xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
                 const percentComplete = (event.loaded / event.total) * 100;
-                const progressBar = document.getElementById('uploadProgress');
+                
+                // Update progress bar
                 if (progressBar) {
                     progressBar.style.width = `${percentComplete}%`;
+                    progressBar.textContent = `${Math.round(percentComplete)}%`;
                 }
+                
+                // Update status text
                 if (uploadStatus) {
                     uploadStatus.textContent = `Uploading... ${Math.round(percentComplete)}%`;
+                }
+                
+                // Update compression status
+                if (compressionStatus && percentComplete < 100) {
+                    compressionStatus.textContent = 'Uploading to server...';
                 }
             }
         };
         
         xhr.onload = () => {
-            if (progressContainer) progressContainer.classList.add('hidden');
+            // Hide progress container
+            if (progressContainer) {
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                }, 1000);
+            }
             
             if (xhr.status === 200) {
                 try {
                     const response = JSON.parse(xhr.responseText);
                     if (response.success) {
+                        // Update final status
+                        if (uploadStatus) {
+                            uploadStatus.textContent = 'Upload complete!';
+                            uploadStatus.className = 'text-xs text-green-600 mt-1 text-center font-medium';
+                        }
+                        
+                        if (compressionStatus) {
+                            compressionStatus.textContent = '✓ Upload successful';
+                            compressionStatus.className = 'text-xs text-green-600';
+                        }
+                        
                         console.log('Image uploaded successfully:', {
                             size: (compressed.compressedSize / 1024).toFixed(2) + 'KB',
                             dimensions: `${compressed.width}x${compressed.height}`,
                             format: compressed.format || 'unknown'
                         });
+                        
                         resolve(response.data);
                     } else {
                         reject(new Error(response.error?.message || 'Upload failed'));
@@ -298,7 +388,15 @@ async function uploadToImgBB(file) {
         };
         
         xhr.onerror = () => {
-            if (progressContainer) progressContainer.classList.add('hidden');
+            if (progressContainer) {
+                progressContainer.classList.add('hidden');
+            }
+            
+            if (uploadStatus) {
+                uploadStatus.textContent = 'Upload failed - Network error';
+                uploadStatus.className = 'text-xs text-red-600 mt-1 text-center';
+            }
+            
             reject(new Error('Network error occurred'));
         };
         

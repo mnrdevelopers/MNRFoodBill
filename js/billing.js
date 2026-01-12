@@ -126,41 +126,50 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadProducts() {
-        const user = auth.currentUser;
-        if (!user) return;
+    const user = auth.currentUser;
+    if (!user) return;
 
-        if (isOnline()) {
-            db.collection('products')
-                .where('restaurantId', '==', user.uid)
-                .get()
-                .then(snapshot => {
-                    const productsData = [];
-                    snapshot.forEach(doc => {
-                        productsData.push({ id: doc.id, ...doc.data() });
+    if (isOnline()) {
+        db.collection('products')
+            .where('restaurantId', '==', user.uid)
+            .get()
+            .then(snapshot => {
+                const productsData = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    productsData.push({ 
+                        id: doc.id, 
+                        name: data.name,
+                        price: data.price,
+                        category: data.category,
+                        description: data.description,
+                        imageUrl: data.imageUrl, // Ensure this is loaded
+                        ...data 
                     });
-                    
-                    // FIX: Populate the global products array so addToCart can find items
-                    products = productsData; 
-                    
-                    localStorage.setItem('cachedProducts', JSON.stringify(productsData));
-                    
-                    // Extract categories and render filters
-                    const categories = [...new Set(productsData.map(p => p.category))];
-                    renderCategories(categories);
-                    renderProducts(productsData);
-                })
-                .catch(err => {
-                    console.error("Firestore product load failed:", err);
-                    const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
-                    products = cached;
-                    renderProducts(cached);
                 });
-        } else {
-            const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
-            products = cached;
-            renderProducts(cached);
-        }
+                
+                // FIX: Populate the global products array so addToCart can find items
+                products = productsData; 
+                
+                localStorage.setItem('cachedProducts', JSON.stringify(productsData));
+                
+                // Extract categories and render filters
+                const categories = [...new Set(productsData.map(p => p.category))];
+                renderCategories(categories);
+                renderProducts(productsData);
+            })
+            .catch(err => {
+                console.error("Firestore product load failed:", err);
+                const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
+                products = cached;
+                renderProducts(cached);
+            });
+    } else {
+        const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
+        products = cached;
+        renderProducts(cached);
     }
+}
     
     function renderCategories(categories) {
         const container = document.querySelector('.category-tab')?.parentElement;
@@ -212,141 +221,151 @@ document.addEventListener('DOMContentLoaded', function() {
         renderProducts(filtered);
     }
 
-    function renderProducts(productsToShow) {
-        const container = document.getElementById('productsGrid');
-        if (!container) return;
-        container.innerHTML = '';
+   function renderProducts(productsToShow) {
+    const container = document.getElementById('productsGrid');
+    if (!container) return;
+    container.innerHTML = '';
 
-        const currency = restaurantSettings.currency || '₹';
+    const currency = restaurantSettings.currency || '₹';
 
-        if (productsToShow.length === 0) {
-            container.innerHTML = '<div class="col-span-full py-10 text-center text-gray-500">No products found</div>';
-            return;
-        }
-
-        productsToShow.forEach(product => {
-            const card = document.createElement('div');
-            card.className = 'bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition cursor-pointer group';
-            
-            const imageUrl = typeof getProductImage === 'function' ? getProductImage(product.name) : null;
-            
-            card.innerHTML = `
-                <div class="h-40 relative bg-gray-100 flex items-center justify-center overflow-hidden">
-                    ${imageUrl 
-                        ? `<img src="${imageUrl}" alt="${product.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.outerHTML='<i class=\'fas fa-hamburger text-gray-300 text-4xl\'></i>'"/>`
-                        : `<i class="fas fa-hamburger text-gray-300 text-4xl"></i>`
-                    }
-                </div>
-                <div class="p-4">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex-1">
-                            <h3 class="font-bold text-gray-800 truncate">${product.name}</h3>
-                            <p class="text-xs text-gray-500 mt-1 truncate">${product.description || ''}</p>
-                        </div>
-                        <span class="font-bold text-red-500 ml-2">${currency}${Number(product.price || 0).toFixed(2)}</span>
-                    </div>
-                    <div class="flex items-center justify-between mt-4">
-                        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${product.category}</span>
-                        <button class="add-to-cart bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600 transition" 
-                                data-id="${product.id}">
-                            <i class="fas fa-plus mr-1"></i> Add
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            card.addEventListener('click', () => addToCart(product.id));
-            container.appendChild(card);
-        });
-          
-        document.querySelectorAll('.add-to-cart').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.stopPropagation();
-                addToCart(this.dataset.id);
-            });
-        });
+    if (productsToShow.length === 0) {
+        container.innerHTML = '<div class="col-span-full py-10 text-center text-gray-500">No products found</div>';
+        return;
     }
 
-    function addToCart(productId) {
-        // Now 'products' is populated, so find will work
-        const product = products.find(p => p.id === productId);
-        if (!product) {
-            console.error("Product not found in local state:", productId);
-            return;
-        }
-
-        const existingItem = cart.find(item => item.id === productId);
+    productsToShow.forEach(product => {
+        // Use imageUrl from Firestore or fallback to default
+        const imageUrl = product.imageUrl || (typeof getProductImage === 'function' ? getProductImage(product.name) : null);
         
-        if (existingItem) {
-            existingItem.quantity += 1;
-        } else {
-            cart.push({
-                id: product.id,
-                name: product.name,
-                price: Number(product.price) || 0,
-                quantity: 1
-            });
-        }
-
-        renderCart();
-        updateTotals();
-        showNotification(`${product.name} added to cart!`, 'success');
-    }
-
-    function renderCart() {
-        const container = document.getElementById('cartItems');
-        const emptyCart = document.getElementById('emptyCart');
-        if (!container) return;
-
-        if (cart.length === 0) {
-            container.innerHTML = '';
-            if (emptyCart) {
-                container.appendChild(emptyCart);
-                emptyCart.classList.remove('hidden');
-            }
-            return;
-        }
-
-        if (emptyCart) emptyCart.classList.add('hidden');
-        container.innerHTML = '';
-
-        const currency = restaurantSettings.currency || '₹';
-
-        cart.forEach((item, index) => {
-            const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
-            const imageUrl = typeof getProductImage === 'function' ? getProductImage(item.name) : null;
-            
-            const itemElement = document.createElement('div');
-            itemElement.className = 'flex items-center justify-between py-2 border-b last:border-0';
-            itemElement.innerHTML = `
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                        ${imageUrl 
-                            ? `<img src="${imageUrl}" class="w-full h-full object-cover" onerror="this.outerHTML='<i class=\'fas fa-hamburger text-gray-400\'></i>'"/>`
-                            : `<i class="fas fa-hamburger text-gray-400"></i>`
-                        }
+        const card = document.createElement('div');
+        card.className = 'bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition cursor-pointer group';
+        
+        card.innerHTML = `
+            <div class="h-40 relative bg-gray-100 flex items-center justify-center overflow-hidden">
+                ${imageUrl 
+                    ? `<img src="${imageUrl}" alt="${product.name}" 
+                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onerror="this.onerror=null; this.outerHTML='<i class=\'fas fa-hamburger text-gray-300 text-4xl\'></i>'">`
+                    : `<i class="fas fa-hamburger text-gray-300 text-4xl"></i>`
+                }
+            </div>
+            <div class="p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gray-800 truncate">${product.name}</h3>
+                        <p class="text-xs text-gray-500 mt-1 truncate">${product.description || ''}</p>
                     </div>
-                    <div>
-                        <h4 class="font-medium text-sm text-gray-800">${item.name}</h4>
-                        <p class="text-xs text-gray-500">${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</p>
-                    </div>
+                    <span class="font-bold text-red-500 ml-2">${currency}${Number(product.price || 0).toFixed(2)}</span>
                 </div>
-                <div class="flex items-center space-x-3">
-                    <span class="font-bold text-sm">${currency}${itemTotal.toFixed(2)}</span>
-                    <button class="remove-item text-red-400 hover:text-red-600 p-1" data-index="${index}">
-                        <i class="fas fa-trash-alt text-xs"></i>
+                <div class="flex items-center justify-between mt-4">
+                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${product.category}</span>
+                    <button class="add-to-cart bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600 transition" 
+                            data-id="${product.id}">
+                        <i class="fas fa-plus mr-1"></i> Add
                     </button>
                 </div>
-            `;
-            container.appendChild(itemElement);
+            </div>
+        `;
+        
+        card.addEventListener('click', () => addToCart(product.id));
+        container.appendChild(card);
+    });
+    
+    document.querySelectorAll('.add-to-cart').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation();
+            addToCart(this.dataset.id);
         });
+    });
+}
 
-        document.querySelectorAll('.remove-item').forEach(button => {
-            button.addEventListener('click', function() {
-                removeFromCart(parseInt(this.dataset.index));
-            });
+    function addToCart(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+        console.error("Product not found in local state:", productId);
+        return;
+    }
+
+    const existingItem = cart.find(item => item.id === productId);
+    
+    if (existingItem) {
+        existingItem.quantity += 1;
+    } else {
+        // Store complete product details in cart
+        cart.push({
+            id: product.id,
+            name: product.name,
+            price: Number(product.price) || 0,
+            quantity: 1,
+            imageUrl: product.imageUrl, // Store image URL
+            category: product.category
         });
     }
+
+    renderCart();
+    updateTotals();
+    showNotification(`${product.name} added to cart!`, 'success');
+}
+    
+    function renderCart() {
+    const container = document.getElementById('cartItems');
+    const emptyCart = document.getElementById('emptyCart');
+    if (!container) return;
+
+    if (cart.length === 0) {
+        container.innerHTML = '';
+        if (emptyCart) {
+            container.appendChild(emptyCart);
+            emptyCart.classList.remove('hidden');
+        }
+        return;
+    }
+
+    if (emptyCart) emptyCart.classList.add('hidden');
+    container.innerHTML = '';
+
+    const currency = restaurantSettings.currency || '₹';
+
+    cart.forEach((item, index) => {
+        // Find product details including image
+        const productDetails = products.find(p => p.id === item.id);
+        const imageUrl = productDetails?.imageUrl || (typeof getProductImage === 'function' ? getProductImage(item.name) : null);
+        
+        const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
+        
+        const itemElement = document.createElement('div');
+        itemElement.className = 'flex items-center justify-between py-2 border-b last:border-0';
+        itemElement.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                    ${imageUrl 
+                        ? `<img src="${imageUrl}" alt="${item.name}" 
+                              class="w-full h-full object-cover"
+                              onerror="this.onerror=null; this.outerHTML='<i class=\'fas fa-hamburger text-gray-400\'></i>'">`
+                        : `<i class="fas fa-hamburger text-gray-400"></i>`
+                    }
+                </div>
+                <div>
+                    <h4 class="font-medium text-sm text-gray-800">${item.name}</h4>
+                    <p class="text-xs text-gray-500">${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span class="font-bold text-sm">${currency}${itemTotal.toFixed(2)}</span>
+                <button class="remove-item text-red-400 hover:text-red-600 p-1" data-index="${index}">
+                    <i class="fas fa-trash-alt text-xs"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(itemElement);
+    });
+
+    document.querySelectorAll('.remove-item').forEach(button => {
+        button.addEventListener('click', function() {
+            removeFromCart(parseInt(this.dataset.index));
+        });
+    });
+}
 
     function removeFromCart(index) {
         const item = cart[index];
@@ -493,3 +512,4 @@ function showNotification(message, type) {
         setTimeout(() => n.remove(), 300);
     }, 3000);
 }
+

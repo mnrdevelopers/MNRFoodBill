@@ -1233,6 +1233,143 @@ button:active,
     transition: transform 0.2s ease;
 }
 
+/* Progress Bar Styles */
+.progress-bar {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#uploadProgress {
+    background: linear-gradient(90deg, #10b981, #34d399);
+    position: relative;
+    overflow: hidden;
+}
+
+#uploadProgress::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Compression Stats */
+.compression-stats {
+    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border-left: 3px solid #10b981;
+}
+
+.compression-stats.error {
+    border-left-color: #ef4444;
+}
+
+.compression-stats p {
+    margin: 2px 0;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.compression-stats .label {
+    color: #6b7280;
+}
+
+.compression-stats .value {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+/* Upload Area States */
+#imageUploadArea.uploading {
+    border-color: #10b981;
+    background-color: #f0fdf4;
+}
+
+#imageUploadArea.compressing {
+    border-color: #f59e0b;
+    background-color: #fffbeb;
+}
+
+#imageUploadArea.error {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+/* Quality Indicator */
+.quality-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    background: #f3f4f6;
+    margin-top: 4px;
+}
+
+.quality-badge.high {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.quality-badge.medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.quality-badge.low {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Loading animation for compression */
+.compression-loading {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #f3f4f6;
+    border-top: 2px solid #10b981;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 6px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
 
 
 

@@ -71,50 +71,54 @@ document.addEventListener('DOMContentLoaded', function() {
         const foodTypeIcon = product.foodType === 'veg' ? 'leaf' : 'drumstick-bite';
         
         const row = document.createElement('tr');
-        row.className = 'border-b hover:bg-gray-50';
-        row.innerHTML = `
-            <td class="py-4 px-6">
-                <div class="flex items-center space-x-3">
-                    ${imageUrl ? 
-                        `<img src="${imageUrl}" alt="${product.name}" 
-                              class="w-10 h-10 object-cover rounded"
-                              onerror="this.style.display='none'">` : 
-                        `<div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
-                            <i class="fas fa-utensils text-gray-400"></i>
-                         </div>`
-                    }
-                    <div>
-                        <div class="font-medium text-gray-800">${product.name}</div>
-                        <div class="flex items-center text-xs text-gray-500">
-                            <i class="fas fa-${foodTypeIcon} ${foodTypeColor} mr-1"></i>
-                            ${product.foodType === 'veg' ? 'Veg' : 'Non-Veg'}
-                        </div>
-                    </div>
+row.className = 'border-b hover:bg-gray-50';
+row.innerHTML = `
+    <td class="py-4 px-6">
+        <div class="flex items-center space-x-3">
+            ${imageUrl ? 
+                `<img src="${imageUrl}" alt="${product.name}" 
+                      class="w-10 h-10 object-cover rounded"
+                      onerror="this.style.display='none'">` : 
+                `<div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                    <i class="fas fa-utensils text-gray-400"></i>
+                 </div>`
+            }
+            <div>
+                <div class="font-medium text-gray-800">${product.name}</div>
+                <div class="flex items-center text-xs text-gray-500">
+                    <i class="fas fa-${foodTypeIcon} ${foodTypeColor} mr-1"></i>
+                    ${product.foodType === 'veg' ? 'Veg' : 'Non-Veg'}
                 </div>
-            </td>
-            <td class="py-4 px-6">
-                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${product.category}</span>
-            </td>
-            <td class="py-4 px-6">
-                <div class="font-bold">₹${(product.price || 0).toFixed(2)}</div>
-                <div class="text-xs text-gray-500">
-                    per ${product.baseQuantity || 1} ${product.quantityType || 'plate'}
-                </div>
-            </td>
-            <td class="py-4 px-6 text-gray-600 text-sm">${product.description || '-'}</td>
-            <td class="py-4 px-6">
-                <div class="flex space-x-2">
-                    ${!isStaff ? `
-                        <button class="edit-product text-blue-500 hover:text-blue-700" data-id="${product.id}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="delete-product text-red-500 hover:text-red-700" data-id="${product.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    ` : '<span class="text-gray-400 text-sm">View only</span>'}
-                </div>
-            </td>
-        `;
+            </div>
+        </div>
+    </td>
+    <td class="py-4 px-6">
+        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${product.category}</span>
+    </td>
+    <td class="py-4 px-6">
+        <div class="font-bold">₹${(product.price || 0).toFixed(2)}</div>
+    </td>
+    <td class="py-4 px-6 text-sm text-gray-600">
+        ${product.baseQuantity || 1} ${product.quantityType || 'plate'}
+    </td>
+    <td class="py-4 px-6">
+        <span class="px-2 py-1 ${product.foodType === 'veg' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} rounded-full text-xs">
+            ${product.foodType === 'veg' ? 'Veg' : 'Non-Veg'}
+        </span>
+    </td>
+    <td class="py-4 px-6">
+        <div class="flex space-x-2">
+            ${!isStaff ? `
+                <button class="edit-product text-blue-500 hover:text-blue-700" data-id="${product.id}">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="delete-product text-red-500 hover:text-red-700" data-id="${product.id}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            ` : '<span class="text-gray-400 text-sm">View only</span>'}
+        </div>
+    </td>
+`;
         tbody.appendChild(row);
     });
 
@@ -276,4 +280,5 @@ if (productForm) {
         setTimeout(() => n.remove(), 3000);
     }
 });
+
 

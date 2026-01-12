@@ -863,6 +863,18 @@ button:active,
     to { opacity: 1; }
 }
 
+/* Ensure images display properly in cart */
+#cartItems img {
+    object-fit: cover;
+    max-width: 100%;
+    max-height: 100%;
+}
 
+#productsGrid img {
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
 
-
+#productsGrid .group:hover img {
+    transform: scale(1.05);
+}

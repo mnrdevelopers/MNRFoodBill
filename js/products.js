@@ -74,14 +74,14 @@ document.addEventListener('DOMContentLoaded', function() {
             row.innerHTML = `
                 <td class="py-4 px-6">
                     <div class="flex items-center space-x-3">
-                        ${imageUrl ? 
-                            `<img src="${imageUrl}" alt="${product.name}" 
-                                  class="w-10 h-10 object-cover rounded"
-                                  onerror="this.style.display='none'">` : 
-                            `<div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
-                                <i class="fas fa-hamburger text-gray-400"></i>
-                             </div>`
-                        }
+                       ${product.imageUrl ? 
+    `<img src="${product.imageUrl}" alt="${product.name}" 
+          class="w-10 h-10 object-cover rounded"
+          onerror="this.style.display='none'">` : 
+    `<div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+        <i class="fas fa-hamburger text-gray-400"></i>
+     </div>`
+}
                         <div class="font-medium text-gray-800">${product.name}</div>
                     </div>
                 </td>
@@ -154,9 +154,15 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function editProduct(productId) {
-        const product = products.find(p => p.id === productId);
-        if (product) openProductModal(product);
+    const product = products.find(p => p.id === productId);
+    if (product) {
+        openProductModal(product);
+        // Load existing image
+        if (product.imageUrl) {
+            window.ImageUpload?.setImageForEdit(product.imageUrl);
+        }
     }
+}
 
     function showDeleteModal(productId) {
         productToDelete = productId;
@@ -184,36 +190,56 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const productForm = document.getElementById('productForm');
-    if (productForm) {
-        productForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const user = auth.currentUser;
-            const productId = document.getElementById('productId').value;
-            
-            const productData = {
-                name: document.getElementById('productName').value.trim(),
-                category: document.getElementById('productCategory').value,
-                price: parseFloat(document.getElementById('productPrice').value),
-                description: document.getElementById('productDescription').value.trim(),
-                restaurantId: user.uid,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            try {
-                if (productId) {
-                    await db.collection('products').doc(productId).update(productData);
-                } else {
-                    productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    await db.collection('products').add(productData);
-                }
-                showNotification('Product saved', 'success');
-                loadProducts();
-                closeProductModal();
-            } catch (error) {
-                showNotification(error.message, 'error');
+   if (productForm) {
+    productForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const user = auth.currentUser;
+        const productId = document.getElementById('productId').value;
+        
+        // Get uploaded image URL
+        const imageData = window.ImageUpload?.getUploadedImage();
+        const imageUrl = imageData?.url || '';
+        
+        const productData = {
+            name: document.getElementById('productName').value.trim(),
+            category: document.getElementById('productCategory').value,
+            price: parseFloat(document.getElementById('productPrice').value),
+            description: document.getElementById('productDescription').value.trim(),
+            restaurantId: user.uid,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        // Add image URL if available
+        if (imageUrl) {
+            productData.imageUrl = imageUrl;
+            productData.imageThumb = imageData.thumb;
+        }
+        
+        // If editing and image was removed, clear image field
+        if (productId && !imageUrl) {
+            const existingProduct = products.find(p => p.id === productId);
+            if (existingProduct?.imageUrl) {
+                productData.imageUrl = firebase.firestore.FieldValue.delete();
+                productData.imageThumb = firebase.firestore.FieldValue.delete();
             }
-        });
-    }
+        }
+
+        try {
+            if (productId) {
+                await db.collection('products').doc(productId).update(productData);
+            } else {
+                productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                await db.collection('products').add(productData);
+            }
+            showNotification('Product saved', 'success');
+            loadProducts();
+            closeProductModal();
+            window.ImageUpload?.resetImageUpload();
+        } catch (error) {
+            showNotification(error.message, 'error');
+        }
+    });
+}
 
     function showNotification(message, type) {
         const n = document.createElement('div');
@@ -223,5 +249,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => n.remove(), 3000);
     }
 });
+
 
 

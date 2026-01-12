@@ -1657,4 +1657,19 @@ body.table-scrolling {
     }
 }
 
+/* Splash screen animation */
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+#splashScreen.fade-out {
+    animation: fadeOut 0.3s ease-out forwards;
+}
+
+/* Ensure splash screen covers everything */
+#splashScreen {
+    z-index: 9999;
+}
+
 

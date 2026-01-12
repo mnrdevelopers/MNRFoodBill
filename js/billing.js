@@ -264,6 +264,22 @@ function renderProductsInGridView(productsToShow) {
         const card = document.createElement('div');
         card.className = 'compact-card bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer';
         
+        // Determine display price
+        let displayPrice = Number(product.price || 0).toFixed(2);
+        let hasVariations = product.variations && product.variations.length > 0;
+        
+        if (hasVariations) {
+            const prices = product.variations.map(v => v.price);
+            const minPrice = Math.min(...prices);
+            const maxPrice = Math.max(...prices);
+            
+            if (minPrice === maxPrice) {
+                displayPrice = minPrice.toFixed(2);
+            } else {
+                displayPrice = `${minPrice.toFixed(2)} - ${maxPrice.toFixed(2)}`;
+            }
+        }
+        
         card.innerHTML = `
             <div class="h-20 bg-gray-50 flex items-center justify-center overflow-hidden relative">
                 ${imageUrl 
@@ -276,30 +292,71 @@ function renderProductsInGridView(productsToShow) {
                     <i class="fas fa-hamburger text-gray-300 text-xl"></i>
                 </div>
                 <div class="absolute bottom-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                    ${currency}${Number(product.price || 0).toFixed(2)}
+                    ${currency}${displayPrice}
                 </div>
+                ${hasVariations ? `
+                    <div class="absolute top-1 left-1 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">
+                        <i class="fas fa-layer-group mr-1"></i>${product.variations.length}
+                    </div>
+                ` : ''}
             </div>
             <div class="p-2">
                 <h3 class="product-name font-medium text-gray-800 mb-1">${product.name}</h3>
                 <div class="flex items-center justify-between">
                     <span class="product-category text-xs text-gray-500">${product.category}</span>
-                    <button class="add-to-cart bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition" 
-                            data-id="${product.id}"
-                            title="Add to cart">
-                        <i class="fas fa-plus"></i>
-                    </button>
+                    ${hasVariations ? `
+                        <button class="select-variation bg-blue-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-blue-600 transition" 
+                                data-id="${product.id}"
+                                title="Select variation">
+                            <i class="fas fa-caret-down"></i>
+                        </button>
+                    ` : `
+                        <button class="add-to-cart bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition" 
+                                data-id="${product.id}"
+                                title="Add to cart">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    `}
                 </div>
             </div>
         `;
         
-        card.addEventListener('click', (e) => {
-            if (!e.target.closest('.add-to-cart')) {
-                addToCart(product.id);
+        if (hasVariations) {
+            // For products with variations, show selection modal
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest('.select-variation')) {
+                    showVariationSelection(product);
+                }
+            });
+            
+            // Variation selector button
+            const selectBtn = card.querySelector('.select-variation');
+            if (selectBtn) {
+                selectBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    showVariationSelection(product);
+                });
             }
-        });
+        } else {
+            // For products without variations, direct add to cart
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest('.add-to-cart')) {
+                    addToCart(product.id, product.name, product.price);
+                }
+            });
+            
+            const addBtn = card.querySelector('.add-to-cart');
+            if (addBtn) {
+                addBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    addToCart(product.id, product.name, product.price);
+                });
+            }
+        }
         
         container.appendChild(card);
     });
+}
     
     // Add event listeners to add-to-cart buttons
     document.querySelectorAll('.add-to-cart').forEach(button => {
@@ -328,8 +385,22 @@ function renderProductsInListView(productsToShow) {
     }
 
     productsToShow.forEach(product => {
-        // Use imageUrl from Firestore or fallback to default
         const imageUrl = product.imageUrl || (typeof getProductImage === 'function' ? getProductImage(product.name) : null);
+        const hasVariations = product.variations && product.variations.length > 0;
+        
+        // Determine display price
+        let displayPrice = Number(product.price || 0).toFixed(2);
+        if (hasVariations) {
+            const prices = product.variations.map(v => v.price);
+            const minPrice = Math.min(...prices);
+            const maxPrice = Math.max(...prices);
+            
+            if (minPrice === maxPrice) {
+                displayPrice = minPrice.toFixed(2);
+            } else {
+                displayPrice = `${minPrice.toFixed(2)} - ${maxPrice.toFixed(2)}`;
+            }
+        }
         
         const listItem = document.createElement('div');
         listItem.className = 'list-item bg-white';
@@ -346,31 +417,76 @@ function renderProductsInListView(productsToShow) {
                     <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center ${imageUrl ? 'hidden' : ''}">
                         <i class="fas fa-hamburger text-gray-400"></i>
                     </div>
+                    ${hasVariations ? `
+                        <div class="absolute -top-1 -left-1 bg-blue-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                            ${product.variations.length}
+                        </div>
+                    ` : ''}
                 </div>
             </div>
             <div class="list-details">
                 <div class="flex justify-between items-start">
-                    <h4 class="list-name">${product.name}</h4>
-                    <span class="list-price">${currency}${Number(product.price || 0).toFixed(2)}</span>
+                    <div>
+                        <h4 class="list-name">${product.name}</h4>
+                        ${hasVariations ? `
+                            <div class="text-xs text-gray-500 mt-1">
+                                <i class="fas fa-layer-group mr-1"></i>${product.variations.length} variations
+                            </div>
+                        ` : ''}
+                    </div>
+                    <span class="list-price">${currency}${displayPrice}</span>
                 </div>
                 ${product.description ? `<p class="list-description">${product.description}</p>` : ''}
                 <span class="list-category">${product.category}</span>
             </div>
-            <button class="add-to-cart-list bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center ml-2 hover:bg-red-600 transition" 
-                    data-id="${product.id}"
-                    title="Add to cart">
-                <i class="fas fa-plus text-xs"></i>
-            </button>
+            ${hasVariations ? `
+                <button class="select-variation-list bg-blue-500 text-white w-8 h-8 rounded-full flex items-center justify-center ml-2 hover:bg-blue-600 transition" 
+                        data-id="${product.id}"
+                        title="Select variation">
+                    <i class="fas fa-caret-down text-xs"></i>
+                </button>
+            ` : `
+                <button class="add-to-cart-list bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center ml-2 hover:bg-red-600 transition" 
+                        data-id="${product.id}"
+                        title="Add to cart">
+                    <i class="fas fa-plus text-xs"></i>
+                </button>
+            `}
         `;
         
-        listItem.addEventListener('click', (e) => {
-            if (!e.target.closest('.add-to-cart-list')) {
-                addToCart(product.id);
+        if (hasVariations) {
+            listItem.addEventListener('click', (e) => {
+                if (!e.target.closest('.select-variation-list')) {
+                    showVariationSelection(product);
+                }
+            });
+            
+            const selectBtn = listItem.querySelector('.select-variation-list');
+            if (selectBtn) {
+                selectBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    showVariationSelection(product);
+                });
             }
-        });
+        } else {
+            listItem.addEventListener('click', (e) => {
+                if (!e.target.closest('.add-to-cart-list')) {
+                    addToCart(product.id, product.name, product.price);
+                }
+            });
+            
+            const addBtn = listItem.querySelector('.add-to-cart-list');
+            if (addBtn) {
+                addBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    addToCart(product.id, product.name, product.price);
+                });
+            }
+        }
         
         container.appendChild(listItem);
     });
+}
     
     // Add event listeners to list view add-to-cart buttons
     document.querySelectorAll('.add-to-cart-list').forEach(button => {
@@ -647,5 +763,6 @@ function setupViewToggle() {
         }
     });
 }
+
 
 

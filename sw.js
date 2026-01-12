@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mnrfoodbill-v2.0.2';
+const CACHE_NAME = 'mnrfoodbill-v2.0.3';
 const BASE_PATH = '/MNRFoodBill/';
 
 // Assets to cache
@@ -23,7 +23,6 @@ const ASSETS_TO_CACHE = [
   BASE_PATH + 'js/staff.js',
   BASE_PATH + 'js/pwa-install.js',
   BASE_PATH + 'js/image-upload.js',
-  BASE_PATH + 'js/table-scroll.js',
   BASE_PATH + 'firebase-config.js',
   BASE_PATH + 'manifest.json',
   'https://cdn.tailwindcss.com',

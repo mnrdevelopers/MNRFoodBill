@@ -582,3 +582,47 @@ window.ImageUpload = {
     optimizeImage,
     getCompressionStats
 };
+
+function showCompressionStats(originalSize, compressedSize, width, height, quality) {
+    const statsContainer = document.getElementById('compressionStats') || 
+                          (() => {
+                              const div = document.createElement('div');
+                              div.id = 'compressionStats';
+                              div.className = 'compression-stats';
+                              document.getElementById('progressSection').appendChild(div);
+                              return div;
+                          })();
+    
+    const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+    const qualityClass = quality > 0.7 ? 'high' : quality > 0.5 ? 'medium' : 'low';
+    
+    statsContainer.innerHTML = `
+        <p>
+            <span class="label">Original:</span>
+            <span class="value">${(originalSize / 1024).toFixed(1)}KB</span>
+        </p>
+        <p>
+            <span class="label">Compressed:</span>
+            <span class="value">${(compressedSize / 1024).toFixed(1)}KB</span>
+        </p>
+        <p>
+            <span class="label">Reduction:</span>
+            <span class="value">${reduction}%</span>
+        </p>
+        <p>
+            <span class="label">Dimensions:</span>
+            <span class="value">${width}×${height}</span>
+        </p>
+        <div class="quality-badge ${qualityClass}">
+            <i class="fas fa-chart-line"></i>
+            Quality: ${(quality * 100).toFixed(0)}%
+        </div>
+    `;
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+        if (statsContainer.parentNode) {
+            statsContainer.remove();
+        }
+    }, 10000);
+}

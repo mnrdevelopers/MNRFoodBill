@@ -1122,5 +1122,42 @@ button:active,
     box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
+/* Variation styles */
+.variation-badge {
+    background: #3b82f6;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.variation-option {
+    transition: all 0.2s ease;
+}
+
+.variation-option:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.variation-option.selected {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+/* Cart item variations */
+.cart-item-variation {
+    font-size: 11px;
+    color: #6b7280;
+    background: #f3f4f6;
+    padding: 1px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+
 
 

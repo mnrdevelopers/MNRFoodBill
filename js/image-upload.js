@@ -1,7 +1,9 @@
-// js/image-upload.js
+// js/image-upload.js - Updated with compression
 let imgbbApiKey = null;
+let MAX_FILE_SIZE = 100 * 1024; // 100KB in bytes
+let QUALITY = 0.85; // 85% quality for compression
 
-// Initialize ImgBB API key from Firebase Remote Config
+// Initialize ImgBB API key
 async function initImgBB() {
     try {
         // Try to get from Firebase Remote Config
@@ -12,7 +14,7 @@ async function initImgBB() {
         
         // If not available via Remote Config, try to get from a secure endpoint
         if (!imgbbApiKey) {
-            const response = await fetch('/api/config'); // Your secure endpoint
+            const response = await fetch('/api/config');
             if (response.ok) {
                 const config = await response.json();
                 imgbbApiKey = config.imgbbApiKey;
@@ -25,7 +27,189 @@ async function initImgBB() {
     }
 }
 
-// Upload image to ImgBB
+// Compress image using canvas
+async function compressImage(file, maxWidth = 800, maxHeight = 800) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // Calculate new dimensions maintaining aspect ratio
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+                
+                // Set canvas dimensions
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw and compress
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Get compressed data URL
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', QUALITY);
+                
+                // Convert data URL to Blob
+                const byteString = atob(compressedDataUrl.split(',')[1]);
+                const mimeString = compressedDataUrl.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                
+                const compressedBlob = new Blob([ab], { type: 'image/jpeg' });
+                
+                // Create compressed file
+                const compressedFile = new File([compressedBlob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now()
+                });
+                
+                console.log(`Compressed: ${(file.size / 1024).toFixed(2)}KB -> ${(compressedFile.size / 1024).toFixed(2)}KB`);
+                
+                resolve({
+                    file: compressedFile,
+                    originalSize: file.size,
+                    compressedSize: compressedFile.size,
+                    width: width,
+                    height: height,
+                    dataUrl: compressedDataUrl
+                });
+            };
+            
+            img.onerror = reject;
+        };
+        
+        reader.onerror = reject;
+    });
+}
+
+// Optimize image with multiple compression passes if needed
+async function optimizeImage(file, targetSizeKB = 100) {
+    let compressed = await compressImage(file);
+    const targetSize = targetSizeKB * 1024;
+    
+    // If still too large, reduce quality in steps
+    if (compressed.compressedSize > targetSize) {
+        let currentQuality = QUALITY;
+        let attempts = 0;
+        const maxAttempts = 5;
+        
+        while (compressed.compressedSize > targetSize && attempts < maxAttempts && currentQuality > 0.3) {
+            currentQuality -= 0.1; // Reduce quality by 10% each attempt
+            compressed = await compressImage(file, 800, 800, currentQuality);
+            attempts++;
+            console.log(`Compression attempt ${attempts}: ${(compressed.compressedSize / 1024).toFixed(2)}KB (Quality: ${(currentQuality * 100).toFixed(0)}%)`);
+        }
+    }
+    
+    // If still too large, reduce dimensions
+    if (compressed.compressedSize > targetSize) {
+        compressed = await compressImage(file, 600, 600, 0.7);
+    }
+    
+    return compressed;
+}
+
+// Updated compressImage function with quality parameter
+async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = QUALITY) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // Calculate new dimensions
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Set image smoothing for better quality
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // Draw with high quality interpolation
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convert to WebP for better compression (if supported)
+                const format = canvas.toDataURL('image/webp') ? 'image/webp' : 'image/jpeg';
+                const compressedDataUrl = canvas.toDataURL(format, quality);
+                
+                // Convert to Blob
+                const byteString = atob(compressedDataUrl.split(',')[1]);
+                const mimeString = compressedDataUrl.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                
+                const compressedBlob = new Blob([ab], { type: mimeString });
+                const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, "") + (format === 'image/webp' ? '.webp' : '.jpg'), {
+                    type: mimeString,
+                    lastModified: Date.now()
+                });
+                
+                resolve({
+                    file: compressedFile,
+                    originalSize: file.size,
+                    compressedSize: compressedFile.size,
+                    width: width,
+                    height: height,
+                    dataUrl: compressedDataUrl,
+                    format: format,
+                    quality: quality
+                });
+            };
+            
+            img.onerror = reject;
+        };
+        
+        reader.onerror = reject;
+    });
+}
+
+// Upload image to ImgBB with compression
 async function uploadToImgBB(file) {
     if (!imgbbApiKey) {
         await initImgBB();
@@ -34,16 +218,42 @@ async function uploadToImgBB(file) {
         }
     }
 
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    // Show progress
-    const progressBar = document.getElementById('uploadProgress');
+    // Show compression progress
     const uploadStatus = document.getElementById('uploadStatus');
     const progressContainer = document.querySelector('.progress-bar');
     
-    if (progressBar && uploadStatus && progressContainer) {
+    if (uploadStatus && progressContainer) {
         progressContainer.classList.remove('hidden');
+        uploadStatus.textContent = 'Compressing image...';
+    }
+
+    // Compress image first
+    let compressed;
+    try {
+        compressed = await optimizeImage(file, 100); // Target 100KB
+        
+        if (uploadStatus) {
+            uploadStatus.textContent = `Compressed: ${(compressed.originalSize / 1024).toFixed(0)}KB → ${(compressed.compressedSize / 1024).toFixed(0)}KB`;
+        }
+        
+        // Show preview of compressed image
+        const imagePreview = document.getElementById('imagePreview');
+        if (imagePreview) {
+            imagePreview.src = compressed.dataUrl;
+        }
+        
+    } catch (error) {
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Compression failed, uploading original';
+        }
+        compressed = { file: file, compressedSize: file.size };
+    }
+
+    // Prepare for upload
+    const formData = new FormData();
+    formData.append('image', compressed.file);
+    
+    if (uploadStatus) {
         uploadStatus.textContent = 'Uploading... 0%';
     }
 
@@ -51,10 +261,15 @@ async function uploadToImgBB(file) {
         const xhr = new XMLHttpRequest();
         
         xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable && progressBar && uploadStatus) {
+            if (event.lengthComputable) {
                 const percentComplete = (event.loaded / event.total) * 100;
-                progressBar.style.width = `${percentComplete}%`;
-                uploadStatus.textContent = `Uploading... ${Math.round(percentComplete)}%`;
+                const progressBar = document.getElementById('uploadProgress');
+                if (progressBar) {
+                    progressBar.style.width = `${percentComplete}%`;
+                }
+                if (uploadStatus) {
+                    uploadStatus.textContent = `Uploading... ${Math.round(percentComplete)}%`;
+                }
             }
         };
         
@@ -65,6 +280,11 @@ async function uploadToImgBB(file) {
                 try {
                     const response = JSON.parse(xhr.responseText);
                     if (response.success) {
+                        console.log('Image uploaded successfully:', {
+                            size: (compressed.compressedSize / 1024).toFixed(2) + 'KB',
+                            dimensions: `${compressed.width}x${compressed.height}`,
+                            format: compressed.format || 'unknown'
+                        });
                         resolve(response.data);
                     } else {
                         reject(new Error(response.error?.message || 'Upload failed'));
@@ -87,7 +307,7 @@ async function uploadToImgBB(file) {
     });
 }
 
-// Setup image upload UI
+// Setup image upload UI with size validation
 function setupImageUpload() {
     const uploadArea = document.getElementById('imageUploadArea');
     const fileInput = document.getElementById('productImageInput');
@@ -111,18 +331,18 @@ function setupImageUpload() {
         if (!file) return;
         
         // Validate file
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
         if (!validTypes.includes(file.type)) {
-            alert('Please upload a valid image file (JPG, PNG, WebP)');
+            alert('Please upload a valid image file (JPG, PNG, WebP, GIF)');
             return;
         }
         
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-            alert('Image size must be less than 5MB');
-            return;
+        // Check file size (limit to 10MB original)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Image size must be less than 10MB. The image will be compressed.');
         }
         
-        // Show preview
+        // Show preview of original
         const reader = new FileReader();
         reader.onload = (e) => {
             if (imagePreview) {
@@ -136,10 +356,10 @@ function setupImageUpload() {
         reader.readAsDataURL(file);
         
         try {
-            // Upload to ImgBB
+            // Upload and compress
             const result = await uploadToImgBB(file);
             
-            // Store the image URL in a hidden field or data attribute
+            // Store the image URL
             const hiddenInput = document.getElementById('productImageUrl') || 
                                (() => {
                                    const input = document.createElement('input');
@@ -153,7 +373,7 @@ function setupImageUpload() {
             hiddenInput.setAttribute('data-thumb', result.thumb?.url || result.url);
             hiddenInput.setAttribute('data-delete', result.delete_url || '');
             
-            showNotification('Image uploaded successfully!', 'success');
+            showNotification(`Image uploaded (${(result.size || 0) / 1024}KB)`, 'success');
             
         } catch (error) {
             console.error('Upload error:', error);
@@ -171,6 +391,7 @@ function setupImageUpload() {
     }
 }
 
+// Reset upload UI
 function resetImageUpload() {
     const fileInput = document.getElementById('productImageInput');
     const uploadContent = document.getElementById('uploadContent');
@@ -238,7 +459,16 @@ function showNotification(message, type) {
     }, 3000);
 }
 
-// Initialize on DOM ready
+// Compression statistics
+function getCompressionStats() {
+    return {
+        maxSizeKB: MAX_FILE_SIZE / 1024,
+        targetQuality: QUALITY,
+        maxDimensions: '800x800'
+    };
+}
+
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setupImageUpload();
     initImgBB();
@@ -249,5 +479,8 @@ window.ImageUpload = {
     uploadToImgBB,
     getUploadedImage,
     setImageForEdit,
-    resetImageUpload
+    resetImageUpload,
+    compressImage,
+    optimizeImage,
+    getCompressionStats
 };

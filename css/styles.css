@@ -836,5 +836,33 @@ button:active,
   }
 }
 
+/* Image Upload Styles */
+#imageUploadArea {
+    transition: all 0.3s ease;
+}
+
+#imageUploadArea:hover {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+#imagePreview {
+    transition: transform 0.3s ease;
+}
+
+#imagePreview:hover {
+    transform: scale(1.05);
+}
+
+.progress-bar {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+
 
 

@@ -356,7 +356,6 @@ function renderProductsInGridView(productsToShow) {
         
         container.appendChild(card);
     });
-}
     
     // Add event listeners to add-to-cart buttons
     document.querySelectorAll('.add-to-cart').forEach(button => {
@@ -486,7 +485,6 @@ function renderProductsInListView(productsToShow) {
         
         container.appendChild(listItem);
     });
-}
     
     // Add event listeners to list view add-to-cart buttons
     document.querySelectorAll('.add-to-cart-list').forEach(button => {
@@ -875,6 +873,7 @@ function addToCart(productId, productName = '', price = 0, variationName = '') {
 function addToCartWithVariation(product, variation) {
     addToCart(product.id, product.name, variation.price, variation.name);
 }
+
 
 
 

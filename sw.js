@@ -53,23 +53,27 @@ const NO_CACHE_URLS = [
   'imgbb.com'  // Image upload API
 ];
 
-// Install Event - Cleaner
+// Install Event
 self.addEventListener('install', event => {
-  console.log('[Service Worker] Installing...');
-  
-  // Skip waiting immediately
-  self.skipWaiting();
-  
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('[Service Worker] Caching app shell');
-        return cache.addAll(ASSETS_TO_CACHE);
-      })
-      .catch(err => {
-        console.warn('[Service Worker] Cache addAll failed:', err);
-      })
-  );
+    console.log('[Service Worker] Installing...');
+    
+    // Skip waiting immediately
+    self.skipWaiting();
+    
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('[Service Worker] Caching app shell');
+                // Don't cache index.html in install - cache it on first access
+                const assetsToCache = ASSETS_TO_CACHE.filter(
+                    asset => !asset.includes('index.html')
+                );
+                return cache.addAll(assetsToCache);
+            })
+            .catch(err => {
+                console.warn('[Service Worker] Cache addAll failed:', err);
+            })
+    );
 });
 
 // Activate Event - Clean old caches

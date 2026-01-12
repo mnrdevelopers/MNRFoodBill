@@ -201,19 +201,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const imageUrl = imageData?.url || '';
         
         const productData = {
-            name: document.getElementById('productName').value.trim(),
-            category: document.getElementById('productCategory').value,
-            price: parseFloat(document.getElementById('productPrice').value),
-            description: document.getElementById('productDescription').value.trim(),
-            restaurantId: user.uid,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        
-        // Add image URL if available
-        if (imageUrl) {
-            productData.imageUrl = imageUrl;
-            productData.imageThumb = imageData.thumb;
-        }
+    name: document.getElementById('productName').value.trim(),
+    category: document.getElementById('productCategory').value,
+    price: parseFloat(document.getElementById('productPrice').value),
+    description: document.getElementById('productDescription').value.trim(),
+    restaurantId: user.uid,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+};
+
+// Get image URL from upload system
+const imageData = window.ImageUpload?.getUploadedImage();
+if (imageData?.url) {
+    productData.imageUrl = imageData.url;
+    productData.imageThumb = imageData.thumb;
+}
         
         // If editing and image was removed, clear image field
         if (productId && !imageUrl) {
@@ -249,6 +250,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => n.remove(), 3000);
     }
 });
+
 
 
 

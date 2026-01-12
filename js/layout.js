@@ -434,3 +434,14 @@ window.addEventListener('load', function() {
         }
     }, 100);
 });
+
+// Add table scroll functionality
+function loadTableScroll() {
+    const script = document.createElement('script');
+    script.src = 'js/table-scroll.js';
+    script.defer = true;
+    document.head.appendChild(script);
+}
+
+// Call after DOM is loaded
+document.addEventListener('DOMContentLoaded', loadTableScroll);

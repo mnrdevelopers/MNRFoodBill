@@ -1549,3 +1549,103 @@ button:active,
     font-size: 0.75rem;
     font-weight: 500;
 }
+
+/* Scroll state indicators */
+.table-wrapper.has-scroll {
+    position: relative;
+}
+
+.table-wrapper.has-scroll::before,
+.table-wrapper.has-scroll::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.table-wrapper.has-scroll::before {
+    left: 0;
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.1), transparent);
+}
+
+.table-wrapper.has-scroll::after {
+    right: 0;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1));
+}
+
+.table-wrapper.has-scroll.scrolled::before {
+    opacity: 1;
+}
+
+.table-wrapper.has-scroll.can-scroll-right::after {
+    opacity: 1;
+}
+
+/* Mobile-specific touch improvements */
+@media (max-width: 768px) {
+    .table-wrapper {
+        cursor: grab;
+    }
+    
+    .table-wrapper:active {
+        cursor: grabbing;
+    }
+    
+    /* Better touch targets for table rows */
+    .table-wrapper tbody tr {
+        transition: background-color 0.2s;
+    }
+    
+    .table-wrapper tbody tr:active {
+        background-color: #f3f4f6;
+    }
+    
+    /* Ensure buttons are touch-friendly */
+    .table-wrapper button {
+        min-height: 36px;
+        min-width: 36px;
+    }
+}
+
+/* Fix for very specific layout issues */
+@media (max-width: 768px) {
+    /* Ensure parent containers don't overflow */
+    .bg-white.rounded-xl.shadow,
+    .bg-white.rounded-xl.shadow-sm,
+    .bg-white.rounded-xl {
+        width: 100%;
+        overflow: hidden;
+    }
+    
+    /* Fix grid layouts */
+    .grid {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    /* Ensure main content area is contained */
+    #mainContent,
+    .lg\:col-span-3,
+    .lg\:col-span-4 {
+        width: 100%;
+        overflow-x: hidden;
+    }
+}
+
+/* Hide scroll indicators on desktop */
+@media (min-width: 1025px) {
+    .table-wrapper::before,
+    .table-wrapper::after {
+        display: none;
+    }
+    
+    .table-wrapper {
+        cursor: default;
+    }
+}
+

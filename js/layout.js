@@ -434,3 +434,44 @@ window.addEventListener('load', function() {
         }
     }, 100);
 });
+
+// Optional: Add to layout.js or as separate script
+function enhanceMobileTables() {
+    if (!isMobile()) return;
+    
+    // Add touch-friendly class to body
+    document.body.classList.add('touch-device');
+    
+    // Add swipe instructions for first-time users
+    if (!localStorage.getItem('tableSwipeHintShown')) {
+        const hint = document.createElement('div');
+        hint.className = 'fixed bottom-4 left-4 right-4 bg-blue-500 text-white p-3 rounded-lg shadow-lg z-50 animate-pulse';
+        hint.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-hand-point-right text-xl"></i>
+                    <div>
+                        <p class="font-bold">Swipe to see more columns</p>
+                        <p class="text-sm opacity-90">Drag left/right on tables</p>
+                    </div>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove(); localStorage.setItem('tableSwipeHintShown', 'true')" 
+                        class="text-white hover:text-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(hint);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (hint.parentNode) {
+                hint.remove();
+                localStorage.setItem('tableSwipeHintShown', 'true');
+            }
+        }, 5000);
+    }
+}
+
+// Call on page load
+document.addEventListener('DOMContentLoaded', enhanceMobileTables);

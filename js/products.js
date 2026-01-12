@@ -190,31 +190,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const productForm = document.getElementById('productForm');
-   if (productForm) {
+ if (productForm) {
     productForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         const user = auth.currentUser;
         const productId = document.getElementById('productId').value;
         
-        // Get uploaded image URL
-        const imageData = window.ImageUpload?.getUploadedImage();
-        const imageUrl = imageData?.url || '';
+        // Get uploaded image URL - use different variable name
+        const uploadedImage = window.ImageUpload?.getUploadedImage();
+        const imageUrl = uploadedImage?.url || '';
         
         const productData = {
-    name: document.getElementById('productName').value.trim(),
-    category: document.getElementById('productCategory').value,
-    price: parseFloat(document.getElementById('productPrice').value),
-    description: document.getElementById('productDescription').value.trim(),
-    restaurantId: user.uid,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-};
-
-// Get image URL from upload system
-const imageData = window.ImageUpload?.getUploadedImage();
-if (imageData?.url) {
-    productData.imageUrl = imageData.url;
-    productData.imageThumb = imageData.thumb;
-}
+            name: document.getElementById('productName').value.trim(),
+            category: document.getElementById('productCategory').value,
+            price: parseFloat(document.getElementById('productPrice').value),
+            description: document.getElementById('productDescription').value.trim(),
+            restaurantId: user.uid,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        // Add image URL if available
+        if (imageUrl) {
+            productData.imageUrl = imageUrl;
+            productData.imageThumb = uploadedImage.thumb;
+        }
         
         // If editing and image was removed, clear image field
         if (productId && !imageUrl) {
@@ -250,6 +249,7 @@ if (imageData?.url) {
         setTimeout(() => n.remove(), 3000);
     }
 });
+
 
 
 

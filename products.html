@@ -164,31 +164,58 @@
                       placeholder="e.g., Spicy chicken biryani with raita"></textarea>
         </div>
         
-        <!-- Image Upload Section -->
-        <div>
-            <label class="block text-gray-700 mb-2">Product Image</label>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-red-300 transition-colors cursor-pointer" id="imageUploadArea">
-                <input type="file" id="productImageInput" accept="image/*" class="hidden">
-                <div class="space-y-3" id="uploadContent">
-                    <div class="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
-                        <i class="fas fa-cloud-upload-alt text-red-500 text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="font-medium text-gray-700">Click to upload product image</p>
-                        <p class="text-xs text-gray-500 mt-1">PNG, JPG, WebP up to 10MB</p>
-                    </div>
-                </div>
-                <div id="imagePreviewContainer" class="hidden">
-                    <div class="relative inline-block">
-                        <img id="imagePreview" class="w-32 h-32 object-cover rounded-lg shadow" src="" alt="Preview">
-                        <button type="button" id="removeImage" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600">
-                            <i class="fas fa-times text-xs"></i>
-                        </button>
-                    </div>
-                </div>
+       <!-- Image Upload Section -->
+<div>
+    <label class="block text-gray-700 mb-2">Product Image</label>
+    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-red-300 transition-colors cursor-pointer" id="imageUploadArea">
+        <input type="file" id="productImageInput" accept="image/*" class="hidden">
+        
+        <!-- Upload Content (shown when no image) -->
+        <div class="space-y-3" id="uploadContent">
+            <div class="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
+                <i class="fas fa-cloud-upload-alt text-red-500 text-xl"></i>
             </div>
+            <div>
+                <p class="font-medium text-gray-700">Click to upload product image</p>
+                <p class="text-xs text-gray-500 mt-1">
+                    PNG, JPG, WebP up to 10MB<br>
+                    <span class="text-red-500">Will be automatically compressed</span>
+                </p>
+            </div>
+            <button type="button" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">
+                Browse Files
+            </button>
+        </div>
+        
+        <!-- Image Preview (shown when image is selected) -->
+        <div id="imagePreviewContainer" class="hidden">
+            <div class="relative inline-block">
+                <img id="imagePreview" class="w-32 h-32 object-cover rounded-lg shadow" src="" alt="Preview">
+                <button type="button" id="removeImage" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Click image to change</p>
         </div>
     </div>
+    
+    <!-- Progress Bar Section (MUST BE ADDED) -->
+    <div class="mt-3" id="progressSection">
+        <div class="progress-bar hidden">
+            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                <span id="compressionStatus">Waiting...</span>
+                <span id="sizeInfo"></span>
+            </div>
+            <div class="bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div id="uploadProgress" class="bg-green-500 h-2 rounded-full w-0 transition-all duration-300"></div>
+            </div>
+            <p id="uploadStatus" class="text-xs text-gray-600 mt-1 text-center">0%</p>
+        </div>
+    </div>
+    
+    <!-- Hidden input to store image URL -->
+    <input type="hidden" id="productImageUrl">
+</div>
 
     <div class="flex space-x-3 pt-4 border-t">
         <button type="submit" 
@@ -232,4 +259,5 @@
     </div>
 </body>
 </html>
+
 

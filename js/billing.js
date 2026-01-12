@@ -525,7 +525,7 @@ function renderProductsInListView(productsToShow) {
     showNotification(`${product.name} added to cart!`, 'success');
 }
     
-    function renderCart() {
+  function renderCart() {
     const container = document.getElementById('cartItems');
     const emptyCart = document.getElementById('emptyCart');
     if (!container) return;
@@ -545,26 +545,28 @@ function renderProductsInListView(productsToShow) {
     const currency = restaurantSettings.currency || '₹';
 
     cart.forEach((item, index) => {
-        // Find product details including image
         const productDetails = products.find(p => p.id === item.id);
         const imageUrl = productDetails?.imageUrl || (typeof getProductImage === 'function' ? getProductImage(item.name) : null);
         
         const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
         
         const itemElement = document.createElement('div');
-        itemElement.className = 'flex items-center justify-between py-2 border-b last:border-0';
+        itemElement.className = 'flex items-center justify-between py-3 border-b last:border-0';
         itemElement.innerHTML = `
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                     ${imageUrl 
-                        ? `<img src="${imageUrl}" alt="${item.name}" 
+                        ? `<img src="${imageUrl}" alt="${item.displayName}" 
                               class="w-full h-full object-cover"
                               onerror="this.onerror=null; this.outerHTML='<i class=\'fas fa-hamburger text-gray-400\'></i>'">`
                         : `<i class="fas fa-hamburger text-gray-400"></i>`
                     }
                 </div>
                 <div>
-                    <h4 class="font-medium text-sm text-gray-800">${item.name}</h4>
+                    <h4 class="font-medium text-sm text-gray-800">${item.displayName}</h4>
+                    ${item.variationName ? `
+                        <div class="text-xs text-gray-600 mb-1">${item.name} • ${item.variationName}</div>
+                    ` : ''}
                     <p class="text-xs text-gray-500">${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</p>
                 </div>
             </div>
@@ -763,6 +765,117 @@ function setupViewToggle() {
         }
     });
 }
+
+// Variation selection modal
+function showVariationSelection(product) {
+    const modal = document.getElementById('variationModal');
+    const productName = document.getElementById('variationProductName');
+    const optionsContainer = document.getElementById('variationOptions');
+    
+    if (!modal || !productName || !optionsContainer) return;
+    
+    // Set product name
+    productName.textContent = product.name;
+    
+    // Clear previous options
+    optionsContainer.innerHTML = '';
+    
+    // Add variation options
+    product.variations.forEach((variation, index) => {
+        const option = document.createElement('button');
+        option.className = 'w-full p-4 border border-gray-200 rounded-lg hover:border-red-300 hover:bg-red-50 text-left transition-colors';
+        option.innerHTML = `
+            <div class="flex justify-between items-center">
+                <div>
+                    <div class="font-medium text-gray-800">${variation.name}</div>
+                    <div class="text-sm text-gray-500">${product.name} - ${variation.name}</div>
+                </div>
+                <div class="text-red-500 font-bold">₹${variation.price.toFixed(2)}</div>
+            </div>
+        `;
+        
+        option.addEventListener('click', () => {
+            addToCartWithVariation(product, variation);
+            closeVariationModal();
+        });
+        
+        optionsContainer.appendChild(option);
+    });
+    
+    // Show modal
+    modal.classList.remove('hidden');
+}
+
+function closeVariationModal() {
+    const modal = document.getElementById('variationModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Close modal when clicking outside
+document.getElementById('variationModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeVariationModal();
+    }
+});
+
+// Updated addToCart function to handle variations
+function addToCart(productId, productName = '', price = 0, variationName = '') {
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+        console.error("Product not found:", productId);
+        return;
+    }
+
+    // If no variation name provided but product has variations, show modal
+    if (product.variations && product.variations.length > 0 && !variationName) {
+        showVariationSelection(product);
+        return;
+    }
+
+    // Determine final display name
+    let displayName = product.name;
+    let itemPrice = price || product.price;
+    
+    if (variationName) {
+        displayName = `${product.name} - ${variationName}`;
+        const variation = product.variations.find(v => v.name === variationName);
+        if (variation) {
+            itemPrice = variation.price;
+        }
+    }
+
+    const existingItem = cart.find(item => 
+        item.id === productId && 
+        item.variationName === variationName
+    );
+    
+    if (existingItem) {
+        existingItem.quantity += 1;
+    } else {
+        cart.push({
+            id: product.id,
+            name: product.name,
+            displayName: displayName,
+            price: itemPrice,
+            quantity: 1,
+            variationName: variationName || '',
+            imageUrl: product.imageUrl,
+            category: product.category
+        });
+    }
+
+    renderCart();
+    updateTotals();
+    showNotification(`${displayName} added to cart!`, 'success');
+}
+
+// Helper function for adding with variation
+function addToCartWithVariation(product, variation) {
+    addToCart(product.id, product.name, variation.price, variation.name);
+}
+
 
 
 

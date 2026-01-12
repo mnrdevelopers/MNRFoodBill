@@ -139,34 +139,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${order.status}
                     </span>
                 </td>
-                <td class="py-4 px-6">
-                    <div class="flex space-x-2">
-                        <button class="view-order text-blue-500 hover:text-blue-700" data-id="${order.id}" title="View Details">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="print-order text-orange-500 hover:text-orange-700" data-id="${order.id}" title="Print Receipt">
-                            <i class="fas fa-print"></i>
-                        </button>
-                        <button class="delete-order text-red-500 hover:text-red-700" data-id="${order.id}" title="Delete Order">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-             <td class="py-4 px-6">
-            <div class="flex space-x-2">
-                <button class="view-order text-blue-500 hover:text-blue-700" data-id="${order.id}" title="View Details">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="print-order text-orange-500 hover:text-orange-700" data-id="${order.id}" title="Print Receipt">
-                    <i class="fas fa-print"></i>
-                </button>
-                ${!isStaff ? `
-                    <button class="delete-order text-red-500 hover:text-red-700" data-id="${order.id}" title="Delete Order">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                ` : ''}
-            </div>
-        </td>
+               <td class="py-4 px-6">
+    <div class="flex space-x-2">
+        <button class="view-order text-blue-500 hover:text-blue-700" data-id="${order.id}" title="View Details">
+            <i class="fas fa-eye"></i>
+        </button>
+        <button class="print-order text-orange-500 hover:text-orange-700" data-id="${order.id}" title="Print Receipt">
+            <i class="fas fa-print"></i>
+        </button>
+        ${!isStaff ? `
+            <button class="delete-order text-red-500 hover:text-red-700" data-id="${order.id}" title="Delete Order">
+                <i class="fas fa-trash"></i>
+            </button>
+        ` : ''}
+    </div>
+</td>
     `;
             tbody.appendChild(row);
         });
@@ -452,4 +439,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 });
+
 

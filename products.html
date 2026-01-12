@@ -76,90 +76,131 @@
                 <h3 class="text-xl font-bold text-gray-800 mb-4" id="modalTitle">Add New Product</h3>
                 
                 <form id="productForm" class="space-y-4">
-                    <input type="hidden" id="productId">
-                    
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-gray-700 mb-2">Product Name *</label>
-                            <input type="text" id="productName" 
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-700 mb-2">Category *</label>
-                            <select id="productCategory" 
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
-                                <option value="Burgers">Burgers</option>
-                                <option value="Pizzas">Pizzas</option>
-                                <option value="Snacks">Snacks</option>
-                                <option value="Beverages">Beverages</option>
-                                <option value="Desserts">Desserts</option>
-                                <option value="Combos">Combos</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-700 mb-2">Price (₹) *</label>
-                            <input type="number" id="productPrice" step="0.01" min="0"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-700 mb-2">Description</label>
-                            <textarea id="productDescription" rows="3"
-                                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"></textarea>
-                        </div>
-                        
-                        <!-- Simple Image Selection -->
-                       <div>
-    <label class="block text-gray-700 mb-2">Product Image *</label>
-    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-red-300 transition-colors cursor-pointer" id="imageUploadArea">
-        <input type="file" id="productImageInput" accept="image/*" class="hidden">
-       <div class="space-y-3" id="uploadContent">
-    <div class="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
-        <i class="fas fa-cloud-upload-alt text-red-500 text-xl"></i>
-    </div>
-    <div>
-        <p class="font-medium text-gray-700">Click to upload product image</p>
-        <p class="text-xs text-gray-500 mt-1">
-            PNG, JPG, WebP up to 10MB<br>
-            <span class="text-red-500">Will be automatically compressed to ~100KB</span>
-        </p>
-    </div>
-    <button type="button" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">
-        Browse Files
-    </button>
-</div>
-        <div id="imagePreviewContainer" class="hidden">
-            <div class="relative inline-block">
-                <img id="imagePreview" class="w-32 h-32 object-cover rounded-lg shadow" src="" alt="Preview">
-                <button type="button" id="removeImage" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600">
-                    <i class="fas fa-times text-xs"></i>
-                </button>
-            </div>
-            <p class="text-xs text-gray-500 mt-2">Click image to change</p>
+    <input type="hidden" id="productId">
+    
+    <div class="space-y-4">
+        <div>
+            <label class="block text-gray-700 mb-2">Product Name *</label>
+            <input type="text" id="productName" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
         </div>
-    </div>
-    <div class="mt-2">
-        <div class="progress-bar hidden">
-            <div class="bg-gray-200 rounded-full h-2">
-                <div id="uploadProgress" class="bg-green-500 h-2 rounded-full w-0 transition-all duration-300"></div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-gray-700 mb-2">Category *</label>
+                <select id="productCategory" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                    <option value="Starters">Starters</option>
+                    <option value="Main Course">Main Course</option>
+                    <option value="Biryani">Biryani</option>
+                    <option value="Fried Rice">Fried Rice</option>
+                    <option value="Noodles">Noodles</option>
+                    <option value="Indian Breads">Indian Breads</option>
+                    <option value="Curries">Curries</option>
+                    <option value="Snacks">Snacks</option>
+                    <option value="Combos">Combos</option>
+                    <option value="Beverages">Beverages</option>
+                    <option value="Desserts">Desserts</option>
+                </select>
             </div>
-            <p id="uploadStatus" class="text-xs text-gray-600 mt-1"></p>
+            
+            <div>
+                <label class="block text-gray-700 mb-2">Food Type *</label>
+                <div class="flex space-x-4">
+                    <label class="flex items-center">
+                        <input type="radio" name="foodType" value="veg" checked class="mr-2 text-green-500">
+                        <span class="flex items-center">
+                            <span class="w-3 h-3 bg-green-500 rounded-full mr-1"></span> Veg
+                        </span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="foodType" value="nonveg" class="mr-2 text-red-500">
+                        <span class="flex items-center">
+                            <span class="w-3 h-3 bg-red-500 rounded-full mr-1"></span> Non-Veg
+                        </span>
+                    </label>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
-                    <div class="flex space-x-3 pt-4 border-t">
-                        <button type="submit" 
-                                class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
-                            <i class="fas fa-save mr-2"></i> Save Product
-                        </button>
-                        <button type="button" onclick="closeProductModal()"
-                                class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
-                            Cancel
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-gray-700 mb-2">Quantity Type *</label>
+                <select id="quantityType" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                    <option value="plate">Plate</option>
+                    <option value="full">Full</option>
+                    <option value="half">Half</option>
+                    <option value="piece">Piece</option>
+                    <option value="pcs">Pieces</option>
+                    <option value="gms">Grams (gms)</option>
+                    <option value="kgs">Kilograms (kgs)</option>
+                    <option value="ml">Milliliters (ml)</option>
+                    <option value="ltr">Liters (ltr)</option>
+                    <option value="bowl">Bowl</option>
+                    <option value="cup">Cup</option>
+                    <option value="packet">Packet</option>
+                    <option value="set">Set</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-gray-700 mb-2">Base Quantity *</label>
+                <input type="number" id="baseQuantity" step="0.01" min="0.01" value="1"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-gray-700 mb-2">Price (₹) *</label>
+            <input type="number" id="productPrice" step="0.01" min="0"
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
+        </div>
+
+        <div>
+            <label class="block text-gray-700 mb-2">Description</label>
+            <textarea id="productDescription" rows="2"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                      placeholder="e.g., Spicy chicken biryani with raita"></textarea>
+        </div>
+        
+        <!-- Image Upload Section -->
+        <div>
+            <label class="block text-gray-700 mb-2">Product Image</label>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-red-300 transition-colors cursor-pointer" id="imageUploadArea">
+                <input type="file" id="productImageInput" accept="image/*" class="hidden">
+                <div class="space-y-3" id="uploadContent">
+                    <div class="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
+                        <i class="fas fa-cloud-upload-alt text-red-500 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-700">Click to upload product image</p>
+                        <p class="text-xs text-gray-500 mt-1">PNG, JPG, WebP up to 10MB</p>
+                    </div>
+                </div>
+                <div id="imagePreviewContainer" class="hidden">
+                    <div class="relative inline-block">
+                        <img id="imagePreview" class="w-32 h-32 object-cover rounded-lg shadow" src="" alt="Preview">
+                        <button type="button" id="removeImage" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600">
+                            <i class="fas fa-times text-xs"></i>
                         </button>
                     </div>
-                </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex space-x-3 pt-4 border-t">
+        <button type="submit" 
+                class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+            <i class="fas fa-save mr-2"></i> Save Product
+        </button>
+        <button type="button" onclick="closeProductModal()"
+                class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+            Cancel
+        </button>
+    </div>
+</form>
             </div>
         </div>
     </div>
@@ -191,3 +232,4 @@
     </div>
 </body>
 </html>
+

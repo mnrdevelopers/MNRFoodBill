@@ -39,30 +39,33 @@
                     </button>
                 </div>
 
-              <!-- Staff List -->
-<div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
-    <div class="table-wrapper">
-        <table class="w-full">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Staff Info</th>
-                    <th class="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Permissions</th>
-                    <th class="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="staffTable" class="divide-y divide-gray-100">
-                <!-- Staff rows will be injected here -->
-                <tr>
-                    <td colspan="4" class="py-10 text-center text-gray-400">
-                        <div class="flex flex-col items-center">
-                            <i class="fas fa-users text-4xl mb-3 opacity-20"></i>
-                            <p>Loading staff data...</p>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+           <!-- Staff List -->
+<div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden p-4">
+    <div class="table-container">
+        <div class="table-wrapper">
+            <div class="scroll-indicator">→</div>
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Staff Info</th>
+                        <th class="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Permissions</th>
+                        <th class="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="staffTable" class="divide-y divide-gray-100">
+                    <!-- Staff rows will be injected here -->
+                    <tr>
+                        <td colspan="4" class="py-10 text-center text-gray-400">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-users text-4xl mb-3 opacity-20"></i>
+                                <p>Loading staff data...</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
             </div>

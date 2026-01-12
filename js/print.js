@@ -44,25 +44,26 @@ async function prepareReceipt() {
         const billNo = generateOrderId();
         const tableNo = 'T01'; // Could be made dynamic from UI if needed
         
+        // Professional Restaurant Bill Design
         let receipt = `
-${'='.repeat(42)}
-        ${restaurant.name.toUpperCase()}
-${'='.repeat(42)}
+========================================
+        ${centerText(restaurant.name.toUpperCase(), 40)}
+========================================
 `;
         
-        // Add restaurant details only if they exist
-        if (restaurant.address) receipt += `${restaurant.address}\n`;
-        if (restaurant.phone) receipt += `${restaurant.phone}\n`;
-        if (restaurant.gstin) receipt += `${restaurant.gstin}\n`;
-        if (restaurant.fssai) receipt += `${restaurant.fssai}\n`;
+        // Restaurant details in compact format
+        if (restaurant.address) receipt += `${centerText(restaurant.address, 40)}\n`;
+        if (restaurant.phone) receipt += `${centerText('📞 ' + restaurant.phone, 40)}\n`;
+        if (restaurant.gstin) receipt += `${centerText('GSTIN: ' + restaurant.gstin, 40)}\n`;
+        if (restaurant.fssai) receipt += `${centerText('FSSAI: ' + restaurant.fssai, 40)}\n`;
         
         receipt += `
-${'-'.repeat(42)}
+----------------------------------------
 Date: ${now.toLocaleDateString('en-IN')}
 Time: ${now.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})}
 Bill No: ${billNo}
 Table: ${tableNo}
-${'-'.repeat(42)}
+----------------------------------------
 Customer: ${customerName}
 `;
         
@@ -71,9 +72,9 @@ Customer: ${customerName}
         }
         
         receipt += `
-${'-'.repeat(42)}
+----------------------------------------
 SL  ITEM              QTY   RATE    AMOUNT
-${'-'.repeat(42)}
+----------------------------------------
 `;
         
         // Add cart items with proper numbering
@@ -95,9 +96,9 @@ ${'-'.repeat(42)}
         });
         
         receipt += `
-${'-'.repeat(42)}
-                BILL SUMMARY
-${'-'.repeat(42)}
+----------------------------------------
+              BILL SUMMARY
+----------------------------------------
 Sub Total:                  ${currency}${subtotal.toFixed(2).padStart(10)}
 `;
         
@@ -111,9 +112,9 @@ Sub Total:                  ${currency}${subtotal.toFixed(2).padStart(10)}
         }
         
         receipt += `
-${'-'.repeat(42)}
+----------------------------------------
 GRAND TOTAL:                ${currency}${total.toFixed(2).padStart(10)}
-${'='.repeat(42)}
+========================================
 `;
         
         // Payment details
@@ -128,12 +129,12 @@ ${'='.repeat(42)}
         }
         
         receipt += `
-${'='.repeat(42)}
+----------------------------------------
 Thank you for dining with us!
 Please visit again.
-${'-'.repeat(42)}
-** This is a computer generated bill **
-** No signature required **
+========================================
+** Computer Generated Bill **
+** No Signature Required **
 `;
         
         // Add restaurant phone for feedback if available
@@ -144,139 +145,185 @@ For feedback: ${restaurant.phone}
         }
         
         receipt += `
-${'='.repeat(42)}
+========================================
 `;
+
+        // DIRECT PRINTING - No preview, print immediately
+        await printDirectToPrinter(receipt);
         
-        // Set the receipt content
-        const printContent = document.getElementById('printContent');
-        printContent.textContent = receipt;
-        
-        // Show modal
-        const modal = document.getElementById('printModal');
-        modal.classList.remove('hidden');
-        
-        // Prevent body scrolling when modal is open
-        document.body.style.overflow = 'hidden';
-        
-        // Add click outside to close
-        modal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closePrintModal();
-            }
-        });
+        // Save the order after printing
+        await saveOrderAndClearCart();
         
     } catch (error) {
         console.error("Error preparing receipt:", error);
-        showNotification('Error loading restaurant details', 'error');
+        showNotification('Error: ' + error.message, 'error');
     }
 }
 
-function printReceipt() {
-    const printContent = document.getElementById('printContent').textContent;
-    
-    // Create a print-friendly window with thermal printer styling
-    const printWindow = window.open('', '_blank', 'width=230,height=400');
-    if (!printWindow) {
-        // Fallback to browser print dialog
-        printViaBrowser(printContent);
-        return;
+// Direct print function for USB thermal printer
+async function printDirectToPrinter(receiptContent) {
+    try {
+        // For mobile browsers, we'll use Web USB API if available
+        if ('usb' in navigator) {
+            await printWithWebUSB(receiptContent);
+        } else if (window.escpos && window.escpos.USB) {
+            // If ESC/POS library is available
+            await printWithESCPOS(receiptContent);
+        } else {
+            // Fallback: Use print dialog but auto-print
+            await printViaBrowserAuto(receiptContent);
+        }
+    } catch (error) {
+        console.error("Print failed, using fallback:", error);
+        // Fallback to browser print with auto-print
+        await printViaBrowserAuto(receiptContent);
     }
-    
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Print Receipt</title>
-            <style>
-                @media print {
-                    body { 
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        width: 58mm !important;
-                        font-size: 10pt !important;
-                    }
-                    @page {
-                        margin: 0 !important;
-                        size: 58mm auto !important;
-                    }
-                }
-                body {
-                    font-family: 'Courier New', monospace;
-                    font-size: 10pt;
-                    width: 58mm;
-                    margin: 0 auto;
-                    padding: 0;
-                    line-height: 1.1;
-                    white-space: pre-line;
-                }
-                .receipt {
-                    padding: 2mm;
-                    word-wrap: break-word;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="receipt">
-                <pre>${printContent}</pre>
-            </div>
-            <script>
-                window.onload = function() {
-                    setTimeout(() => {
-                        window.print();
-                        setTimeout(() => {
-                            window.close();
-                        }, 500);
-                    }, 100);
-                }
-            </script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-    
-    // Save the order to database
-    saveOrderAndClearCart();
 }
 
-// Fallback browser print function
-function printViaBrowser(printContent) {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    
-    printWindow.document.write(`
-        <html>
+// Web USB printing (for mobile with USB thermal printer)
+async function printWithWebUSB(receiptContent) {
+    try {
+        // Request access to USB device
+        const device = await navigator.usb.requestDevice({
+            filters: [{ vendorId: 0x0416, productId: 0x5011 }] // Common thermal printer IDs
+        });
+        
+        await device.open();
+        await device.selectConfiguration(1);
+        await device.claimInterface(0);
+        
+        // ESC/POS commands for thermal printer
+        const encoder = new TextEncoder();
+        const commands = [
+            '\x1B\x40', // Initialize printer
+            '\x1B\x61\x01', // Center alignment
+            ...receiptContent.split('\n').map(line => encoder.encode(line + '\n')),
+            '\x0A\x0A\x0A', // Line feeds
+            '\x1D\x56\x00' // Cut paper
+        ];
+        
+        for (const command of commands) {
+            await device.transferOut(1, encoder.encode(command));
+        }
+        
+        await device.close();
+        showNotification('Receipt printed successfully!', 'success');
+        
+    } catch (error) {
+        console.error("USB printing failed:", error);
+        throw error;
+    }
+}
+
+// ESC/POS library printing
+async function printWithESCPOS(receiptContent) {
+    try {
+        const printer = new escpos.USB();
+        const options = { encoding: "UTF-8" };
+        const device = new escpos.Serial(printer);
+        
+        device.open(function(err) {
+            if (err) throw err;
+            
+            const printer = new escpos.Printer(device, options);
+            
+            printer
+                .align('ct')
+                .style('b')
+                .text(receiptContent)
+                .cut()
+                .close();
+            
+            showNotification('Receipt printed successfully!', 'success');
+        });
+    } catch (error) {
+        console.error("ESC/POS printing failed:", error);
+        throw error;
+    }
+}
+
+// Auto-print via browser (fallback)
+async function printViaBrowserAuto(receiptContent) {
+    return new Promise((resolve) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            showNotification('Please allow pop-ups for printing', 'error');
+            resolve();
+            return;
+        }
+        
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
             <head>
                 <title>Print Receipt</title>
                 <style>
                     @media print {
-                        body { margin: 0; }
-                        @page { size: 58mm auto; margin: 0; }
+                        body { 
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            width: 80mm !important;
+                            font-size: 12pt !important;
+                        }
+                        @page {
+                            margin: 0 !important;
+                            size: 80mm auto !important;
+                        }
                     }
                     body {
                         font-family: 'Courier New', monospace;
-                        font-size: 10pt;
-                        width: 58mm;
-                        margin: 0;
-                        padding: 2mm;
-                        line-height: 1.1;
+                        font-size: 12pt;
+                        width: 80mm;
+                        margin: 0 auto;
+                        padding: 0;
+                        line-height: 1;
                         white-space: pre;
                     }
                 </style>
             </head>
             <body>
-                <pre>${printContent}</pre>
+                <pre>${receiptContent}</pre>
                 <script>
+                    // Auto-print and close
                     window.onload = function() {
-                        window.print();
-                        setTimeout(function() {
-                            window.close();
-                        }, 1000);
+                        setTimeout(() => {
+                            window.print();
+                            setTimeout(() => {
+                                window.close();
+                            }, 100);
+                        }, 50);
                     }
                 </script>
             </body>
-        </html>
-    `);
-    printWindow.document.close();
+            </html>
+        `);
+        printWindow.document.close();
+        
+        // Resolve after a short delay
+        setTimeout(resolve, 1000);
+    });
+}
+
+// Center text helper function
+function centerText(text, width) {
+    const padding = Math.max(0, width - text.length);
+    const leftPadding = Math.floor(padding / 2);
+    const rightPadding = padding - leftPadding;
+    return ' '.repeat(leftPadding) + text + ' '.repeat(rightPadding);
+}
+
+// Updated printReceipt function for direct printing
+function printReceipt() {
+    const printContent = document.getElementById('printContent').textContent;
+    printDirectToPrinter(printContent)
+        .then(() => {
+            // Save order after successful print
+            saveOrderAndClearCart();
+        })
+        .catch(error => {
+            console.error("Print error:", error);
+            showNotification('Print failed: ' + error.message, 'error');
+        });
 }
 
 async function saveOrderAndClearCart() {
@@ -316,6 +363,7 @@ async function saveOrderAndClearCart() {
 
         await db.collection('orders').add(orderData);
         
+        // Clear cart and reset UI
         cart = [];
         if (typeof renderCart === 'function') renderCart();
         if (typeof updateTotals === 'function') updateTotals();
@@ -352,7 +400,6 @@ function closePrintModal() {
     const modal = document.getElementById('printModal');
     if (modal) {
         modal.classList.add('hidden');
-        // Re-enable body scrolling
         document.body.style.overflow = '';
     }
 }
@@ -361,3 +408,4 @@ function closePrintModal() {
 window.prepareReceipt = prepareReceipt;
 window.printReceipt = printReceipt;
 window.closePrintModal = closePrintModal;
+window.printDirectToPrinter = printDirectToPrinter;

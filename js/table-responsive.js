@@ -1,92 +1,97 @@
-// js/table-responsive.js - Enhanced mobile table handling
+// js/table-responsive.js - Fixed container, scrolling table
 document.addEventListener('DOMContentLoaded', function() {
-    initResponsiveTables();
+    initTableScrolling();
+    setupTableTouch();
 });
 
-function initResponsiveTables() {
-    const tables = document.querySelectorAll('.table-responsive');
+function initTableScrolling() {
+    const tableWrappers = document.querySelectorAll('.table-wrapper');
     
-    tables.forEach(table => {
-        // Add touch events for better mobile scrolling
-        let startX, scrollLeft;
-        let isDragging = false;
+    tableWrappers.forEach(wrapper => {
+        const table = wrapper.querySelector('table');
         
-        table.addEventListener('touchstart', (e) => {
-            isDragging = true;
-            startX = e.touches[0].pageX - table.offsetLeft;
-            scrollLeft = table.scrollLeft;
-            table.style.cursor = 'grabbing';
-            table.style.userSelect = 'none';
-        });
-        
-        table.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            const x = e.touches[0].pageX - table.offsetLeft;
-            const walk = (x - startX) * 2; // Scroll-fast factor
-            table.scrollLeft = scrollLeft - walk;
-        });
-        
-        table.addEventListener('touchend', () => {
-            isDragging = false;
-            table.style.cursor = 'grab';
-            table.style.removeProperty('user-select');
-        });
-        
-        // Add scroll indicators
-        const scrollIndicator = document.createElement('div');
-        scrollIndicator.className = 'scroll-indicator hidden';
-        scrollIndicator.innerHTML = '<i class="fas fa-chevron-right"></i>';
-        table.parentNode.appendChild(scrollIndicator);
-        
-        // Show/hide scroll indicator
-        function updateScrollIndicator() {
-            const hasHorizontalScroll = table.scrollWidth > table.clientWidth;
-            const isAtStart = table.scrollLeft === 0;
-            const isAtEnd = table.scrollLeft >= (table.scrollWidth - table.clientWidth - 1);
-            
-            if (hasHorizontalScroll && !isAtEnd) {
-                scrollIndicator.classList.remove('hidden');
+        // Check if scrolling is needed
+        function checkScrollNeeded() {
+            if (table.scrollWidth > wrapper.clientWidth) {
+                wrapper.classList.add('scrollable');
+                wrapper.classList.add('has-scroll');
             } else {
-                scrollIndicator.classList.add('hidden');
+                wrapper.classList.remove('scrollable');
+                wrapper.classList.remove('has-scroll');
             }
         }
         
-        table.addEventListener('scroll', updateScrollIndicator);
-        window.addEventListener('resize', updateScrollIndicator);
-        updateScrollIndicator();
+        // Initial check
+        checkScrollNeeded();
         
-        // Add mobile-friendly hover effects
-        if ('ontouchstart' in window) {
-            table.addEventListener('touchstart', function(e) {
-                const row = e.target.closest('tr');
-                if (row && row.parentNode.tagName === 'TBODY') {
-                    row.classList.add('touch-active');
-                }
-            }, { passive: true });
+        // Check on resize
+        window.addEventListener('resize', checkScrollNeeded);
+        
+        // Add scroll event to show/hide indicators
+        wrapper.addEventListener('scroll', function() {
+            const isAtStart = wrapper.scrollLeft === 0;
+            const isAtEnd = wrapper.scrollLeft >= (wrapper.scrollWidth - wrapper.clientWidth - 1);
             
-            table.addEventListener('touchend', function() {
-                const activeRow = table.querySelector('.touch-active');
-                if (activeRow) {
-                    setTimeout(() => activeRow.classList.remove('touch-active'), 150);
-                }
-            }, { passive: true });
-        }
-    });
-    
-    // Adjust table layout on orientation change
-    window.addEventListener('orientationchange', function() {
-        setTimeout(initResponsiveTables, 300);
+            if (isAtStart) {
+                wrapper.classList.remove('scrolled');
+            } else {
+                wrapper.classList.add('scrolled');
+            }
+            
+            if (isAtEnd) {
+                wrapper.classList.remove('can-scroll-right');
+            } else {
+                wrapper.classList.add('can-scroll-right');
+            }
+        });
     });
 }
 
-// Helper function to check if mobile
+function setupTableTouch() {
+    // Only for mobile/touch devices
+    if (!('ontouchstart' in window)) return;
+    
+    const tableWrappers = document.querySelectorAll('.table-wrapper');
+    
+    tableWrappers.forEach(wrapper => {
+        let isDragging = false;
+        let startX, scrollLeft;
+        
+        wrapper.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            startX = e.touches[0].pageX - wrapper.offsetLeft;
+            scrollLeft = wrapper.scrollLeft;
+            wrapper.style.cursor = 'grabbing';
+        }, { passive: true });
+        
+        wrapper.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const x = e.touches[0].pageX - wrapper.offsetLeft;
+            const walk = (x - startX) * 2;
+            wrapper.scrollLeft = scrollLeft - walk;
+        }, { passive: true });
+        
+        wrapper.addEventListener('touchend', () => {
+            isDragging = false;
+            wrapper.style.cursor = 'grab';
+        }, { passive: true });
+        
+        // Prevent vertical scroll when horizontally scrolling table
+        wrapper.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    });
+}
+
+// Helper to check if mobile
 function isMobile() {
     return window.innerWidth <= 768;
 }
 
-// Export functions
-window.TableResponsive = {
-    init: initResponsiveTables,
+// Export
+window.TableScroll = {
+    init: initTableScrolling,
     isMobile: isMobile
 };

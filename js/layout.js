@@ -475,3 +475,35 @@ function enhanceMobileTables() {
 
 // Call on page load
 document.addEventListener('DOMContentLoaded', enhanceMobileTables);
+
+// Mobile table scroll hint
+function showTableScrollHint() {
+    if (window.innerWidth > 768) return; // Only on mobile
+    
+    // Check if hint was already shown
+    if (localStorage.getItem('tableScrollHintShown')) return;
+    
+    const hint = document.createElement('div');
+    hint.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg z-50 animate-bounce';
+    hint.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-arrows-left-right"></i>
+            <span>Swipe table to see more →</span>
+        </div>
+    `;
+    
+    document.body.appendChild(hint);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        if (hint.parentNode) {
+            hint.remove();
+        }
+    }, 5000);
+    
+    // Mark as shown
+    localStorage.setItem('tableScrollHintShown', 'true');
+}
+
+// Show hint after tables are loaded
+setTimeout(showTableScrollHint, 1000);

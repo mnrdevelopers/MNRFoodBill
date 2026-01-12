@@ -1577,3 +1577,94 @@ button:active,
     }
 }
 
+/* Scroll indicator for tables */
+.scroll-indicator {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    pointer-events: none;
+    animation: pulse 2s infinite;
+}
+
+.scroll-indicator.hidden {
+    display: none;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+/* Touch active state for rows */
+tr.touch-active {
+    background-color: #f3f4f6 !important;
+}
+
+/* Mobile-specific table improvements */
+@media (max-width: 768px) {
+    /* Make action buttons more touch-friendly */
+    .action-buttons {
+        gap: 0.25rem !important;
+    }
+    
+    .action-buttons button {
+        min-width: 36px !important;
+        height: 36px !important;
+        font-size: 0.875rem !important;
+    }
+    
+    /* Ensure text doesn't wrap in table cells */
+    .table-responsive td {
+        white-space: nowrap;
+    }
+    
+    /* Except for product names */
+    .table-responsive td:first-child {
+        white-space: normal;
+        max-width: 150px;
+    }
+    
+    /* Status badges */
+    .status-badge {
+        font-size: 0.75rem !important;
+        padding: 0.125rem 0.5rem !important;
+    }
+}
+
+/* Very small screens (phones) */
+@media (max-width: 480px) {
+    .table-responsive table {
+        min-width: 900px; /* Even wider for phone screens */
+    }
+    
+    /* Reduce padding */
+    .table-responsive th,
+    .table-responsive td {
+        padding: 0.375rem 0.25rem !important;
+        font-size: 0.75rem !important;
+    }
+    
+    /* Hide scroll indicator on very small touch */
+    .scroll-indicator {
+        display: none;
+    }
+    
+    /* Make buttons even larger for touch */
+    .action-buttons button {
+        min-width: 40px !important;
+        height: 40px !important;
+        font-size: 1rem !important;
+    }
+}
+
+

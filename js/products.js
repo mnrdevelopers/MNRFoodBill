@@ -90,28 +90,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 </td>
                 <td class="py-4 px-6 font-bold">₹${(product.price || 0).toFixed(2)}</td>
                 <td class="py-4 px-6 text-gray-600">${product.description || '-'}</td>
-                <td class="py-4 px-6">
-                    <div class="flex space-x-2">
-                        <button class="edit-product text-blue-500 hover:text-blue-700" data-id="${product.id}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="delete-product text-red-500 hover:text-red-700" data-id="${product.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            <td class="py-4 px-6">
-                <div class="flex space-x-2">
-                    ${!isStaff ? `
-                        <button class="edit-product text-blue-500 hover:text-blue-700" data-id="${product.id}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="delete-product text-red-500 hover:text-red-700" data-id="${product.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    ` : '<span class="text-gray-400 text-sm">View only</span>'}
-                </div>
-            </td>
+               <td class="py-4 px-6">
+    <div class="flex space-x-2">
+        ${!isStaff ? `
+            <button class="edit-product text-blue-500 hover:text-blue-700" data-id="${product.id}">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="delete-product text-red-500 hover:text-red-700" data-id="${product.id}">
+                <i class="fas fa-trash"></i>
+            </button>
+        ` : '<span class="text-gray-400 text-sm">View only</span>'}
+    </div>
+</td>
         `;
         tbody.appendChild(row);
     });
@@ -233,4 +223,5 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => n.remove(), 3000);
     }
 });
+
 

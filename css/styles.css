@@ -878,3 +878,45 @@ button:active,
 #productsGrid .group:hover img {
     transform: scale(1.05);
 }
+
+/* Add to styles.css */
+#imageUploadArea.compressing {
+    border-color: #f59e0b;
+    background-color: #fffbeb;
+}
+
+.compression-stats {
+    font-size: 11px;
+    padding: 4px 8px;
+    background: #f3f4f6;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.progress-bar.compressing .progress-fill {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.quality-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #6b7280;
+}
+
+.quality-indicator .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+}
+
+.quality-indicator.low .dot {
+    background: #ef4444;
+}
+
+.quality-indicator.medium .dot {
+    background: #f59e0b;
+}
+

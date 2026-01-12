@@ -1035,4 +1035,92 @@ button:active,
     background-color: #ef4444;
 }
 
+/* Enhanced Compact Styles */
+#productsGrid {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* Scrollbar styling */
+#productsGrid::-webkit-scrollbar {
+    width: 6px;
+}
+
+#productsGrid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#productsGrid::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+#productsGrid::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* List View Container */
+#productsList {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* Category Tabs Scrollbar */
+.category-tab-container {
+    scrollbar-width: thin;
+    scrollbar-color: #ef4444 #f1f1f1;
+}
+
+/* Hover effects for both views */
+.compact-card:hover .product-image {
+    transform: scale(1.05);
+    transition: transform 0.3s ease;
+}
+
+.list-item:hover .list-image {
+    transform: scale(1.05);
+    transition: transform 0.3s ease;
+}
+
+/* Quick add animation */
+@keyframes quickAdd {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.add-to-cart:active, .add-to-cart-list:active {
+    animation: quickAdd 0.2s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    #productsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .compact-card .product-image {
+        height: 70px;
+    }
+    
+    .list-item {
+        padding: 0.5rem;
+    }
+    
+    .list-item .list-image {
+        width: 50px;
+        height: 50px;
+        margin-right: 0.75rem;
+    }
+}
+
+/* Active state for category tabs */
+.category-tab.active {
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+
 

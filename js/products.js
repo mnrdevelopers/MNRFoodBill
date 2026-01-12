@@ -48,77 +48,89 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Render products table
-    function renderProductsTable() {
-        const tbody = document.getElementById('productsTable');
-        if (!tbody) return;
-        tbody.innerHTML = '';
+  function renderProductsTable() {
+    const tbody = document.getElementById('productsTable');
+    if (!tbody) return;
+    tbody.innerHTML = '';
 
-        if (products.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="py-8 text-center text-gray-500">
-                        <i class="fas fa-box-open text-3xl mb-2"></i>
-                        <p>No products found. Add your first product!</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
+    if (products.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="py-8 text-center text-gray-500">
+                    <i class="fas fa-box-open text-3xl mb-2"></i>
+                    <p>No products found. Add your first product!</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
 
-        products.forEach(product => {
-            // Safe check for getProductImage availability
-            const imageUrl = typeof getProductImage === 'function' ? getProductImage(product.name) : null;
-            
-            const row = document.createElement('tr');
-            row.className = 'border-b hover:bg-gray-50';
-            row.innerHTML = `
-                <td class="py-4 px-6">
-                    <div class="flex items-center space-x-3">
-                       ${product.imageUrl ? 
-    `<img src="${product.imageUrl}" alt="${product.name}" 
-          class="w-10 h-10 object-cover rounded"
-          onerror="this.style.display='none'">` : 
-    `<div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
-        <i class="fas fa-hamburger text-gray-400"></i>
-     </div>`
-}
+    products.forEach(product => {
+        const imageUrl = product.imageUrl;
+        const foodTypeColor = product.foodType === 'veg' ? 'text-green-500' : 'text-red-500';
+        const foodTypeIcon = product.foodType === 'veg' ? 'leaf' : 'drumstick-bite';
+        
+        const row = document.createElement('tr');
+        row.className = 'border-b hover:bg-gray-50';
+        row.innerHTML = `
+            <td class="py-4 px-6">
+                <div class="flex items-center space-x-3">
+                    ${imageUrl ? 
+                        `<img src="${imageUrl}" alt="${product.name}" 
+                              class="w-10 h-10 object-cover rounded"
+                              onerror="this.style.display='none'">` : 
+                        `<div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                            <i class="fas fa-utensils text-gray-400"></i>
+                         </div>`
+                    }
+                    <div>
                         <div class="font-medium text-gray-800">${product.name}</div>
+                        <div class="flex items-center text-xs text-gray-500">
+                            <i class="fas fa-${foodTypeIcon} ${foodTypeColor} mr-1"></i>
+                            ${product.foodType === 'veg' ? 'Veg' : 'Non-Veg'}
+                        </div>
                     </div>
-                </td>
-                <td class="py-4 px-6">
-                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${product.category}</span>
-                </td>
-                <td class="py-4 px-6 font-bold">₹${(product.price || 0).toFixed(2)}</td>
-                <td class="py-4 px-6 text-gray-600">${product.description || '-'}</td>
-               <td class="py-4 px-6">
-    <div class="flex space-x-2">
-        ${!isStaff ? `
-            <button class="edit-product text-blue-500 hover:text-blue-700" data-id="${product.id}">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="delete-product text-red-500 hover:text-red-700" data-id="${product.id}">
-                <i class="fas fa-trash"></i>
-            </button>
-        ` : '<span class="text-gray-400 text-sm">View only</span>'}
-    </div>
-</td>
+                </div>
+            </td>
+            <td class="py-4 px-6">
+                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${product.category}</span>
+            </td>
+            <td class="py-4 px-6">
+                <div class="font-bold">₹${(product.price || 0).toFixed(2)}</div>
+                <div class="text-xs text-gray-500">
+                    per ${product.baseQuantity || 1} ${product.quantityType || 'plate'}
+                </div>
+            </td>
+            <td class="py-4 px-6 text-gray-600 text-sm">${product.description || '-'}</td>
+            <td class="py-4 px-6">
+                <div class="flex space-x-2">
+                    ${!isStaff ? `
+                        <button class="edit-product text-blue-500 hover:text-blue-700" data-id="${product.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="delete-product text-red-500 hover:text-red-700" data-id="${product.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : '<span class="text-gray-400 text-sm">View only</span>'}
+                </div>
+            </td>
         `;
         tbody.appendChild(row);
     });
 
-        // Add event listeners
-        document.querySelectorAll('.edit-product').forEach(button => {
-            button.addEventListener('click', function() {
-                editProduct(this.dataset.id);
-            });
+    // Add event listeners
+    document.querySelectorAll('.edit-product').forEach(button => {
+        button.addEventListener('click', function() {
+            editProduct(this.dataset.id);
         });
+    });
 
-        document.querySelectorAll('.delete-product').forEach(button => {
-            button.addEventListener('click', function() {
-                showDeleteModal(this.dataset.id);
-            });
+    document.querySelectorAll('.delete-product').forEach(button => {
+        button.addEventListener('click', function() {
+            showDeleteModal(this.dataset.id);
         });
-    }
+    });
+}
 
     // Modal controls
     const addProductBtn = document.getElementById('addProductBtn');
@@ -157,6 +169,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const product = products.find(p => p.id === productId);
     if (product) {
         openProductModal(product);
+        
+        // Set food type radio button
+        const foodTypeRadio = document.querySelector(`input[name="foodType"][value="${product.foodType || 'veg'}"]`);
+        if (foodTypeRadio) foodTypeRadio.checked = true;
+        
+        // Set other fields
+        document.getElementById('quantityType').value = product.quantityType || 'plate';
+        document.getElementById('baseQuantity').value = product.baseQuantity || 1;
+        
         // Load existing image
         if (product.imageUrl) {
             window.ImageUpload?.setImageForEdit(product.imageUrl);
@@ -190,19 +211,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const productForm = document.getElementById('productForm');
- if (productForm) {
+if (productForm) {
     productForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         const user = auth.currentUser;
         const productId = document.getElementById('productId').value;
         
-        // Get uploaded image URL - use different variable name
+        // Get uploaded image URL
         const uploadedImage = window.ImageUpload?.getUploadedImage();
         const imageUrl = uploadedImage?.url || '';
+        
+        // Get food type
+        const foodType = document.querySelector('input[name="foodType"]:checked')?.value || 'veg';
         
         const productData = {
             name: document.getElementById('productName').value.trim(),
             category: document.getElementById('productCategory').value,
+            foodType: foodType,
+            quantityType: document.getElementById('quantityType').value,
+            baseQuantity: parseFloat(document.getElementById('baseQuantity').value) || 1,
             price: parseFloat(document.getElementById('productPrice').value),
             description: document.getElementById('productDescription').value.trim(),
             restaurantId: user.uid,
@@ -249,3 +276,4 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => n.remove(), 3000);
     }
 });
+

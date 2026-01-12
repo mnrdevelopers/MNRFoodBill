@@ -1369,6 +1369,174 @@ button:active,
     100% { transform: rotate(360deg); }
 }
 
+/* Table Scroll Improvements for Mobile/PWA */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    scrollbar-width: thin;
+    scrollbar-color: #ef4444 #f1f1f1;
+}
+
+.table-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #ef4444;
+    border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #dc2626;
+}
+
+/* Smooth scroll behavior */
+.smooth-scroll {
+    scroll-behavior: smooth;
+}
+
+/* Mobile table optimizations */
+@media (max-width: 768px) {
+    .mobile-table {
+        min-width: 600px; /* Minimum width to ensure columns don't wrap */
+    }
+    
+    .mobile-table th,
+    .mobile-table td {
+        white-space: nowrap;
+        padding: 12px 8px;
+        font-size: 0.875rem;
+    }
+    
+    .mobile-table th {
+        position: sticky;
+        top: 0;
+        background: #f9fafb;
+        z-index: 10;
+        font-weight: 600;
+    }
+    
+    /* Floating scroll indicator */
+    .scroll-indicator {
+        position: fixed;
+        bottom: 70px;
+        right: 20px;
+        background: #ef4444;
+        color: white;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        z-index: 100;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .scroll-indicator:hover {
+        transform: scale(1.1);
+        background: #dc2626;
+    }
+    
+    .scroll-indicator.left {
+        left: 20px;
+        right: auto;
+    }
+    
+    .scroll-indicator.show {
+        display: flex;
+        animation: fadeInUp 0.3s ease;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
+
+/* PWA specific optimizations */
+@media (display-mode: standalone) {
+    .table-container {
+        max-height: 60vh;
+    }
+    
+    .mobile-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .mobile-table tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .mobile-table tr:hover {
+        background-color: #f9fafb;
+    }
+}
+
+/* Touch-friendly table cells */
+.mobile-table td {
+    touch-action: manipulation;
+}
+
+/* Prevent text selection during scroll */
+.table-container {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Momentum scrolling for iOS */
+.table-container {
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Gradient fade effect for scroll boundaries */
+.table-container:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.table-container.scrolling:after {
+    opacity: 1;
+}
+
+.table-container.scrolling-left:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), transparent);
+    pointer-events: none;
+    opacity: 1;
+    z-index: 1;
+}
+
+
 
 
 

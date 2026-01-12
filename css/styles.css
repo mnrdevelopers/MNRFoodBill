@@ -1577,3 +1577,57 @@ button:active,
     font-size: 10px;
     z-index: 1000;
 }
+
+/* Scroll boundary indicators */
+.table-wrapper.at-left::before,
+.table-wrapper.at-right::after {
+    opacity: 0 !important;
+}
+
+/* Left scroll indicator */
+.table-wrapper:not(.at-left)::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.1), transparent);
+    pointer-events: none;
+    z-index: 5;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+/* Right scroll indicator */
+.table-wrapper:not(.at-right)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1));
+    pointer-events: none;
+    z-index: 5;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+/* Hide indicators when not scrolling */
+.table-wrapper:not(.has-horizontal-scroll)::before,
+.table-wrapper:not(.has-horizontal-scroll)::after {
+    display: none;
+}
+
+/* Significant scroll needs more prominent indicators */
+.table-wrapper.significant-scroll::before,
+.table-wrapper.significant-scroll::after {
+    width: 30px;
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.15), transparent);
+}
+
+.table-wrapper.significant-scroll::after {
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.15));
+}
+

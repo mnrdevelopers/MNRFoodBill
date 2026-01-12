@@ -1,5 +1,6 @@
 const CACHE_NAME = 'mnrfoodbill-v3.0.2'; // Change version to force update
 const BASE_PATH = '/MNRFoodBill/';
+const AUTH_CHECK_URL = '/MNRFoodBill/auth-check.html';
 
 // Assets to cache - Updated
 const ASSETS_TO_CACHE = [
@@ -93,10 +94,59 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch Event - Stale-While-Revalidate strategy
+// Fetch Event
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   
+  // Special handling for root URL when user might be logged in
+  if (url.pathname === BASE_PATH || url.pathname === BASE_PATH + 'index.html') {
+    event.respondWith(
+      // Try to get auth status first
+      fetch('/MNRFoodBill/api/auth-status', { 
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+        throw new Error('Auth check failed');
+      })
+      .then(data => {
+        if (data.isAuthenticated && data.user) {
+          // User is logged in, serve dashboard directly
+          return caches.match(BASE_PATH + 'dashboard.html')
+            .then(cachedResponse => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              return fetch(BASE_PATH + 'dashboard.html');
+            });
+        }
+        // User not logged in, serve index.html
+        return fetch(event.request)
+          .then(response => {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseClone);
+            });
+            return response;
+          })
+          .catch(() => {
+            return caches.match(event.request);
+          });
+      })
+      .catch(() => {
+        // Auth check failed, serve normal index.html
+        return fetch(event.request)
+          .catch(() => caches.match(event.request));
+      })
+    );
+    return;
+  }
+
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
     return;

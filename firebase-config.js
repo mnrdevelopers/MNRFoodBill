@@ -37,3 +37,20 @@ db.enablePersistence()
     }
   });
 
+// Initialize Firebase Remote Config
+const remoteConfig = firebase.remoteConfig();
+
+// Set minimum fetch interval (in seconds) for development/production
+remoteConfig.settings = {
+    minimumFetchIntervalMillis: 3600000, // 1 hour for production
+    fetchTimeoutMillis: 60000 // 60 seconds timeout
+};
+
+// Set default values
+remoteConfig.defaultConfig = {
+    'imgbb_api_key': '' // Empty by default, will be fetched from server
+};
+
+// Export remoteConfig
+window.remoteConfig = remoteConfig;
+

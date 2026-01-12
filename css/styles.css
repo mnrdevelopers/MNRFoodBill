@@ -1368,3 +1368,212 @@ button:active,
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* ===========================================
+   RESPONSIVE TABLE STYLES FOR MOBILE
+   =========================================== */
+
+/* Table wrapper for horizontal scrolling */
+.table-responsive {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Desktop: Normal table display */
+.table-responsive table {
+    width: 100%;
+    min-width: 600px; /* Minimum width for desktop */
+}
+
+/* Mobile: Horizontal scrolling */
+@media (max-width: 768px) {
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        background: white;
+    }
+    
+    .table-responsive table {
+        min-width: 700px; /* Ensures all columns are visible when scrolling */
+        margin-bottom: 0;
+    }
+    
+    /* Table header fixed on mobile scroll */
+    .table-responsive thead th {
+        position: sticky;
+        top: 0;
+        background: #f9fafb;
+        z-index: 10;
+        box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Better touch targets for mobile */
+    .table-responsive tbody td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .table-responsive tbody tr {
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    /* Scroll indicator for mobile */
+    .table-responsive::after {
+        content: '→';
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 1.5rem;
+        opacity: 0.7;
+        pointer-events: none;
+        animation: bounceRight 2s infinite;
+    }
+    
+    @keyframes bounceRight {
+        0%, 100% { transform: translateY(-50%) translateX(0); }
+        50% { transform: translateY(-50%) translateX(5px); }
+    }
+}
+
+/* Specific table improvements */
+/* Orders Table */
+#ordersTable td,
+#ordersTable th {
+    white-space: nowrap;
+}
+
+/* Products Table */
+#productsTable td,
+#productsTable th {
+    min-width: 120px;
+}
+
+#productsTable td:first-child,
+#productsTable th:first-child {
+    min-width: 200px; /* Product name column wider */
+    white-space: normal;
+}
+
+/* Staff Table */
+#staffTable td,
+#staffTable th {
+    min-width: 150px;
+}
+
+/* Recent Orders in Dashboard */
+#recentOrders td,
+#recentOrders th {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Mobile table action buttons */
+@media (max-width: 768px) {
+    .table-responsive .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .table-responsive .action-buttons button {
+        padding: 0.375rem;
+        font-size: 0.75rem;
+        min-width: 32px;
+        height: 32px;
+    }
+    
+    /* Better button visibility */
+    .table-responsive .edit-product,
+    .table-responsive .delete-product,
+    .table-responsive .view-order,
+    .table-responsive .print-order,
+    .table-responsive .delete-order {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.375rem;
+    }
+}
+
+/* Table status badges on mobile */
+@media (max-width: 768px) {
+    .status-badge {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        display: inline-block;
+        min-width: 80px;
+        text-align: center;
+    }
+}
+
+/* Pagination on mobile */
+@media (max-width: 768px) {
+    .pagination-container {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .pagination-container button {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .pagination-container #pageInfo {
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Scrollbar styling for tables */
+.table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+    margin: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* Firefox scrollbar */
+.table-responsive {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* Mobile table cell adjustments */
+@media (max-width: 640px) {
+    .table-responsive table {
+        min-width: 800px; /* Even wider for very small screens */
+    }
+    
+    .table-responsive td,
+    .table-responsive th {
+        padding: 0.5rem 0.375rem;
+        font-size: 0.8125rem;
+    }
+    
+    /* Hide less important columns on very small screens */
+    .table-responsive .mobile-hide {
+        display: none;
+    }
+}
+

@@ -1649,3 +1649,41 @@ button:active,
     }
 }
 
+/* Loading overlay */
+#loadingOverlay {
+    transition: opacity 0.3s ease-out;
+}
+
+#loadingOverlay.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Offline indicator */
+#offlineIndicator {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Service Worker status */
+.sw-status {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    z-index: 1000;
+}
+
+

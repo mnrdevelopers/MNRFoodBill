@@ -104,25 +104,28 @@
                     </div>
                 </div>
 
-              <!-- Orders Table -->
-<div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="table-wrapper">
-        <table class="w-full">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="py-3 px-6 text-left">Order ID</th>
-                    <th class="py-3 px-6 text-left">Time</th>
-                    <th class="py-3 px-6 text-left">Customer</th>
-                    <th class="py-3 px-6 text-left">Items</th>
-                    <th class="py-3 px-6 text-left">Amount</th>
-                    <th class="py-3 px-6 text-left">Status</th>
-                    <th class="py-3 px-6 text-left">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="ordersTable">
-                <!-- Orders will be loaded here -->
-            </tbody>
-        </table>
+             <!-- Orders Table -->
+<div class="bg-white rounded-xl shadow overflow-hidden p-4"> <!-- Added p-4 -->
+    <div class="table-container">
+        <div class="table-wrapper">
+            <div class="scroll-indicator">→</div>
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="py-3 px-4 text-left">Order ID</th>
+                        <th class="py-3 px-4 text-left">Time</th>
+                        <th class="py-3 px-4 text-left">Customer</th>
+                        <th class="py-3 px-4 text-left">Items</th>
+                        <th class="py-3 px-4 text-left">Amount</th>
+                        <th class="py-3 px-4 text-left">Status</th>
+                        <th class="py-3 px-4 text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersTable">
+                    <!-- Orders will be loaded here -->
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -219,6 +222,7 @@
     </div>
 </body>
 </html>
+
 
 
 

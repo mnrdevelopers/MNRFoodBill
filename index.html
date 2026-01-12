@@ -154,9 +154,56 @@
 <div id="offlineIndicator" class="hidden fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-2 z-50">
   <i class="fas fa-wifi-slash mr-2"></i>
   You are currently offline
+
+    <script>
+// Immediate auth check - runs before any other scripts
+(function() {
+    // Check localStorage for auth state immediately
+    try {
+        const authState = localStorage.getItem('mnrfoodbill_auth_state');
+        if (authState) {
+            const data = JSON.parse(authState);
+            // If auth state is less than 1 hour old, hide login immediately
+            if (Date.now() - data.timestamp < 3600000) {
+                // Hide login form immediately
+                const loginForm = document.getElementById('loginForm');
+                const registerForm = document.getElementById('registerForm');
+                const loginTypeTitle = document.getElementById('loginTypeTitle');
+                
+                if (loginForm) loginForm.classList.add('hidden');
+                if (registerForm) registerForm.classList.add('hidden');
+                if (loginTypeTitle) loginTypeTitle.textContent = 'Checking login...';
+                
+                // Show loading immediately
+                const loadingHTML = `
+                    <div class="text-center py-8">
+                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500 mb-4"></div>
+                        <h3 class="text-lg font-bold text-gray-800">Welcome back!</h3>
+                        <p class="text-gray-600 mt-2">Redirecting you to the dashboard...</p>
+                    </div>
+                `;
+                
+                const loginCard = document.querySelector('.login-card');
+                if (loginCard) {
+                    const existingLoading = loginCard.querySelector('.immediate-loading');
+                    if (!existingLoading) {
+                        const loadingDiv = document.createElement('div');
+                        loadingDiv.className = 'immediate-loading';
+                        loadingDiv.innerHTML = loadingHTML;
+                        loginCard.insertBefore(loadingDiv, loginCard.firstChild);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Immediate auth check failed:', e);
+    }
+})();
+</script>
 </div>
 </body>
 </html>
+
 
 
 

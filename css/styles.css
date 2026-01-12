@@ -1536,6 +1536,46 @@ button:active,
     z-index: 1;
 }
 
+/* Responsive table headers */
+@media (max-width: 640px) {
+    .mobile-table th {
+        font-size: 0.75rem;
+        padding: 8px 6px;
+        background: #f8fafc;
+    }
+    
+    .mobile-table td {
+        font-size: 0.8125rem;
+        padding: 10px 6px;
+    }
+    
+    /* Zebra striping for better readability */
+    .mobile-table tbody tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+    
+    /* Compact action buttons */
+    .mobile-table .flex.space-x-2 {
+        min-width: 70px;
+    }
+    
+    .mobile-table button {
+        padding: 4px;
+    }
+}
+
+/* Prevent horizontal bounce on iOS */
+.table-container {
+    overscroll-behavior-x: contain;
+}
+
+/* Smooth momentum scrolling */
+.table-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+
 
 
 

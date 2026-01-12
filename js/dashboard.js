@@ -257,35 +257,3 @@ function showUpdateNotification() {
 
 // Call this when dashboard loads
 checkForPWAUpdates();
-
-// PWA Table Optimizations
-function optimizeTablesForPWA() {
-    // Check if in PWA mode
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                        window.navigator.standalone === true;
-    
-    if (isStandalone && window.innerWidth <= 768) {
-        // Add touch-friendly styles
-        document.querySelectorAll('.table-container').forEach(container => {
-            container.style.maxHeight = '60vh';
-            container.style.webkitOverflowScrolling = 'touch';
-        });
-        
-        // Add pinch-to-zoom prevention
-        document.addEventListener('touchmove', (e) => {
-            if (e.scale !== 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-        
-        // Improve touch scrolling
-        document.querySelectorAll('table').forEach(table => {
-            table.style.touchAction = 'pan-x';
-        });
-    }
-}
-
-// Call this in dashboard.js after DOM loads
-document.addEventListener('DOMContentLoaded', optimizeTablesForPWA);
-
-

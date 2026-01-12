@@ -507,3 +507,27 @@ function showTableScrollHint() {
 
 // Show hint after tables are loaded
 setTimeout(showTableScrollHint, 1000);
+
+// Prevent body scroll when table is being used
+function preventBodyScroll() {
+    const tableWrappers = document.querySelectorAll('.table-wrapper');
+    
+    tableWrappers.forEach(wrapper => {
+        wrapper.addEventListener('touchstart', function() {
+            // Add class to body to prevent scroll
+            document.body.classList.add('table-scrolling');
+        }, { passive: true });
+        
+        wrapper.addEventListener('touchend', function() {
+            // Remove class after a delay
+            setTimeout(() => {
+                document.body.classList.remove('table-scrolling');
+            }, 100);
+        }, { passive: true });
+    });
+}
+
+// Call this after tables are loaded
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(preventBodyScroll, 1000);
+});

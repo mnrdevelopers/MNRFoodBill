@@ -1370,301 +1370,182 @@ button:active,
 }
 
 /* ===========================================
-   RESPONSIVE TABLE STYLES FOR MOBILE
+   RESPONSIVE TABLE SCROLLING - CONTAINER FIXED
    =========================================== */
 
-/* Table wrapper for horizontal scrolling */
-.table-responsive {
-    position: relative;
-    width: 100%;
-    overflow: hidden;
-}
-
-/* Desktop: Normal table display */
-.table-responsive table {
-    width: 100%;
-    min-width: 600px; /* Minimum width for desktop */
-}
-
-/* Mobile: Horizontal scrolling */
+/* Mobile container stays fixed to screen width */
 @media (max-width: 768px) {
-    .table-responsive {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-        border: 1px solid #e5e7eb;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        background: white;
+    .container.mx-auto {
+        width: 100%;
+        max-width: 100%;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        overflow-x: hidden; /* Prevent horizontal scroll on container */
     }
     
-    .table-responsive table {
-        min-width: 700px; /* Ensures all columns are visible when scrolling */
+    /* Table wrapper - fixed to container width */
+    .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        background: white;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+    
+    /* Table itself scrolls inside fixed wrapper */
+    .table-wrapper table {
+        width: 100%;
+        min-width: 600px; /* Table is wider than container */
         margin-bottom: 0;
     }
     
-    /* Table header fixed on mobile scroll */
-    .table-responsive thead th {
-        position: sticky;
-        top: 0;
-        background: #f9fafb;
-        z-index: 10;
-        box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+    /* Ensure container doesn't scroll */
+    .lg\:col-span-3,
+    .lg\:col-span-4,
+    #mainContent {
+        overflow-x: hidden;
+        max-width: 100%;
     }
     
-    /* Better touch targets for mobile */
-    .table-responsive tbody td {
-        padding: 0.75rem 0.5rem;
-        font-size: 0.875rem;
+    /* Fix any overflow issues in parent containers */
+    .bg-white.rounded-xl.shadow {
+        overflow: hidden;
     }
     
-    .table-responsive tbody tr {
-        border-bottom: 1px solid #f3f4f6;
+    /* Remove any horizontal padding that might cause issues */
+    .p-6 {
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
     
-    /* Scroll indicator for mobile */
-    .table-responsive::after {
-        content: '→';
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #9ca3af;
-        font-size: 1.5rem;
-        opacity: 0.7;
-        pointer-events: none;
-        animation: bounceRight 2s infinite;
-    }
-    
-    @keyframes bounceRight {
-        0%, 100% { transform: translateY(-50%) translateX(0); }
-        50% { transform: translateY(-50%) translateX(5px); }
+    .px-6 {
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 }
 
-/* Specific table improvements */
-/* Orders Table */
-#ordersTable td,
-#ordersTable th {
+/* Very small screens */
+@media (max-width: 480px) {
+    .table-wrapper {
+        border-radius: 0.375rem;
+        border-width: 1px;
+    }
+    
+    .table-wrapper table {
+        min-width: 700px; /* Even wider for very small screens */
+    }
+    
+    /* Reduce container padding further */
+    .container.mx-auto.px-4 {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    .p-6 {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+}
+
+/* Tablet screens */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .table-wrapper table {
+        min-width: 800px;
+    }
+}
+
+/* Desktop - no scrolling needed */
+@media (min-width: 1025px) {
+    .table-wrapper {
+        overflow-x: visible;
+    }
+    
+    .table-wrapper table {
+        width: 100%;
+        min-width: auto; /* Reset to auto for desktop */
+    }
+}
+
+/* Table header styling for scroll */
+.table-wrapper thead th {
+    background-color: #f9fafb;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: #6b7280;
     white-space: nowrap;
 }
 
-/* Products Table */
-#productsTable td,
-#productsTable th {
-    min-width: 120px;
+/* Add scroll indicator for mobile */
+.table-wrapper::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.05));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
 }
 
-#productsTable td:first-child,
-#productsTable th:first-child {
-    min-width: 200px; /* Product name column wider */
-    white-space: normal;
+.table-wrapper.scrollable::after {
+    opacity: 1;
 }
 
-/* Staff Table */
-#staffTable td,
-#staffTable th {
-    min-width: 150px;
-}
-
-/* Recent Orders in Dashboard */
-#recentOrders td,
-#recentOrders th {
-    padding: 0.5rem;
-    font-size: 0.875rem;
-}
-
-/* Mobile table action buttons */
-@media (max-width: 768px) {
-    .table-responsive .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .table-responsive .action-buttons button {
-        padding: 0.375rem;
-        font-size: 0.75rem;
-        min-width: 32px;
-        height: 32px;
-    }
-    
-    /* Better button visibility */
-    .table-responsive .edit-product,
-    .table-responsive .delete-product,
-    .table-responsive .view-order,
-    .table-responsive .print-order,
-    .table-responsive .delete-order {
-        width: 32px;
-        height: 32px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 0.375rem;
-    }
-}
-
-/* Table status badges on mobile */
-@media (max-width: 768px) {
-    .status-badge {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-        display: inline-block;
-        min-width: 80px;
-        text-align: center;
-    }
-}
-
-/* Pagination on mobile */
-@media (max-width: 768px) {
-    .pagination-container {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.5rem;
-        margin-top: 1rem;
-    }
-    
-    .pagination-container button {
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
-    }
-    
-    .pagination-container #pageInfo {
-        padding: 0.5rem;
-        font-size: 0.875rem;
-    }
-}
-
-/* Scrollbar styling for tables */
-.table-responsive::-webkit-scrollbar {
+/* Scrollbar styling */
+.table-wrapper::-webkit-scrollbar {
     height: 6px;
 }
 
-.table-responsive::-webkit-scrollbar-track {
+.table-wrapper::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 3px;
     margin: 4px;
 }
 
-.table-responsive::-webkit-scrollbar-thumb {
+.table-wrapper::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 3px;
 }
 
-.table-responsive::-webkit-scrollbar-thumb:hover {
+.table-wrapper::-webkit-scrollbar-thumb:hover {
     background: #a1a1a1;
 }
 
-/* Firefox scrollbar */
-.table-responsive {
+/* Firefox */
+.table-wrapper {
     scrollbar-width: thin;
     scrollbar-color: #c1c1c1 #f1f1f1;
 }
 
-/* Mobile table cell adjustments */
-@media (max-width: 640px) {
-    .table-responsive table {
-        min-width: 800px; /* Even wider for very small screens */
-    }
-    
-    .table-responsive td,
-    .table-responsive th {
-        padding: 0.5rem 0.375rem;
-        font-size: 0.8125rem;
-    }
-    
-    /* Hide less important columns on very small screens */
-    .table-responsive .mobile-hide {
-        display: none;
-    }
+/* Ensure table cells have proper spacing */
+.table-wrapper td,
+.table-wrapper th {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
 }
 
-/* Scroll indicator for tables */
-.scroll-indicator {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-    pointer-events: none;
-    animation: pulse 2s infinite;
+/* Action buttons stay visible */
+.table-wrapper .action-buttons {
+    white-space: nowrap;
 }
 
-.scroll-indicator.hidden {
-    display: none;
+/* Status badges */
+.table-wrapper .status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
 }
-
-@keyframes pulse {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 1; }
-}
-
-/* Touch active state for rows */
-tr.touch-active {
-    background-color: #f3f4f6 !important;
-}
-
-/* Mobile-specific table improvements */
-@media (max-width: 768px) {
-    /* Make action buttons more touch-friendly */
-    .action-buttons {
-        gap: 0.25rem !important;
-    }
-    
-    .action-buttons button {
-        min-width: 36px !important;
-        height: 36px !important;
-        font-size: 0.875rem !important;
-    }
-    
-    /* Ensure text doesn't wrap in table cells */
-    .table-responsive td {
-        white-space: nowrap;
-    }
-    
-    /* Except for product names */
-    .table-responsive td:first-child {
-        white-space: normal;
-        max-width: 150px;
-    }
-    
-    /* Status badges */
-    .status-badge {
-        font-size: 0.75rem !important;
-        padding: 0.125rem 0.5rem !important;
-    }
-}
-
-/* Very small screens (phones) */
-@media (max-width: 480px) {
-    .table-responsive table {
-        min-width: 900px; /* Even wider for phone screens */
-    }
-    
-    /* Reduce padding */
-    .table-responsive th,
-    .table-responsive td {
-        padding: 0.375rem 0.25rem !important;
-        font-size: 0.75rem !important;
-    }
-    
-    /* Hide scroll indicator on very small touch */
-    .scroll-indicator {
-        display: none;
-    }
-    
-    /* Make buttons even larger for touch */
-    .action-buttons button {
-        min-width: 40px !important;
-        height: 40px !important;
-        font-size: 1rem !important;
-    }
-}
-
-

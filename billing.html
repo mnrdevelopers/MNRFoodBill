@@ -37,33 +37,56 @@
          <div id="mainContent" class="lg:col-span-4">
             <div class="lg:col-span-3">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Product Selection -->
-                    <div class="lg:col-span-2">
-                        <div class="bg-white rounded-xl shadow p-6 mb-6">
-                            <h2 class="text-2xl font-bold text-gray-800 mb-6">Select Products</h2>
-                            
-                            <!-- Category Tabs -->
-                            <div class="flex overflow-x-auto mb-6 space-x-2 pb-2">
-                                <button class="category-tab active px-4 py-2 bg-red-500 text-white rounded-lg whitespace-nowrap" data-category="all">All Items</button>
-                                <!-- Categories will be loaded dynamically -->
-                            </div>
+                   <!-- Product Selection -->
+<div class="lg:col-span-2">
+    <div class="bg-white rounded-xl shadow p-6 mb-6">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Select Products</h2>
+            
+            <!-- View Toggle -->
+            <div class="flex items-center space-x-2">
+                <span class="text-sm text-gray-600 mr-2">View:</span>
+                <div class="flex bg-gray-100 rounded-lg p-1">
+                    <button id="gridViewBtn" class="view-toggle active p-2 rounded-md" title="Grid View">
+                        <i class="fas fa-th-large"></i>
+                    </button>
+                    <button id="listViewBtn" class="view-toggle p-2 rounded-md" title="List View">
+                        <i class="fas fa-list"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Category Tabs -->
+        <div class="flex overflow-x-auto mb-4 space-x-2 pb-2">
+            <button class="category-tab active px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm whitespace-nowrap" data-category="all">All Items</button>
+            <!-- Categories will be loaded dynamically -->
+        </div>
 
-                            <!-- Search -->
-                            <div class="mb-6">
-                                <div class="relative">
-                                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                                    <input type="text" id="productSearch" 
-                                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                                           placeholder="Search products...">
-                                </div>
-                            </div>
+        <!-- Search -->
+        <div class="mb-4">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input type="text" id="productSearch" 
+                       class="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                       placeholder="Search products...">
+            </div>
+        </div>
 
-                            <!-- Products Grid -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="productsGrid">
-                                <!-- Products will be loaded here -->
-                            </div>
-                        </div>
-                    </div>
+        <!-- Products Container -->
+        <div id="productsContainer">
+            <!-- Grid View -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" id="productsGrid">
+                <!-- Products will be loaded here -->
+            </div>
+            
+            <!-- List View (hidden by default) -->
+            <div class="hidden" id="productsList">
+                <!-- Products will be loaded here in list format -->
+            </div>
+        </div>
+    </div>
+</div>
 
                     <!-- Cart & Billing -->
                     <div class="lg:col-span-1">
@@ -197,6 +220,7 @@
     </div>
 </body>
 </html>
+
 
 
 

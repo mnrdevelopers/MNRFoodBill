@@ -187,10 +187,10 @@
                                         class="w-full bg-blue-500 text-white py-3 rounded-lg font-bold hover:bg-blue-600 transition">
                                     <i class="fas fa-save mr-2"></i> Save Order
                                 </button>
-                                <button id="printBill" 
-        class="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-3 rounded-lg font-bold hover:from-red-600 hover:to-orange-600 transition"
-        onclick="prepareReceipt()"> <!-- Changed from click event listener -->
-    <i class="fas fa-print mr-2"></i> Print Bill & Complete
+                                <!-- In billing.html, replace the print button -->
+<button onclick="printBillDirect()" 
+        class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-lg font-bold hover:from-green-700 hover:to-green-800 transition shadow-lg">
+    <i class="fas fa-print mr-2"></i> Print Bill Now
 </button>
                             </div>
                         </div>
@@ -199,8 +199,27 @@
             </div>
         </div>
     </div>
+
+        <!-- Add printer status and control panel -->
+<div class="bg-white rounded-xl shadow p-4 mb-4">
+    <h3 class="font-bold text-gray-700 mb-2">Printer Settings</h3>
+    <div class="flex space-x-2">
+        <button onclick="connectPrinter()" 
+                class="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600">
+            <i class="fas fa-bluetooth mr-1"></i> Connect Printer
+        </button>
+        <button onclick="printTestPage()" 
+                class="px-4 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600">
+            <i class="fas fa-print mr-1"></i> Test Print
+        </button>
+    </div>
+    <p id="printerStatusText" class="text-xs text-gray-500 mt-2">
+        Printer status: <span class="font-medium">Checking...</span>
+    </p>
+</div>
 </body>
 </html>
+
 
 
 

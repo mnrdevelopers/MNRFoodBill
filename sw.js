@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mnrfoodbill-v3.0.2'; // Change version to force update
+const CACHE_NAME = 'mnrfoodbill-v3.0.3'; // Change version to force update
 const BASE_PATH = '/MNRFoodBill/';
 const AUTH_CHECK_URL = '/MNRFoodBill/auth-check.html';
 

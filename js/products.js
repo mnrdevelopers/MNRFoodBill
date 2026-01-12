@@ -190,18 +190,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const productForm = document.getElementById('productForm');
-if (productForm) {
+ if (productForm) {
     productForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         const user = auth.currentUser;
         const productId = document.getElementById('productId').value;
         
-        // Get uploaded image URL
+        // Get uploaded image URL - use different variable name
         const uploadedImage = window.ImageUpload?.getUploadedImage();
         const imageUrl = uploadedImage?.url || '';
-        
-        // Get variations
-        const variations = getVariationsFromForm();
         
         const productData = {
             name: document.getElementById('productName').value.trim(),
@@ -211,15 +208,6 @@ if (productForm) {
             restaurantId: user.uid,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        
-        // Add variations if available
-        if (variations) {
-            productData.variations = variations;
-            // Set base price to first variation price
-            if (variations.length > 0) {
-                productData.price = variations[0].price;
-            }
-        }
         
         // Add image URL if available
         if (imageUrl) {
@@ -251,101 +239,6 @@ if (productForm) {
             showNotification(error.message, 'error');
         }
     });
-}
-
-    // Variations management
-function setupVariations() {
-    const addVariationBtn = document.getElementById('addVariationBtn');
-    const variationsContainer = document.getElementById('variationsContainer');
-    const template = document.getElementById('variationTemplate');
-    
-    if (!addVariationBtn || !variationsContainer || !template) return;
-    
-    // Add variation
-    addVariationBtn.addEventListener('click', () => {
-        const clone = template.content.cloneNode(true);
-        variationsContainer.appendChild(clone);
-        
-        // Focus on the new variation name field
-        const newInput = variationsContainer.lastElementChild.querySelector('.variation-name');
-        if (newInput) newInput.focus();
-    });
-    
-    // Remove variation
-    variationsContainer.addEventListener('click', (e) => {
-        if (e.target.closest('.remove-variation')) {
-            const row = e.target.closest('.variation-row');
-            if (row && variationsContainer.children.length > 1) {
-                row.remove();
-            }
-        }
-    });
-}
-
-// Load variations for editing
-function loadVariations(product) {
-    const variationsContainer = document.getElementById('variationsContainer');
-    if (!variationsContainer) return;
-    
-    // Clear existing variations (except template)
-    variationsContainer.innerHTML = '';
-    
-    // Add default variation
-    addDefaultVariation();
-    
-    // Load product variations
-    if (product && product.variations && product.variations.length > 0) {
-        product.variations.forEach(variation => {
-            addVariation(variation.name, variation.price);
-        });
-    }
-}
-
-function addDefaultVariation() {
-    const template = document.getElementById('variationTemplate');
-    if (!template) return;
-    
-    const clone = template.content.cloneNode(true);
-    const container = document.getElementById('variationsContainer');
-    if (container) {
-        container.appendChild(clone);
-    }
-}
-
-function addVariation(name, price) {
-    const template = document.getElementById('variationTemplate');
-    const container = document.getElementById('variationsContainer');
-    
-    if (!template || !container) return;
-    
-    const clone = template.content.cloneNode(true);
-    const nameInput = clone.querySelector('.variation-name');
-    const priceInput = clone.querySelector('.variation-price');
-    
-    if (nameInput) nameInput.value = name;
-    if (priceInput) priceInput.value = price;
-    
-    container.appendChild(clone);
-}
-
-// Get variations from form
-function getVariationsFromForm() {
-    const variations = [];
-    const rows = document.querySelectorAll('.variation-row');
-    
-    rows.forEach(row => {
-        const name = row.querySelector('.variation-name')?.value.trim();
-        const price = parseFloat(row.querySelector('.variation-price')?.value);
-        
-        if (name && !isNaN(price)) {
-            variations.push({
-                name: name,
-                price: price
-            });
-        }
-    });
-    
-    return variations.length > 0 ? variations : null;
 }
 
     function showNotification(message, type) {

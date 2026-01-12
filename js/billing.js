@@ -258,8 +258,9 @@ function renderProductsInGridView(productsToShow) {
     }
 
     productsToShow.forEach(product => {
-        // Use imageUrl from Firestore or fallback to default
         const imageUrl = product.imageUrl || (typeof getProductImage === 'function' ? getProductImage(product.name) : null);
+        const foodTypeColor = product.foodType === 'veg' ? 'bg-green-500' : 'bg-red-500';
+        const foodTypeIcon = product.foodType === 'veg' ? 'leaf' : 'drumstick-bite';
         
         const card = document.createElement('div');
         card.className = 'compact-card bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer';
@@ -273,16 +274,31 @@ function renderProductsInGridView(productsToShow) {
                     : ''
                 }
                 <div class="w-full h-full flex items-center justify-center ${imageUrl ? 'hidden' : ''}">
-                    <i class="fas fa-hamburger text-gray-300 text-xl"></i>
+                    <i class="fas fa-${foodTypeIcon} ${foodTypeColor === 'bg-green-500' ? 'text-green-400' : 'text-red-400'} text-xl"></i>
                 </div>
+                
+                <!-- Food Type Badge -->
+                <div class="absolute top-1 left-1 ${foodTypeColor} text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                    <i class="fas fa-${foodTypeIcon} text-xs"></i>
+                </div>
+                
+                <!-- Price Badge -->
                 <div class="absolute bottom-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                    ${currency}${Number(product.price || 0).toFixed(2)}
+                    ₹${Number(product.price || 0).toFixed(0)}
                 </div>
             </div>
             <div class="p-2">
                 <h3 class="product-name font-medium text-gray-800 mb-1">${product.name}</h3>
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between mb-1">
                     <span class="product-category text-xs text-gray-500">${product.category}</span>
+                    <span class="quantity-type text-xs font-medium text-gray-700">
+                        ${product.baseQuantity || 1} ${product.quantityType || 'plate'}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-gray-600">
+                        ${product.description ? product.description.substring(0, 15) + '...' : ''}
+                    </span>
                     <button class="add-to-cart bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition" 
                             data-id="${product.id}"
                             title="Add to cart">
@@ -301,7 +317,7 @@ function renderProductsInGridView(productsToShow) {
         container.appendChild(card);
     });
     
-    // Add event listeners to add-to-cart buttons
+    // Add event listeners
     document.querySelectorAll('.add-to-cart').forEach(button => {
         button.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -328,33 +344,42 @@ function renderProductsInListView(productsToShow) {
     }
 
     productsToShow.forEach(product => {
-        // Use imageUrl from Firestore or fallback to default
         const imageUrl = product.imageUrl || (typeof getProductImage === 'function' ? getProductImage(product.name) : null);
+        const foodTypeColor = product.foodType === 'veg' ? 'bg-green-500' : 'bg-red-500';
+        const foodTypeIcon = product.foodType === 'veg' ? 'leaf' : 'drumstick-bite';
         
         const listItem = document.createElement('div');
         listItem.className = 'list-item bg-white';
         
         listItem.innerHTML = `
-            <div class="flex-shrink-0">
-                <div class="relative">
-                    ${imageUrl 
-                        ? `<img src="${imageUrl}" alt="${product.name}" 
-                              class="list-image"
-                              onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">`
-                        : ''
-                    }
-                    <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center ${imageUrl ? 'hidden' : ''}">
-                        <i class="fas fa-hamburger text-gray-400"></i>
-                    </div>
+            <div class="flex-shrink-0 relative">
+                ${imageUrl 
+                    ? `<img src="${imageUrl}" alt="${product.name}" 
+                          class="list-image"
+                          onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                    : ''
+                }
+                <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center ${imageUrl ? 'hidden' : ''}">
+                    <i class="fas fa-${foodTypeIcon} ${foodTypeColor === 'bg-green-500' ? 'text-green-400' : 'text-red-400'}"></i>
+                </div>
+                <div class="absolute -top-1 -right-1 ${foodTypeColor} text-white text-xs w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">
+                    <i class="fas fa-${foodTypeIcon} text-xs"></i>
                 </div>
             </div>
             <div class="list-details">
                 <div class="flex justify-between items-start">
-                    <h4 class="list-name">${product.name}</h4>
+                    <div>
+                        <h4 class="list-name">${product.name}</h4>
+                        <div class="flex items-center space-x-2 mt-1">
+                            <span class="list-category">${product.category}</span>
+                            <span class="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                                ${product.baseQuantity || 1} ${product.quantityType || 'plate'}
+                            </span>
+                        </div>
+                    </div>
                     <span class="list-price">${currency}${Number(product.price || 0).toFixed(2)}</span>
                 </div>
                 ${product.description ? `<p class="list-description">${product.description}</p>` : ''}
-                <span class="list-category">${product.category}</span>
             </div>
             <button class="add-to-cart-list bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center ml-2 hover:bg-red-600 transition" 
                     data-id="${product.id}"
@@ -372,7 +397,6 @@ function renderProductsInListView(productsToShow) {
         container.appendChild(listItem);
     });
     
-    // Add event listeners to list view add-to-cart buttons
     document.querySelectorAll('.add-to-cart-list').forEach(button => {
         button.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -409,7 +433,7 @@ function renderProductsInListView(productsToShow) {
     showNotification(`${product.name} added to cart!`, 'success');
 }
     
-    function renderCart() {
+   function renderCart() {
     const container = document.getElementById('cartItems');
     const emptyCart = document.getElementById('emptyCart');
     if (!container) return;
@@ -429,9 +453,10 @@ function renderProductsInListView(productsToShow) {
     const currency = restaurantSettings.currency || '₹';
 
     cart.forEach((item, index) => {
-        // Find product details including image
         const productDetails = products.find(p => p.id === item.id);
         const imageUrl = productDetails?.imageUrl || (typeof getProductImage === 'function' ? getProductImage(item.name) : null);
+        const foodTypeColor = productDetails?.foodType === 'veg' ? 'bg-green-500' : 'bg-red-500';
+        const foodTypeIcon = productDetails?.foodType === 'veg' ? 'leaf' : 'drumstick-bite';
         
         const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
         
@@ -439,17 +464,26 @@ function renderProductsInListView(productsToShow) {
         itemElement.className = 'flex items-center justify-between py-2 border-b last:border-0';
         itemElement.innerHTML = `
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                    ${imageUrl 
-                        ? `<img src="${imageUrl}" alt="${item.name}" 
-                              class="w-full h-full object-cover"
-                              onerror="this.onerror=null; this.outerHTML='<i class=\'fas fa-hamburger text-gray-400\'></i>'">`
-                        : `<i class="fas fa-hamburger text-gray-400"></i>`
-                    }
+                <div class="relative">
+                    <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                        ${imageUrl 
+                            ? `<img src="${imageUrl}" alt="${item.name}" 
+                                  class="w-full h-full object-cover"
+                                  onerror="this.onerror=null; this.outerHTML='<i class=\'fas fa-utensils text-gray-400\'></i>'">`
+                            : `<i class="fas fa-${foodTypeIcon} ${foodTypeColor === 'bg-green-500' ? 'text-green-400' : 'text-red-400'}"></i>`
+                        }
+                    </div>
+                    <div class="absolute -top-1 -right-1 ${foodTypeColor} text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
+                        <i class="fas fa-${foodTypeIcon} text-[8px]"></i>
+                    </div>
                 </div>
                 <div>
                     <h4 class="font-medium text-sm text-gray-800">${item.name}</h4>
-                    <p class="text-xs text-gray-500">${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</p>
+                    <div class="flex items-center space-x-2 text-xs text-gray-500">
+                        <span>${productDetails?.baseQuantity || 1} ${productDetails?.quantityType || 'plate'}</span>
+                        <span>•</span>
+                        <span>${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</span>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center space-x-3">
@@ -647,3 +681,4 @@ function setupViewToggle() {
         }
     });
 }
+

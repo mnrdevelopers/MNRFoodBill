@@ -347,6 +347,12 @@ function setupMobileSidebar() {
 function setupLogout() {
     document.addEventListener('click', function(e) {
         if (e.target.closest('#logoutBtn')) {
+            // Clear auth state from localStorage
+            localStorage.removeItem('mnrfoodbill_auth_state');
+            localStorage.removeItem('cachedProducts');
+            localStorage.removeItem('sidebarOpen');
+            
+            // Sign out from Firebase
             auth.signOut().then(() => {
                 window.location.href = 'index.html';
             });

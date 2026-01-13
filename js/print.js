@@ -79,7 +79,7 @@ function buildReceipt(restaurant, customerName, customerPhone,
                      paymentMode, cashReceived, changeAmount,
                      billNo, now, currency, cgstAmount, sgstAmount) {
     
-    const MAX_WIDTH = 42;
+    const MAX_WIDTH = 42; // Thermal printer width
     
     function centerText(text) {
         const padding = Math.max(0, Math.floor((MAX_WIDTH - text.length) / 2));
@@ -95,51 +95,78 @@ function buildReceipt(restaurant, customerName, customerPhone,
     // Build receipt text
     let receipt = '';
     
-    // HEADER with logo marker
+    // HEADER - Clean and centered
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
-    // Add logo marker if logo exists
+    // Logo marker (centered)
     if (restaurant.logoUrl) {
         receipt += centerText('[LOGO]') + '\n\n';
     }
     
-    // Restaurant name in bigger style
+    // Restaurant name - centered and formatted nicely
     const restaurantName = restaurant.name.toUpperCase();
     
-    // Make restaurant name appear bigger
-    let bigName = '';
-    for (let i = 0; i < restaurantName.length; i++) {
-        bigName += restaurantName[i] + ' ';
+    // Format restaurant name for better appearance
+    let formattedName = '';
+    if (restaurantName.length <= MAX_WIDTH) {
+        // If name fits in one line, center it
+        formattedName = centerText(restaurantName);
+    } else {
+        // If name is too long, split it
+        const words = restaurantName.split(' ');
+        let currentLine = '';
+        const lines = [];
+        
+        for (const word of words) {
+            if (currentLine.length + word.length + 1 <= MAX_WIDTH) {
+                currentLine += (currentLine ? ' ' : '') + word;
+            } else {
+                lines.push(centerText(currentLine));
+                currentLine = word;
+            }
+        }
+        if (currentLine) {
+            lines.push(centerText(currentLine));
+        }
+        formattedName = lines.join('\n');
     }
-    bigName = bigName.trim();
     
-    receipt += centerText(bigName) + '\n';
-    receipt += centerText('RESTAURANT') + '\n';
+    receipt += formattedName + '\n';
+    receipt += '-'.repeat(MAX_WIDTH) + '\n'; // Subtle divider
+    
+    // Restaurant details - clean formatting
+    if (restaurant.address) {
+        const addressLines = restaurant.address.split(',').map(line => line.trim());
+        for (const line of addressLines) {
+            if (line) {
+                receipt += centerText(line) + '\n';
+            }
+        }
+    }
+    
+    if (restaurant.phone) {
+        receipt += centerText('📞 ' + restaurant.phone) + '\n';
+    }
+    
+    if (restaurant.gstin || restaurant.fssai) {
+        receipt += '-'.repeat(MAX_WIDTH) + '\n';
+        if (restaurant.gstin) {
+            receipt += centerText('GSTIN: ' + restaurant.gstin) + '\n';
+        }
+        if (restaurant.fssai) {
+            receipt += centerText('FSSAI: ' + restaurant.fssai) + '\n';
+        }
+    }
     
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
-    // Restaurant details
-    if (restaurant.address) {
-        receipt += centerText(restaurant.address) + '\n';
-    }
-    if (restaurant.phone) {
-        receipt += centerText('Ph: ' + restaurant.phone) + '\n';
-    }
-    if (restaurant.gstin) {
-        receipt += centerText('GSTIN: ' + restaurant.gstin) + '\n';
-    }
-    if (restaurant.fssai) {
-        receipt += centerText('FSSAI: ' + restaurant.fssai) + '\n';
-    }
-    
-    receipt += '-'.repeat(MAX_WIDTH) + '\n';
-    
-    // BILL DETAILS
+    // BILL DETAILS - Clean formatting
+    receipt += `Bill No : ${billNo}\n`;
     receipt += `Date    : ${now.toLocaleDateString('en-IN')}\n`;
     receipt += `Time    : ${now.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})}\n`;
-    receipt += `Bill No : ${billNo}\n`;
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     
+    // Customer details
     receipt += `Customer: ${customerName}\n`;
     if (customerPhone) {
         receipt += `Phone   : ${customerPhone}\n`;
@@ -147,8 +174,8 @@ function buildReceipt(restaurant, customerName, customerPhone,
     
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     
-    // ITEMS HEADER
-    receipt += 'Sl  Item'.padEnd(18) + 'Qty  Price'.padStart(10) + 'Amount'.padStart(10) + '\n';
+    // ITEMS HEADER - Clean alignment
+    receipt += 'Item'.padEnd(20) + 'Qty  Amount\n';
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     
     // ITEMS LIST
@@ -156,67 +183,66 @@ function buildReceipt(restaurant, customerName, customerPhone,
     cart.forEach(item => {
         const itemName = item.name;
         const qty = item.quantity;
-        const rate = item.price.toFixed(2);
         const amount = (item.price * item.quantity).toFixed(2);
         
         let displayName = itemName;
-        if (itemName.length > 15) {
-            displayName = itemName.substring(0, 13) + '..';
+        if (itemName.length > 18) {
+            displayName = itemName.substring(0, 16) + '..';
         }
         
-        const line = `${slNo.toString().padStart(2)}. ${displayName.padEnd(15)} ${qty.toString().padStart(3)} ${currency}${rate.padStart(6)} ${currency}${amount.padStart(7)}`;
+        // Format: Item name, quantity, amount (aligned)
+        const line = `${displayName.padEnd(20)} ${qty.toString().padStart(3)}  ₹${amount.padStart(7)}`;
         receipt += line + '\n';
         slNo++;
     });
     
-    // BILL SUMMARY
+    // BILL SUMMARY - Clean formatting
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     receipt += centerText('BILL SUMMARY') + '\n';
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     
-    receipt += formatLine('Sub Total', `${currency}${subtotal.toFixed(2)}`) + '\n';
+    receipt += formatLine('Sub Total', `₹${subtotal.toFixed(2)}`) + '\n';
     
     if (serviceCharge > 0) {
-        receipt += formatLine(`Service Charge ${serviceRate}%`, `${currency}${serviceCharge.toFixed(2)}`) + '\n';
+        receipt += formatLine(`Service ${serviceRate}%`, `₹${serviceCharge.toFixed(2)}`) + '\n';
     }
     
     if (gstRate > 0) {
-        receipt += formatLine(`CGST ${(gstRate/2).toFixed(1)}%`, `${currency}${cgstAmount.toFixed(2)}`) + '\n';
-        receipt += formatLine(`SGST ${(gstRate/2).toFixed(1)}%`, `${currency}${sgstAmount.toFixed(2)}`) + '\n';
+        const halfRate = (gstRate / 2).toFixed(1);
+        receipt += formatLine(`CGST ${halfRate}%`, `₹${cgstAmount.toFixed(2)}`) + '\n';
+        receipt += formatLine(`SGST ${halfRate}%`, `₹${sgstAmount.toFixed(2)}`) + '\n';
     }
     
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
-    receipt += formatLine('GRAND TOTAL', `${currency}${total.toFixed(2)}`) + '\n';
+    receipt += formatLine('GRAND TOTAL', `₹${total.toFixed(2)}`) + '\n';
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
     // PAYMENT DETAILS
     const paymentModeDisplay = paymentMode.toUpperCase();
-    receipt += `Payment Mode: ${paymentModeDisplay}\n`;
+    receipt += `Payment : ${paymentModeDisplay}\n`;
     
     if (paymentMode === 'cash') {
-        receipt += `Cash Received: ${currency}${cashReceived.toFixed(2)}\n`;
-        receipt += `Change       : ${currency}${changeAmount.toFixed(2)}\n`;
-    } else {
-        receipt += `Paid Amount  : ${currency}${total.toFixed(2)}\n`;
+        receipt += `Cash Rcvd: ₹${cashReceived.toFixed(2)}\n`;
+        receipt += `Change   : ₹${changeAmount.toFixed(2)}\n`;
     }
     
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
-    // FOOTER
+    // FOOTER - Clean and centered
     receipt += centerText('Thank you for dining with us!') + '\n';
-    receipt += centerText('Please visit again.') + '\n';
+    receipt += centerText('Please visit again') + '\n';
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     receipt += centerText('** Computer Generated Bill **') + '\n';
     receipt += centerText('** No Signature Required **') + '\n';
     
     if (restaurant.ownerPhone) {
         receipt += '-'.repeat(MAX_WIDTH) + '\n';
-        receipt += centerText('For feedback/complaints:') + '\n';
+        receipt += centerText('For feedback:') + '\n';
         receipt += centerText(restaurant.ownerPhone) + '\n';
     }
     
     receipt += '='.repeat(MAX_WIDTH) + '\n';
-    receipt += '\n\n\n';
+    receipt += '\n\n\n'; // Paper feed
     
     return receipt;
 }
@@ -275,8 +301,8 @@ function showDesktopPrintPreview(receiptText, restaurantName, billNo, logoUrl = 
     printContent.setAttribute('data-receipt-text', receiptText);
     printContent.setAttribute('data-logo-url', logoUrl);
     
-    // Create HTML with proper thermal printer styling
-    const receiptHTML = formatReceiptForHTMLPrint(receiptText, logoUrl);
+    // Create preview with proper formatting
+    const receiptHTML = formatReceiptForPreview(receiptText, logoUrl);
     
     // Update modal content for desktop
     printContent.innerHTML = `
@@ -294,9 +320,8 @@ function showDesktopPrintPreview(receiptText, restaurantName, billNo, logoUrl = 
             <div class="thermal-preview">
                 <div class="thermal-receipt" style="
                     font-family: 'Courier New', monospace;
-                    font-size: 12px;
+                    font-size: 11px;
                     line-height: 1.1;
-                    white-space: pre;
                     background: white;
                     padding: 10px;
                     border: 1px solid #ddd;
@@ -313,7 +338,7 @@ function showDesktopPrintPreview(receiptText, restaurantName, billNo, logoUrl = 
             
             <div class="text-xs text-gray-500 text-center">
                 <p>Preview shows thermal printer layout (42 chars width)</p>
-                <p>Actual print will use thermal printer formatting</p>
+                <p>Logo will appear small and centered above restaurant name</p>
             </div>
             
             <div class="grid grid-cols-1 gap-3">
@@ -343,6 +368,38 @@ function showDesktopPrintPreview(receiptText, restaurantName, billNo, logoUrl = 
     
     modal.classList.remove('hidden');
 }
+
+function formatReceiptForPreview(receiptText, logoUrl = '') {
+    const lines = receiptText.split('\n');
+    let html = '';
+    
+    for (const line of lines) {
+        if (line.includes('[LOGO]') && logoUrl) {
+            html += `<div style="text-align: center; margin: 5px 0;">
+                        <img src="${logoUrl}" alt="Logo" style="max-width: 120px; max-height: 50px; object-fit: contain;" onerror="this.style.display='none'">
+                     </div>`;
+        } else if (line.includes('====')) {
+            html += `<div style="text-align: center; color: #666; letter-spacing: 1px; margin: 2px 0;">${'='.repeat(42)}</div>`;
+        } else if (line.includes('----')) {
+            html += `<div style="text-align: center; color: #999; letter-spacing: 1px; margin: 2px 0;">${'-'.repeat(42)}</div>`;
+        } else {
+            // Check if line is centered
+            const trimmedLine = line.trim();
+            if (trimmedLine && line.length - trimmedLine.length > 10) {
+                // Centered text
+                html += `<div style="text-align: center;">${trimmedLine}</div>`;
+            } else if (trimmedLine.toUpperCase() === trimmedLine && trimmedLine.length > 3) {
+                // Uppercase text (likely restaurant name)
+                html += `<div style="text-align: center; font-weight: bold; margin: 3px 0;">${trimmedLine}</div>`;
+            } else {
+                html += `<div>${line}</div>`;
+            }
+        }
+    }
+    
+    return html;
+}
+
 
 function formatReceiptForHTML(receiptText) {
     // Convert plain text receipt to HTML with proper formatting
@@ -386,7 +443,7 @@ function printThermalReceipt(receiptText, restaurantLogoUrl = '') {
                         padding: 0 !important;
                         width: 58mm !important;
                         font-family: 'Courier New', monospace !important;
-                        font-size: 12px !important;
+                        font-size: 11px !important;
                         line-height: 1.1 !important;
                     }
                     @page {
@@ -397,54 +454,84 @@ function printThermalReceipt(receiptText, restaurantLogoUrl = '') {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
-                    .restaurant-logo {
+                    .logo-container {
                         text-align: center !important;
-                        margin: 5px 0 !important;
+                        margin: 3mm 0 2mm 0 !important;
+                        padding: 0 !important;
                     }
-                    .restaurant-logo img {
-                        max-width: 40mm !important;
-                        max-height: 25mm !important;
+                    .logo-container img {
+                        max-width: 35mm !important;
+                        max-height: 15mm !important;
                         object-fit: contain !important;
+                        margin: 0 auto !important;
+                        display: block !important;
                     }
                     .restaurant-name {
                         font-weight: bold !important;
-                        font-size: 16px !important;
+                        font-size: 14px !important;
                         text-align: center !important;
-                        margin: 4px 0 !important;
-                        letter-spacing: 1px !important;
+                        margin: 2mm 0 1mm 0 !important;
+                        letter-spacing: 0.5px !important;
                         text-transform: uppercase !important;
+                    }
+                    .receipt-line {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        line-height: 1.1 !important;
                     }
                 }
                 body {
                     font-family: 'Courier New', monospace;
-                    font-size: 12px;
+                    font-size: 11px;
                     line-height: 1.1;
                     width: 58mm;
                     margin: 0 auto;
                     padding: 2mm;
-                    white-space: pre;
                     word-wrap: break-word;
                 }
-                .restaurant-logo {
+                .logo-container {
                     text-align: center;
-                    margin: 5px 0;
+                    margin: 3mm 0 2mm 0;
+                    padding: 0;
                 }
-                .restaurant-logo img {
-                    max-width: 40mm;
-                    max-height: 25mm;
+                .logo-container img {
+                    max-width: 35mm;
+                    max-height: 15mm;
                     object-fit: contain;
+                    margin: 0 auto;
+                    display: block;
                 }
                 .restaurant-name {
                     font-weight: bold;
-                    font-size: 16px;
+                    font-size: 14px;
                     text-align: center;
-                    margin: 4px 0;
-                    letter-spacing: 1px;
+                    margin: 2mm 0 1mm 0;
+                    letter-spacing: 0.5px;
                     text-transform: uppercase;
+                }
+                .receipt-line {
+                    margin: 0;
+                    padding: 0;
+                    line-height: 1.1;
                 }
                 .receipt-content {
                     max-width: 42ch;
                     margin: 0 auto;
+                }
+                .separator {
+                    text-align: center;
+                    margin: 2px 0;
+                    color: #666;
+                    letter-spacing: 2px;
+                }
+                .center {
+                    text-align: center;
+                }
+                .right {
+                    text-align: right;
+                }
+                .bold {
+                    font-weight: bold;
                 }
             </style>
         </head>
@@ -470,24 +557,64 @@ function printThermalReceipt(receiptText, restaurantLogoUrl = '') {
 }
 
 function formatReceiptForHTMLPrint(receiptText, restaurantLogoUrl = '') {
-    // Convert plain text receipt to HTML with formatting
     const lines = receiptText.split('\n');
     let html = '';
+    let skipNextEmptyLine = false;
     
-    for (let line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        // Handle logo marker
         if (line.includes('[LOGO]') && restaurantLogoUrl) {
-            // Replace [LOGO] with actual logo image
-            html += `<div class="restaurant-logo">
+            html += `<div class="logo-container">
                         <img src="${restaurantLogoUrl}" alt="Restaurant Logo" onerror="this.style.display='none'">
                      </div>`;
-        } else if (line.toUpperCase() === line && line.trim().length > 3 && 
-                  !line.includes('=') && !line.includes('-') && !line.includes('[LOGO]')) {
-            // This is likely the restaurant name line
-            html += `<div class="restaurant-name">${line.trim()}</div>`;
+            skipNextEmptyLine = true;
+            continue;
+        }
+        
+        // Skip empty line after logo
+        if (skipNextEmptyLine && line.trim() === '') {
+            skipNextEmptyLine = false;
+            continue;
+        }
+        
+        // Handle separators
+        if (line.includes('====')) {
+            html += `<div class="separator">${'='.repeat(42)}</div>`;
+        } else if (line.includes('----')) {
+            html += `<div class="separator">${'-'.repeat(42)}</div>`;
+        } else if (line.trim().length === 0) {
+            html += '<div class="receipt-line">&nbsp;</div>';
         } else {
-            // Regular line
-            html += line.replace(/=/g, '<span style="color: #666;">=</span>')
-                       .replace(/-/g, '<span style="color: #999;">-</span>') + '<br>';
+            // Check if line is centered
+            const trimmedLine = line.trim();
+            const leadingSpaces = line.length - trimmedLine.length;
+            
+            if (leadingSpaces > 15 || trimmedLine === line || trimmedLine.toUpperCase() === trimmedLine) {
+                // Centered or restaurant name
+                if (trimmedLine.toUpperCase() === trimmedLine && trimmedLine.length > 3 && 
+                    !trimmedLine.includes('=') && !trimmedLine.includes('-') && 
+                    !trimmedLine.includes('ITEM') && !trimmedLine.includes('QTY') && 
+                    !trimmedLine.includes('BILL SUMMARY') && !trimmedLine.includes('GRAND TOTAL')) {
+                    // Likely restaurant name
+                    html += `<div class="restaurant-name">${trimmedLine}</div>`;
+                } else {
+                    // Other centered text
+                    html += `<div class="center receipt-line">${trimmedLine}</div>`;
+                }
+            } else if (line.includes('₹') || line.includes(':')) {
+                // Right-aligned for amounts
+                const parts = line.split(/(\.{3,})/);
+                if (parts.length > 1) {
+                    html += `<div class="receipt-line">${parts[0]}<span class="right">${parts[2] || ''}</span></div>`;
+                } else {
+                    html += `<div class="receipt-line">${line}</div>`;
+                }
+            } else {
+                // Regular left-aligned
+                html += `<div class="receipt-line">${line}</div>`;
+            }
         }
     }
     
@@ -663,6 +790,7 @@ function showNotification(message, type) {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+
 
 
 

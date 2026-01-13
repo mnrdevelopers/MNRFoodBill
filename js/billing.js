@@ -1,245 +1,13 @@
 let cart = [];
 let currentView = 'grid';
-let products = []; // This global array must be populated for addToCart to work
+let products = [];
 let restaurantSettings = {
     gstRate: 0,
     serviceCharge: 0,
     currency: ''
 };
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Check auth
-     auth.onAuthStateChanged(user => {
-        if (!user) {
-            window.location.href = 'index.html';
-        } else {
-            loadRestaurantSettings();
-            loadProducts();
-            setupViewToggle(); // Add this line
-            setupPaymentHandlers();
-        }
-    });
-
-    // Load restaurant settings from Firestore (Source of Truth)
-    function loadRestaurantSettings() {
-        const user = auth.currentUser;
-        db.collection('restaurants').doc(user.uid).get()
-            .then(doc => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    const fetchedSettings = data.settings || {};
-                    
-                    restaurantSettings = {
-                        gstRate: Number(fetchedSettings.gstRate) || 0,
-                        serviceCharge: Number(fetchedSettings.serviceCharge) || 0,
-                        currency: fetchedSettings.currency || '₹'
-                    };
-                    
-                    if (data.name) {
-                        const navName = document.getElementById('restaurantName');
-                        if (navName) navName.textContent = data.name;
-                    }
-
-                    renderCart();
-                    updateTotals();
-                    setupPaymentHandlers();
-                } else {
-                    showNotification('Please configure your settings first.', 'info');
-                    setTimeout(() => {
-                        window.location.href = 'settings.html';
-                    }, 2000);
-                }
-            })
-            .catch(err => {
-                console.error("Error loading settings:", err);
-                updateTotals();
-                setupPaymentHandlers();
-            });
-    }
-
-    function isOnline() {
-        return navigator.onLine;
-    }
-
-    function setupPaymentHandlers() {
-        const paymentMode = document.getElementById('paymentMode');
-        const cashReceived = document.getElementById('cashReceived');
-        
-        if (paymentMode) {
-            paymentMode.addEventListener('change', function() {
-                const mode = this.value;
-                const cashFields = document.getElementById('cashPaymentFields');
-                const nonCashFields = document.getElementById('nonCashPaymentFields');
-                
-                if (mode === 'cash') {
-                    cashFields.classList.remove('hidden');
-                    nonCashFields.classList.add('hidden');
-                    cashReceived.required = true;
-                } else {
-                    cashFields.classList.add('hidden');
-                    nonCashFields.classList.remove('hidden');
-                    cashReceived.required = false;
-                    document.getElementById('changeAmount').textContent = `${restaurantSettings.currency}0.00`;
-                }
-                cashReceived.value = '';
-            });
-        }
-        
-        if (cashReceived) {
-            cashReceived.addEventListener('input', calculateChange);
-        }
-    }
-
-    function calculateChange() {
-        const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
-        const totalText = document.getElementById('totalAmount').textContent;
-        const currency = restaurantSettings.currency || '';
-        const total = parseFloat(totalText.replace(currency, '')) || 0;
-        
-        let change = 0;
-        if (cashReceived >= total) {
-            change = cashReceived - total;
-        }
-        
-        const changeEl = document.getElementById('changeAmount');
-        changeEl.textContent = `${currency}${change.toFixed(2)}`;
-        
-        if (cashReceived < total) {
-            changeEl.classList.remove('text-green-600');
-            changeEl.classList.add('text-red-600');
-            changeEl.textContent = `${currency}${(cashReceived - total).toFixed(2)}`;
-        } else {
-            changeEl.classList.remove('text-red-600');
-            changeEl.classList.add('text-green-600');
-        }
-    }
-
-    async function saveOrderToFirebase(orderData) {
-        try {
-            const docRef = await db.collection('orders').add(orderData);
-            return { success: true, id: docRef.id };
-        } catch (error) {
-            if (!isOnline()) {
-                const localId = storageManager.saveOrder(orderData);
-                return { success: true, id: localId, offline: true };
-            }
-            throw error;
-        }
-    }
-
-    function loadProducts() {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    if (isOnline()) {
-        db.collection('products')
-            .where('restaurantId', '==', user.uid)
-            .get()
-            .then(snapshot => {
-                const productsData = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    productsData.push({ 
-                        id: doc.id, 
-                        name: data.name,
-                        price: data.price,
-                        category: data.category,
-                        description: data.description,
-                        imageUrl: data.imageUrl, // Ensure this is loaded
-                        ...data 
-                    });
-                });
-                
-                // FIX: Populate the global products array so addToCart can find items
-                products = productsData; 
-                
-                localStorage.setItem('cachedProducts', JSON.stringify(productsData));
-                
-                // Extract categories and render filters
-                const categories = [...new Set(productsData.map(p => p.category))];
-                renderCategories(categories);
-                renderProducts(productsData);
-            })
-            .catch(err => {
-                console.error("Firestore product load failed:", err);
-                const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
-                products = cached;
-                renderProducts(cached);
-            });
-    } else {
-        const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
-        products = cached;
-        renderProducts(cached);
-    }
-}
-    
-    function renderCategories(categories) {
-        const container = document.querySelector('.category-tab')?.parentElement;
-        if (!container) return;
-        
-        container.innerHTML = `
-            <button class="category-tab active px-4 py-2 bg-red-500 text-white rounded-lg whitespace-nowrap" data-category="all">All Items</button>
-        `;
-
-        categories.forEach(category => {
-            if (category && category !== 'all') {
-                container.innerHTML += `
-                    <button class="category-tab px-4 py-2 bg-gray-100 text-gray-700 rounded-lg whitespace-nowrap hover:bg-gray-200" data-category="${category}">
-                        ${category}
-                    </button>
-                `;
-            }
-        });
-
-        document.querySelectorAll('.category-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.category-tab').forEach(t => {
-                    t.classList.remove('active', 'bg-red-50', 'text-white');
-                    t.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
-                });
-                
-                this.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
-                this.classList.add('active', 'bg-red-50', 'text-white');
-                
-                filterProducts(this.dataset.category);
-            });
-        });
-    }
-
-    function filterProducts(category) {
-    const searchTerm = document.getElementById('productSearch')?.value.toLowerCase() || '';
-    let filtered = products;
-    
-    if (category !== 'all') {
-        filtered = filtered.filter(p => p.category === category);
-    }
-    
-    if (searchTerm) {
-        filtered = filtered.filter(p => 
-            p.name.toLowerCase().includes(searchTerm) ||
-            (p.description && p.description.toLowerCase().includes(searchTerm)) ||
-            (p.category && p.category.toLowerCase().includes(searchTerm))
-        );
-    }
-    
-    if (currentView === 'grid') {
-        renderProductsInGridView(filtered);
-    } else {
-        renderProductsInListView(filtered);
-    }
-}
-
-   function renderProducts(productsToShow) {
-    // Store filtered products
-    window.filteredProducts = productsToShow;
-    
-    if (currentView === 'grid') {
-        renderProductsInGridView(productsToShow);
-    } else {
-        renderProductsInListView(productsToShow);
-    }
-}
-
+// Global rendering functions
 function renderProductsInGridView(productsToShow) {
     const container = document.getElementById('productsGrid');
     if (!container) return;
@@ -404,104 +172,415 @@ function renderProductsInListView(productsToShow) {
         });
     });
 }
+
+function setupViewToggle() {
+    const gridViewBtn = document.getElementById('gridViewBtn');
+    const listViewBtn = document.getElementById('listViewBtn');
+    const productsGrid = document.getElementById('productsGrid');
+    const productsList = document.getElementById('productsList');
+    
+    if (!gridViewBtn || !listViewBtn) return;
+    
+    gridViewBtn.addEventListener('click', () => {
+        if (currentView === 'list') {
+            currentView = 'grid';
+            gridViewBtn.classList.add('active');
+            listViewBtn.classList.remove('active');
+            productsGrid.classList.remove('hidden');
+            productsList.classList.add('hidden');
+            
+            // Re-render products in grid view
+            const searchTerm = document.getElementById('productSearch')?.value.toLowerCase() || '';
+            const activeTab = document.querySelector('.category-tab.active');
+            const category = activeTab ? activeTab.dataset.category : 'all';
+            
+            let filtered = products;
+            
+            if (category !== 'all') {
+                filtered = filtered.filter(p => p.category === category);
+            }
+            
+            if (searchTerm) {
+                filtered = filtered.filter(p => 
+                    p.name.toLowerCase().includes(searchTerm) ||
+                    (p.description && p.description.toLowerCase().includes(searchTerm)) ||
+                    (p.category && p.category.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            renderProductsInGridView(filtered);
+        }
+    });
+    
+    listViewBtn.addEventListener('click', () => {
+        if (currentView === 'grid') {
+            currentView = 'list';
+            listViewBtn.classList.add('active');
+            gridViewBtn.classList.remove('active');
+            productsList.classList.remove('hidden');
+            productsGrid.classList.add('hidden');
+            
+            // Re-render products in list view
+            const searchTerm = document.getElementById('productSearch')?.value.toLowerCase() || '';
+            const activeTab = document.querySelector('.category-tab.active');
+            const category = activeTab ? activeTab.dataset.category : 'all';
+            
+            let filtered = products;
+            
+            if (category !== 'all') {
+                filtered = filtered.filter(p => p.category === category);
+            }
+            
+            if (searchTerm) {
+                filtered = filtered.filter(p => 
+                    p.name.toLowerCase().includes(searchTerm) ||
+                    (p.description && p.description.toLowerCase().includes(searchTerm)) ||
+                    (p.category && p.category.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            renderProductsInListView(filtered);
+        }
+    });
+}
+
+function showNotification(message, type) {
+    const n = document.createElement('div');
+    n.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white text-sm font-medium`;
+    n.textContent = message;
+    document.body.appendChild(n);
+    setTimeout(() => {
+        n.style.opacity = '0';
+        n.style.transform = 'translateX(20px)';
+        setTimeout(() => n.remove(), 300);
+    }, 3000);
+}
+
+// Main DOMContentLoaded event handler
+document.addEventListener('DOMContentLoaded', function() {
+    // Check auth
+    auth.onAuthStateChanged(user => {
+        if (!user) {
+            window.location.href = 'index.html';
+        } else {
+            loadRestaurantSettings();
+            loadProducts();
+            setupViewToggle();
+            setupPaymentHandlers();
+        }
+    });
+
+    // Load restaurant settings from Firestore
+    function loadRestaurantSettings() {
+        const user = auth.currentUser;
+        db.collection('restaurants').doc(user.uid).get()
+            .then(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const fetchedSettings = data.settings || {};
+                    
+                    restaurantSettings = {
+                        gstRate: Number(fetchedSettings.gstRate) || 0,
+                        serviceCharge: Number(fetchedSettings.serviceCharge) || 0,
+                        currency: fetchedSettings.currency || '₹'
+                    };
+                    
+                    if (data.name) {
+                        const navName = document.getElementById('restaurantName');
+                        if (navName) navName.textContent = data.name;
+                    }
+
+                    renderCart();
+                    updateTotals();
+                    setupPaymentHandlers();
+                } else {
+                    showNotification('Please configure your settings first.', 'info');
+                    setTimeout(() => {
+                        window.location.href = 'settings.html';
+                    }, 2000);
+                }
+            })
+            .catch(err => {
+                console.error("Error loading settings:", err);
+                updateTotals();
+                setupPaymentHandlers();
+            });
+    }
+
+    function isOnline() {
+        return navigator.onLine;
+    }
+
+    function setupPaymentHandlers() {
+        const paymentMode = document.getElementById('paymentMode');
+        const cashReceived = document.getElementById('cashReceived');
+        
+        if (paymentMode) {
+            paymentMode.addEventListener('change', function() {
+                const mode = this.value;
+                const cashFields = document.getElementById('cashPaymentFields');
+                const nonCashFields = document.getElementById('nonCashPaymentFields');
+                
+                if (mode === 'cash') {
+                    cashFields.classList.remove('hidden');
+                    nonCashFields.classList.add('hidden');
+                    cashReceived.required = true;
+                } else {
+                    cashFields.classList.add('hidden');
+                    nonCashFields.classList.remove('hidden');
+                    cashReceived.required = false;
+                    document.getElementById('changeAmount').textContent = `${restaurantSettings.currency}0.00`;
+                }
+                cashReceived.value = '';
+            });
+        }
+        
+        if (cashReceived) {
+            cashReceived.addEventListener('input', calculateChange);
+        }
+    }
+
+    function calculateChange() {
+        const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
+        const totalText = document.getElementById('totalAmount').textContent;
+        const currency = restaurantSettings.currency || '';
+        const total = parseFloat(totalText.replace(currency, '')) || 0;
+        
+        let change = 0;
+        if (cashReceived >= total) {
+            change = cashReceived - total;
+        }
+        
+        const changeEl = document.getElementById('changeAmount');
+        changeEl.textContent = `${currency}${change.toFixed(2)}`;
+        
+        if (cashReceived < total) {
+            changeEl.classList.remove('text-green-600');
+            changeEl.classList.add('text-red-600');
+            changeEl.textContent = `${currency}${(cashReceived - total).toFixed(2)}`;
+        } else {
+            changeEl.classList.remove('text-red-600');
+            changeEl.classList.add('text-green-600');
+        }
+    }
+
+    async function saveOrderToFirebase(orderData) {
+        try {
+            const docRef = await db.collection('orders').add(orderData);
+            return { success: true, id: docRef.id };
+        } catch (error) {
+            if (!isOnline()) {
+                const localId = storageManager.saveOrder(orderData);
+                return { success: true, id: localId, offline: true };
+            }
+            throw error;
+        }
+    }
+
+    function loadProducts() {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        if (isOnline()) {
+            db.collection('products')
+                .where('restaurantId', '==', user.uid)
+                .get()
+                .then(snapshot => {
+                    const productsData = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        productsData.push({ 
+                            id: doc.id, 
+                            name: data.name,
+                            price: data.price,
+                            category: data.category,
+                            description: data.description,
+                            imageUrl: data.imageUrl,
+                            ...data 
+                        });
+                    });
+                    
+                    products = productsData;
+                    
+                    localStorage.setItem('cachedProducts', JSON.stringify(productsData));
+                    
+                    const categories = [...new Set(productsData.map(p => p.category))];
+                    renderCategories(categories);
+                    renderProducts(productsData);
+                })
+                .catch(err => {
+                    console.error("Firestore product load failed:", err);
+                    const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
+                    products = cached;
+                    renderProducts(cached);
+                });
+        } else {
+            const cached = JSON.parse(localStorage.getItem('cachedProducts')) || [];
+            products = cached;
+            renderProducts(cached);
+        }
+    }
+    
+    function renderCategories(categories) {
+        const container = document.querySelector('.category-tab')?.parentElement;
+        if (!container) return;
+        
+        container.innerHTML = `
+            <button class="category-tab active px-4 py-2 bg-red-500 text-white rounded-lg whitespace-nowrap" data-category="all">All Items</button>
+        `;
+
+        categories.forEach(category => {
+            if (category && category !== 'all') {
+                container.innerHTML += `
+                    <button class="category-tab px-4 py-2 bg-gray-100 text-gray-700 rounded-lg whitespace-nowrap hover:bg-gray-200" data-category="${category}">
+                        ${category}
+                    </button>
+                `;
+            }
+        });
+
+        document.querySelectorAll('.category-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.category-tab').forEach(t => {
+                    t.classList.remove('active', 'bg-red-50', 'text-white');
+                    t.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+                });
+                
+                this.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+                this.classList.add('active', 'bg-red-50', 'text-white');
+                
+                filterProducts(this.dataset.category);
+            });
+        });
+    }
+
+    function filterProducts(category) {
+        const searchTerm = document.getElementById('productSearch')?.value.toLowerCase() || '';
+        let filtered = products;
+        
+        if (category !== 'all') {
+            filtered = filtered.filter(p => p.category === category);
+        }
+        
+        if (searchTerm) {
+            filtered = filtered.filter(p => 
+                p.name.toLowerCase().includes(searchTerm) ||
+                (p.description && p.description.toLowerCase().includes(searchTerm)) ||
+                (p.category && p.category.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        if (currentView === 'grid') {
+            renderProductsInGridView(filtered);
+        } else {
+            renderProductsInListView(filtered);
+        }
+    }
+
+    function renderProducts(productsToShow) {
+        if (currentView === 'grid') {
+            renderProductsInGridView(productsToShow);
+        } else {
+            renderProductsInListView(productsToShow);
+        }
+    }
     
     function addToCart(productId) {
-    const product = products.find(p => p.id === productId);
-    if (!product) {
-        console.error("Product not found in local state:", productId);
-        return;
-    }
-
-    const existingItem = cart.find(item => item.id === productId);
-    
-    if (existingItem) {
-        existingItem.quantity += 1;
-    } else {
-        // Store complete product details in cart
-        cart.push({
-            id: product.id,
-            name: product.name,
-            price: Number(product.price) || 0,
-            quantity: 1,
-            imageUrl: product.imageUrl, // Store image URL
-            category: product.category
-        });
-    }
-
-    renderCart();
-    updateTotals();
-    showNotification(`${product.name} added to cart!`, 'success');
-}
-    
-   function renderCart() {
-    const container = document.getElementById('cartItems');
-    const emptyCart = document.getElementById('emptyCart');
-    if (!container) return;
-
-    if (cart.length === 0) {
-        container.innerHTML = '';
-        if (emptyCart) {
-            container.appendChild(emptyCart);
-            emptyCart.classList.remove('hidden');
+        const product = products.find(p => p.id === productId);
+        if (!product) {
+            console.error("Product not found in local state:", productId);
+            return;
         }
-        return;
+
+        const existingItem = cart.find(item => item.id === productId);
+        
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cart.push({
+                id: product.id,
+                name: product.name,
+                price: Number(product.price) || 0,
+                quantity: 1,
+                imageUrl: product.imageUrl,
+                category: product.category
+            });
+        }
+
+        renderCart();
+        updateTotals();
+        showNotification(`${product.name} added to cart!`, 'success');
     }
+    
+    function renderCart() {
+        const container = document.getElementById('cartItems');
+        const emptyCart = document.getElementById('emptyCart');
+        if (!container) return;
 
-    if (emptyCart) emptyCart.classList.add('hidden');
-    container.innerHTML = '';
+        if (cart.length === 0) {
+            container.innerHTML = '';
+            if (emptyCart) {
+                container.appendChild(emptyCart);
+                emptyCart.classList.remove('hidden');
+            }
+            return;
+        }
 
-    const currency = restaurantSettings.currency || '₹';
+        if (emptyCart) emptyCart.classList.add('hidden');
+        container.innerHTML = '';
 
-    cart.forEach((item, index) => {
-        const productDetails = products.find(p => p.id === item.id);
-        const imageUrl = productDetails?.imageUrl || (typeof getProductImage === 'function' ? getProductImage(item.name) : null);
-        const foodTypeColor = productDetails?.foodType === 'veg' ? 'bg-green-500' : 'bg-red-500';
-        const foodTypeIcon = productDetails?.foodType === 'veg' ? 'leaf' : 'drumstick-bite';
-        
-        const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
-        
-        const itemElement = document.createElement('div');
-        itemElement.className = 'flex items-center justify-between py-2 border-b last:border-0';
-        itemElement.innerHTML = `
-            <div class="flex items-center space-x-3">
-                <div class="relative">
-                    <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                        ${imageUrl 
-                            ? `<img src="${imageUrl}" alt="${item.name}" 
-                                  class="w-full h-full object-cover"
-                                  onerror="this.onerror=null; this.outerHTML='<i class=\'fas fa-utensils text-gray-400\'></i>'">`
-                            : `<i class="fas fa-${foodTypeIcon} ${foodTypeColor === 'bg-green-500' ? 'text-green-400' : 'text-red-400'}"></i>`
-                        }
+        const currency = restaurantSettings.currency || '₹';
+
+        cart.forEach((item, index) => {
+            const productDetails = products.find(p => p.id === item.id);
+            const imageUrl = productDetails?.imageUrl || (typeof getProductImage === 'function' ? getProductImage(item.name) : null);
+            const foodTypeColor = productDetails?.foodType === 'veg' ? 'bg-green-500' : 'bg-red-500';
+            const foodTypeIcon = productDetails?.foodType === 'veg' ? 'leaf' : 'drumstick-bite';
+            
+            const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
+            
+            const itemElement = document.createElement('div');
+            itemElement.className = 'flex items-center justify-between py-2 border-b last:border-0';
+            itemElement.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="relative">
+                        <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                            ${imageUrl 
+                                ? `<img src="${imageUrl}" alt="${item.name}" 
+                                      class="w-full h-full object-cover"
+                                      onerror="this.onerror=null; this.outerHTML='<i class=\'fas fa-utensils text-gray-400\'></i>'">`
+                                : `<i class="fas fa-${foodTypeIcon} ${foodTypeColor === 'bg-green-500' ? 'text-green-400' : 'text-red-400'}"></i>`
+                            }
+                        </div>
+                        <div class="absolute -top-1 -right-1 ${foodTypeColor} text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
+                            <i class="fas fa-${foodTypeIcon} text-[8px]"></i>
+                        </div>
                     </div>
-                    <div class="absolute -top-1 -right-1 ${foodTypeColor} text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
-                        <i class="fas fa-${foodTypeIcon} text-[8px]"></i>
+                    <div>
+                        <h4 class="font-medium text-sm text-gray-800">${item.name}</h4>
+                        <div class="flex items-center space-x-2 text-xs text-gray-500">
+                            <span>${productDetails?.baseQuantity || 1} ${productDetails?.quantityType || 'plate'}</span>
+                            <span>•</span>
+                            <span>${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</span>
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <h4 class="font-medium text-sm text-gray-800">${item.name}</h4>
-                    <div class="flex items-center space-x-2 text-xs text-gray-500">
-                        <span>${productDetails?.baseQuantity || 1} ${productDetails?.quantityType || 'plate'}</span>
-                        <span>•</span>
-                        <span>${currency}${Number(item.price || 0).toFixed(2)} × ${item.quantity}</span>
-                    </div>
+                <div class="flex items-center space-x-3">
+                    <span class="font-bold text-sm">${currency}${itemTotal.toFixed(2)}</span>
+                    <button class="remove-item text-red-400 hover:text-red-600 p-1" data-index="${index}">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
                 </div>
-            </div>
-            <div class="flex items-center space-x-3">
-                <span class="font-bold text-sm">${currency}${itemTotal.toFixed(2)}</span>
-                <button class="remove-item text-red-400 hover:text-red-600 p-1" data-index="${index}">
-                    <i class="fas fa-trash-alt text-xs"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(itemElement);
-    });
-
-    document.querySelectorAll('.remove-item').forEach(button => {
-        button.addEventListener('click', function() {
-            removeFromCart(parseInt(this.dataset.index));
+            `;
+            container.appendChild(itemElement);
         });
-    });
-}
+
+        document.querySelectorAll('.remove-item').forEach(button => {
+            button.addEventListener('click', function() {
+                removeFromCart(parseInt(this.dataset.index));
+            });
+        });
+    }
 
     function removeFromCart(index) {
         const item = cart[index];
@@ -530,7 +609,6 @@ function renderProductsInListView(productsToShow) {
         document.getElementById('serviceCharge').textContent = `${currency}${serviceCharge.toFixed(2)}`;
         document.getElementById('totalAmount').textContent = `${currency}${total.toFixed(2)}`;
         
-        // Use standard JS to find labels by text content
         const allSpans = document.querySelectorAll('span');
         
         allSpans.forEach(span => {
@@ -625,86 +703,14 @@ function renderProductsInListView(productsToShow) {
         });
     }
 
-   const productSearchInput = document.getElementById('productSearch');
-if (productSearchInput) {
-    productSearchInput.addEventListener('input', function() {
-        const activeTab = document.querySelector('.category-tab.active');
-        filterProducts(activeTab ? activeTab.dataset.category : 'all');
-    });
-}
+    const productSearchInput = document.getElementById('productSearch');
+    if (productSearchInput) {
+        productSearchInput.addEventListener('input', function() {
+            const activeTab = document.querySelector('.category-tab.active');
+            filterProducts(activeTab ? activeTab.dataset.category : 'all');
+        });
+    }
 
     window.renderCart = renderCart;
     window.updateTotals = updateTotals;
 });
-
-function showNotification(message, type) {
-    const n = document.createElement('div');
-    n.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white text-sm font-medium`;
-    n.textContent = message;
-    document.body.appendChild(n);
-    setTimeout(() => {
-        n.style.opacity = '0';
-        n.style.transform = 'translateX(20px)';
-        setTimeout(() => n.remove(), 300);
-    }, 3000);
-}
-
-function setupViewToggle() {
-    const gridViewBtn = document.getElementById('gridViewBtn');
-    const listViewBtn = document.getElementById('listViewBtn');
-    const productsGrid = document.getElementById('productsGrid');
-    const productsList = document.getElementById('productsList');
-    
-    if (!gridViewBtn || !listViewBtn) return;
-    
-    // Helper function to render products in current view
-    function renderProductsInView() {
-        const searchTerm = document.getElementById('productSearch')?.value.toLowerCase() || '';
-        const activeTab = document.querySelector('.category-tab.active');
-        const category = activeTab ? activeTab.dataset.category : 'all';
-        
-        let filtered = products;
-        
-        if (category !== 'all') {
-            filtered = filtered.filter(p => p.category === category);
-        }
-        
-        if (searchTerm) {
-            filtered = filtered.filter(p => 
-                p.name.toLowerCase().includes(searchTerm) ||
-                (p.description && p.description.toLowerCase().includes(searchTerm)) ||
-                (p.category && p.category.toLowerCase().includes(searchTerm))
-            );
-        }
-        
-        if (currentView === 'grid') {
-            renderProductsInGridView(filtered);
-        } else {
-            renderProductsInListView(filtered);
-        }
-    }
-    
-    gridViewBtn.addEventListener('click', () => {
-        if (currentView === 'list') {
-            currentView = 'grid';
-            gridViewBtn.classList.add('active');
-            listViewBtn.classList.remove('active');
-            productsGrid.classList.remove('hidden');
-            productsList.classList.add('hidden');
-            // Re-render products in grid view
-            renderProductsInView();
-        }
-    });
-    
-    listViewBtn.addEventListener('click', () => {
-        if (currentView === 'grid') {
-            currentView = 'list';
-            listViewBtn.classList.add('active');
-            gridViewBtn.classList.remove('active');
-            productsList.classList.remove('hidden');
-            productsGrid.classList.add('hidden');
-            // Re-render products in list view
-            renderProductsInView();
-        }
-    });
-}

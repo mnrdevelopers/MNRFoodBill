@@ -576,4 +576,11 @@ window.printReceipt = function() {
     printWindow.document.close();
 };
 
-
+// Close print modal (for orders page)
+window.closePrintModal = function() {
+    const modal = document.getElementById('printModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+};

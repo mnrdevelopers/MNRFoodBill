@@ -19,6 +19,7 @@
     <script src="js/layout.js" defer></script>
     <script src="js/dashboard.js" defer></script>
     <script src="js/table-responsive.js" defer></script>
+    <script src="js/mobile-tables.js" defer></script>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -90,6 +91,15 @@
             <span class="text-sm text-gray-500" id="ordersCount">0 orders</span>
         </div>
     </div>
+
+<div class="view-toggle-container">
+    <button class="view-toggle-btn active" data-view="cards">
+        <i class="fas fa-th-large"></i> Cards
+    </button>
+    <button class="view-toggle-btn" data-view="table">
+        <i class="fas fa-table"></i> Table
+    </button>
+</div>
     
     <div class="table-container">
         <div class="table-wrapper">
@@ -174,6 +184,7 @@
     </div>
 </body>
 </html>
+
 
 
 

@@ -21,7 +21,7 @@ async function prepareReceipt() {
             phone: settings.phone || restaurantData.phone || '',
             gstin: settings.gstin || '',
             fssai: settings.fssai || '',
-            logoUrl: settings.logoUrl || restaurantData.logoUrl || '' // Add logo URL
+            logoUrl: settings.logoUrl || restaurantData.logoUrl || '' // Get logo URL
         };
         
         const MAX_WIDTH = 42;
@@ -46,7 +46,7 @@ async function prepareReceipt() {
         const now = new Date();
         const billNo = generateOrderId();
         
-        // Build receipt
+       // Build receipt
         let receipt = buildReceipt(
             restaurant, 
             customerName, 
@@ -65,7 +65,7 @@ async function prepareReceipt() {
             await mobilePrintWithRawBT(receipt, restaurant.name, billNo);
         } else {
             // Desktop: Show print preview modal with logo
-            showDesktopPrintPreview(receipt, restaurant.name, billNo, restaurant.logoUrl); // Pass logo URL
+            showDesktopPrintPreview(receipt, restaurant.name, billNo, restaurant.logoUrl);
         }
         
     } catch (error) {
@@ -664,6 +664,7 @@ function showNotification(message, type) {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+
 
 
 

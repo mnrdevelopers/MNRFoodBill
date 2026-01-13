@@ -1,6 +1,4 @@
 // Thermal printing functions - Professional Restaurant Bill Style
-let cart = []; // Make sure cart is accessible
-
 async function prepareReceipt() {
     const user = auth.currentUser;
     if (!user) return;
@@ -541,3 +539,4 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Android device detected - RawBT printing enabled');
     }
 });
+

@@ -4,15 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const deleteBtn = document.getElementById('deleteAccountBtn');
     const reauthForm = document.getElementById('reauthForm');
     
-    // Logo upload elements
-    const logoUploadArea = document.getElementById('logoUploadArea');
-    const logoImageInput = document.getElementById('logoImageInput');
-    const logoPreview = document.getElementById('logoPreview');
-    const logoPreviewContainer = document.getElementById('logoPreviewContainer');
-    const logoUploadContent = document.getElementById('logoUploadContent');
-    const removeLogo = document.getElementById('removeLogo');
-    const restaurantLogoUrl = document.getElementById('restaurantLogoUrl');
-    
     let pendingAction = null;
 
     auth.onAuthStateChanged(user => {
@@ -35,67 +26,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (el) el.value = val || '';
     };
 
-    // Initialize logo upload functionality
-    if (logoUploadArea && logoImageInput) {
-        // Trigger file input when clicking upload area
-        logoUploadArea.addEventListener('click', () => logoImageInput.click());
-        
-        logoImageInput.addEventListener('change', async function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            if (!file.type.match('image.*')) {
-                showNotification('Please select an image file', 'error');
-                return;
-            }
-            
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                showNotification('Image size should be less than 5MB', 'error');
-                return;
-            }
-            
-            // Show preview
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                logoPreview.src = e.target.result;
-                logoPreviewContainer.classList.remove('hidden');
-                logoUploadContent.classList.add('hidden');
-            };
-            reader.readAsDataURL(file);
-            
-            // Upload to Firebase Storage
-            try {
-                const user = auth.currentUser;
-                const storageRef = firebase.storage().ref();
-                const logoRef = storageRef.child(`restaurants/${user.uid}/logo/${Date.now()}_${file.name}`);
-                
-                // Show upload progress
-                showNotification('Uploading logo...', 'info');
-                
-                const snapshot = await logoRef.put(file);
-                const downloadURL = await snapshot.ref.getDownloadURL();
-                
-                // Save URL to hidden input
-                restaurantLogoUrl.value = downloadURL;
-                
-                showNotification('Logo uploaded successfully', 'success');
-                
-            } catch (error) {
-                console.error('Error uploading logo:', error);
-                showNotification('Error uploading logo: ' + error.message, 'error');
-            }
-        });
-        
-        // Remove logo
-        if (removeLogo) {
-            removeLogo.addEventListener('click', function(e) {
-                e.stopPropagation();
-                logoPreview.src = '';
-                logoPreviewContainer.classList.add('hidden');
-                logoUploadContent.classList.remove('hidden');
-                restaurantLogoUrl.value = '';
-                logoImageInput.value = '';
-            });
+    // Load existing logo on page load
+    if (typeof LogoUpload !== 'undefined' && LogoUpload.setLogoForEdit) {
+        const logoUrlInput = document.getElementById('restaurantLogoUrl');
+        if (logoUrlInput && logoUrlInput.value) {
+            LogoUpload.setLogoForEdit(logoUrlInput.value);
         }
     }
 
@@ -126,12 +61,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 setVal('ownerName', data.ownerName);
                 setVal('ownerPhone', data.ownerPhone || data.phone);
                 
-                // Logo
-                if (settings.logoUrl && logoPreview && restaurantLogoUrl) {
-                    restaurantLogoUrl.value = settings.logoUrl;
-                    logoPreview.src = settings.logoUrl;
-                    logoPreviewContainer.classList.remove('hidden');
-                    logoUploadContent.classList.add('hidden');
+                // Logo (load from settings or root level)
+                const logoUrl = settings.logoUrl || data.logoUrl;
+                if (logoUrl) {
+                    setVal('restaurantLogoUrl', logoUrl);
+                    // Set logo preview if LogoUpload is available
+                    if (typeof LogoUpload !== 'undefined' && LogoUpload.setLogoForEdit) {
+                        LogoUpload.setLogoForEdit(logoUrl);
+                    }
                 }
             }
             
@@ -160,6 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const ownerName = getVal('ownerName');
             const ownerPhone = getVal('ownerPhone');
+            const logoUrl = getVal('restaurantLogoUrl');
 
             const updatedData = {
                 name: getVal('resName'),
@@ -173,10 +111,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     serviceCharge: parseFloat(getVal('resService')) || 0,
                     gstin: getVal('resGSTIN'),
                     fssai: getVal('resFSSAI'),
-                    logoUrl: getVal('restaurantLogoUrl') // Add logo URL
+                    logoUrl: logoUrl // Add logo URL to settings
                 },
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
+
+            // Also store logo at root level for easy access
+            if (logoUrl) {
+                updatedData.logoUrl = logoUrl;
+            }
 
             try {
                 // Update both restaurant and user docs

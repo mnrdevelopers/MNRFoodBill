@@ -56,8 +56,16 @@ async function prepareReceipt() {
             cgstAmount, sgstAmount
         );
         
-        // IMMEDIATELY SHARE TO RAWTB
-        await shareToRawBT(receipt, billNo, restaurant.name);
+        // Check if mobile or desktop
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            // Mobile: Use RawBT
+            await shareToRawBT(receipt, billNo, restaurant.name);
+        } else {
+            // Desktop: Show print modal
+            showDesktopPrintModal(receipt);
+        }
         
     } catch (error) {
         console.error("Error preparing receipt:", error);
@@ -193,9 +201,10 @@ function buildReceipt(restaurant, customerName, customerPhone,
     return receipt;
 }
 
+// ================= MOBILE: RAWTB PRINTING =================
 async function shareToRawBT(receiptText, billNo, restaurantName) {
     try {
-        // First, save the order (do this BEFORE sharing)
+        // First, save the order
         await saveOrderAndClearCart();
         
         // Create file for sharing
@@ -222,7 +231,6 @@ async function shareToRawBT(receiptText, billNo, restaurantName) {
     } catch (error) {
         console.error('Share failed:', error);
         
-        // Fallback methods
         if (error.name !== 'AbortError') {
             // Try download method
             downloadFile(receiptText, `receipt_${billNo}.txt`);
@@ -231,6 +239,135 @@ async function shareToRawBT(receiptText, billNo, restaurantName) {
     }
 }
 
+// ================= DESKTOP: REGULAR PRINTING =================
+function showDesktopPrintModal(receiptText) {
+    // Save order first
+    saveOrderAndClearCart();
+    
+    // Set print content
+    const printContent = document.getElementById('printContent');
+    printContent.textContent = receiptText;
+    
+    // Show modal
+    const modal = document.getElementById('printModal');
+    modal.classList.remove('hidden');
+    
+    // Update modal buttons for desktop
+    const modalFooter = modal.querySelector('.flex.space-x-3');
+    if (modalFooter) {
+        modalFooter.innerHTML = `
+            <button onclick="printDesktopReceipt()" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
+                <i class="fas fa-print mr-2"></i> Print Now
+            </button>
+            <button onclick="closePrintModal()" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                Close
+            </button>
+        `;
+    }
+}
+
+window.printDesktopReceipt = function() {
+    const printContent = document.getElementById('printContent').textContent;
+    
+    // Create thermal printer style print window
+    const printWindow = window.open('', '_blank', 'width=240,height=600');
+    if (!printWindow) {
+        // Fallback to browser print dialog
+        printViaBrowser(printContent);
+        return;
+    }
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Print Receipt</title>
+            <style>
+                @media print {
+                    body { 
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 58mm !important;
+                        font-size: 9pt !important;
+                    }
+                    @page {
+                        margin: 0 !important;
+                        size: 58mm auto !important;
+                    }
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                }
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 9pt;
+                    width: 58mm;
+                    margin: 0 auto;
+                    padding: 2mm;
+                    line-height: 1;
+                    white-space: pre;
+                    letter-spacing: 0.01em;
+                }
+                .receipt {
+                    word-break: break-word;
+                    overflow-wrap: break-word;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="receipt">
+                <pre>${printContent}</pre>
+            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(() => {
+                        window.print();
+                        setTimeout(() => {
+                            window.close();
+                        }, 500);
+                    }, 100);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
+
+function printViaBrowser(printContent) {
+    // Create a hidden div for printing
+    const printDiv = document.createElement('div');
+    printDiv.id = 'printableReceipt';
+    printDiv.style.cssText = `
+        position: absolute;
+        left: -9999px;
+        top: -9999px;
+        width: 58mm;
+        font-family: 'Courier New', monospace;
+        font-size: 9pt;
+        white-space: pre;
+        line-height: 1;
+        padding: 2mm;
+        background: white;
+    `;
+    printDiv.textContent = printContent;
+    document.body.appendChild(printDiv);
+    
+    // Trigger print
+    window.print();
+    
+    // Clean up
+    setTimeout(() => {
+        if (printDiv.parentNode) {
+            printDiv.parentNode.removeChild(printDiv);
+        }
+    }, 100);
+    
+    closePrintModal();
+}
+
+// ================= COMMON FUNCTIONS =================
 function downloadFile(content, fileName) {
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -303,7 +440,6 @@ async function saveOrderAndClearCart() {
         
     } catch (error) {
         console.error('Error saving order:', error);
-        // Don't show error to user - just log it
     }
 }
 
@@ -316,10 +452,23 @@ function generateOrderId() {
     return `BILL${year}${month}${day}${random}`;
 }
 
-// Remove the old print modal function - we don't need it anymore
-window.prepareReceipt = prepareReceipt;
+function closePrintModal() {
+    const modal = document.getElementById('printModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+}
 
-// Override the printBill button click handler
+// ================= INITIALIZATION =================
+window.prepareReceipt = prepareReceipt;
+window.printReceipt = function() {
+    // This function is called from the old code - redirect to prepareReceipt
+    prepareReceipt();
+};
+window.closePrintModal = closePrintModal;
+
+// Update the print button click handler
 document.addEventListener('DOMContentLoaded', function() {
     const printBillBtn = document.getElementById('printBill');
     if (printBillBtn) {
@@ -349,10 +498,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Show printing notification
-            showNotification('Printing receipt...', 'info');
+            // Show processing notification
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                showNotification('Sending to printer...', 'info');
+            } else {
+                showNotification('Preparing print...', 'info');
+            }
             
-            // Call prepareReceipt which will trigger shareToRawBT
+            // Call prepareReceipt
             await prepareReceipt();
         });
     }
@@ -375,23 +529,9 @@ function showNotification(message, type) {
     }, 3000);
 }
 
-// Optional: Add a quick print status indicator
-function addPrintStatusIndicator() {
-    const statusDiv = document.createElement('div');
-    statusDiv.id = 'printStatus';
-    statusDiv.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hidden';
-    statusDiv.innerHTML = `
-        <div class="flex items-center space-x-2">
-            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-            <span>Printing...</span>
-        </div>
-    `;
-    document.body.appendChild(statusDiv);
-}
-
-// Initialize on load
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', addPrintStatusIndicator);
-} else {
-    addPrintStatusIndicator();
-}
+// Add device detection for debugging
+console.log('Device detected:', {
+    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+    userAgent: navigator.userAgent,
+    platform: navigator.platform
+});

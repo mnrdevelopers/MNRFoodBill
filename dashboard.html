@@ -83,26 +83,49 @@
                 </div>
                 
 <!-- Recent Orders -->
-<div class="bg-white rounded-xl shadow p-4"> <!-- Changed p-6 to p-4 -->
-    <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Orders</h2>
+<div class="table-card mb-6">
+    <div class="table-header">
+        <h2 class="text-xl font-bold text-gray-800">Recent Orders</h2>
+        <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-500" id="ordersCount">0 orders</span>
+        </div>
+    </div>
+    
     <div class="table-container">
         <div class="table-wrapper">
-            <div class="scroll-indicator">→</div>
+            <div class="scroll-indicator">
+                <i class="fas fa-chevron-right"></i>
+            </div>
             <table class="w-full">
                 <thead>
                     <tr class="border-b">
-                        <th class="text-left py-3 px-4">Order ID</th>
-                        <th class="text-left py-3 px-4">Time</th>
-                        <th class="text-left py-3 px-4">Items</th>
-                        <th class="text-left py-3 px-4">Amount</th>
-                        <th class="text-left py-3 px-4">Status</th>
+                        <th class="text-left py-4 px-4">Order ID</th>
+                        <th class="text-left py-4 px-4">Time</th>
+                        <th class="text-left py-4 px-4">Items</th>
+                        <th class="text-left py-4 px-4">Amount</th>
+                        <th class="text-left py-4 px-4">Status</th>
                     </tr>
                 </thead>
-                <tbody id="recentOrders">
+                <tbody id="recentOrders" class="divide-y divide-gray-100">
                     <!-- Orders will be loaded here -->
+                    <tr class="loading-row">
+                        <td colspan="5" class="py-12 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <div class="w-12 h-12 border-3 border-gray-200 border-t-red-500 rounded-full animate-spin mb-3"></div>
+                                <p class="text-gray-500 text-sm">Loading orders...</p>
+                            </div>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
+    </div>
+    
+    <div class="table-footer p-4 border-t border-gray-100">
+        <a href="orders.html" class="text-red-500 hover:text-red-600 font-medium text-sm inline-flex items-center">
+            <span>View all orders</span>
+            <i class="fas fa-arrow-right ml-2"></i>
+        </a>
     </div>
 </div>
 
@@ -151,6 +174,7 @@
     </div>
 </body>
 </html>
+
 
 
 

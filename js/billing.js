@@ -404,6 +404,67 @@ function renderProductsInListView(productsToShow) {
         });
     });
 }
+
+// Also update the setupViewToggle function to use a proper render function
+function setupViewToggle() {
+    const gridViewBtn = document.getElementById('gridViewBtn');
+    const listViewBtn = document.getElementById('listViewBtn');
+    const productsGrid = document.getElementById('productsGrid');
+    const productsList = document.getElementById('productsList');
+    
+    if (!gridViewBtn || !listViewBtn) return;
+    
+    // Helper function to render products in current view
+    function renderProductsInView() {
+        const searchTerm = document.getElementById('productSearch')?.value.toLowerCase() || '';
+        const activeTab = document.querySelector('.category-tab.active');
+        const category = activeTab ? activeTab.dataset.category : 'all';
+        
+        let filtered = products;
+        
+        if (category !== 'all') {
+            filtered = filtered.filter(p => p.category === category);
+        }
+        
+        if (searchTerm) {
+            filtered = filtered.filter(p => 
+                p.name.toLowerCase().includes(searchTerm) ||
+                (p.description && p.description.toLowerCase().includes(searchTerm)) ||
+                (p.category && p.category.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        if (currentView === 'grid') {
+            renderProductsInGridView(filtered);
+        } else {
+            renderProductsInListView(filtered);
+        }
+    }
+    
+    gridViewBtn.addEventListener('click', () => {
+        if (currentView === 'list') {
+            currentView = 'grid';
+            gridViewBtn.classList.add('active');
+            listViewBtn.classList.remove('active');
+            productsGrid.classList.remove('hidden');
+            productsList.classList.add('hidden');
+            // Re-render products in grid view
+            renderProductsInView();
+        }
+    });
+    
+    listViewBtn.addEventListener('click', () => {
+        if (currentView === 'grid') {
+            currentView = 'list';
+            listViewBtn.classList.add('active');
+            gridViewBtn.classList.remove('active');
+            productsList.classList.remove('hidden');
+            productsGrid.classList.add('hidden');
+            // Re-render products in list view
+            renderProductsInView();
+        }
+    });
+}
     
     function addToCart(productId) {
     const product = products.find(p => p.id === productId);
@@ -681,4 +742,5 @@ function setupViewToggle() {
         }
     });
 }
+
 

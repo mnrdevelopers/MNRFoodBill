@@ -502,3 +502,78 @@ ${restaurant.ownerPhone ? `\nContact Owner: ${restaurant.ownerPhone}\n` : ''}
     window.refreshOrdersTable = refreshOrdersTable;
 });
 
+// Global print function for orders page
+window.printReceipt = function() {
+    const receiptText = document.getElementById('printContent').getAttribute('data-receipt-text') || 
+                       document.getElementById('printContent').textContent;
+    
+    if (!receiptText) {
+        showNotification('No receipt to print', 'error');
+        return;
+    }
+    
+    // Create a print window with thermal printer styling
+    const printWindow = window.open('', '_blank');
+    
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Print Receipt</title>
+            <style>
+                @media print {
+                    body, html {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 58mm !important;
+                        font-family: 'Courier New', monospace !important;
+                        font-size: 12px !important;
+                        line-height: 1.1 !important;
+                    }
+                    @page {
+                        margin: 0 !important;
+                        size: 58mm auto !important;
+                    }
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                }
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    line-height: 1.1;
+                    width: 58mm;
+                    margin: 0 auto;
+                    padding: 2mm;
+                    white-space: pre;
+                    word-wrap: break-word;
+                }
+                .receipt-content {
+                    max-width: 42ch;
+                    margin: 0 auto;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="receipt-content">
+                ${receiptText.replace(/\n/g, '<br>')}
+            </div>
+            <script>
+                // Auto-print
+                setTimeout(function() {
+                    window.print();
+                    setTimeout(function() {
+                        window.close();
+                    }, 500);
+                }, 100);
+            </script>
+        </body>
+        </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+};
+
+

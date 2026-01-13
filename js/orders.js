@@ -8,55 +8,61 @@ document.addEventListener('DOMContentLoaded', function() {
     let isStaff = false;
 
     // Check auth
-   auth.onAuthStateChanged(async user => {
-    if (!user) {
-        window.location.href = 'index.html';
-    } else {
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (userDoc.exists) {
-            const userData = userDoc.data();
-            isStaff = userData.role === 'staff';
+    auth.onAuthStateChanged(async user => {
+        if (!user) {
+            window.location.href = 'index.html';
+        } else {
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                isStaff = userData.role === 'staff';
+            }
+            await loadOrders();
+            refreshOrdersTable();
+            loadTodayStats();
         }
-        loadOrders();
-        loadTodayStats();
-    }
-});
+    });
 
-    // Load orders
+    // Load orders - now returns a Promise
     function loadOrders(filters = {}) {
-        const user = auth.currentUser;
-        let query = db.collection('orders')
-            .where('restaurantId', '==', user.uid)
-            .orderBy('createdAt', 'desc');
+        return new Promise((resolve, reject) => {
+            const user = auth.currentUser;
+            let query = db.collection('orders')
+                .where('restaurantId', '==', user.uid)
+                .orderBy('createdAt', 'desc');
 
-        // Apply filters
-        if (filters.startDate && filters.endDate) {
-            const start = new Date(filters.startDate);
-            const end = new Date(filters.endDate);
-            end.setHours(23, 59, 59, 999);
-            
-            query = query.where('createdAt', '>=', start)
-                         .where('createdAt', '<=', end);
-        }
+            // Apply filters
+            if (filters.startDate && filters.endDate) {
+                const start = new Date(filters.startDate);
+                const end = new Date(filters.endDate);
+                end.setHours(23, 59, 59, 999);
+                
+                query = query.where('createdAt', '>=', start)
+                            .where('createdAt', '<=', end);
+            }
 
-        if (filters.status && filters.status !== 'all') {
-            query = query.where('status', '==', filters.status);
-        }
+            if (filters.status && filters.status !== 'all') {
+                query = query.where('status', '==', filters.status);
+            }
 
-        query.get()
-            .then(snapshot => {
-                orders = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    orders.push({
-                        id: doc.id,
-                        ...data,
-                        createdAt: data.createdAt?.toDate() || new Date()
+            query.get()
+                .then(snapshot => {
+                    orders = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        orders.push({
+                            id: doc.id,
+                            ...data,
+                            createdAt: data.createdAt?.toDate() || new Date()
+                        });
                     });
+                    resolve(orders);
+                })
+                .catch(error => {
+                    console.error("Error loading orders:", error);
+                    reject(error);
                 });
-                renderOrdersTable();
-                updatePagination();
-            });
+        });
     }
 
     // Load today's stats
@@ -94,6 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Render orders table
     function renderOrdersTable() {
         const tbody = document.getElementById('ordersTable');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         if (orders.length === 0) {
@@ -139,22 +146,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${order.status}
                     </span>
                 </td>
-               <td class="py-4 px-6">
-    <div class="flex space-x-2">
-        <button class="view-order text-blue-500 hover:text-blue-700" data-id="${order.id}" title="View Details">
-            <i class="fas fa-eye"></i>
-        </button>
-        <button class="print-order text-orange-500 hover:text-orange-700" data-id="${order.id}" title="Print Receipt">
-            <i class="fas fa-print"></i>
-        </button>
-        ${!isStaff ? `
-            <button class="delete-order text-red-500 hover:text-red-700" data-id="${order.id}" title="Delete Order">
-                <i class="fas fa-trash"></i>
-            </button>
-        ` : ''}
-    </div>
-</td>
-    `;
+                <td class="py-4 px-6">
+                    <div class="flex space-x-2">
+                        <button class="view-order text-blue-500 hover:text-blue-700" data-id="${order.id}" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="print-order text-orange-500 hover:text-orange-700" data-id="${order.id}" title="Print Receipt">
+                            <i class="fas fa-print"></i>
+                        </button>
+                        ${!isStaff ? `
+                            <button class="delete-order text-red-500 hover:text-red-700" data-id="${order.id}" title="Delete Order">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            `;
             tbody.appendChild(row);
         });
 
@@ -341,21 +348,20 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('deleteOrderModal').classList.add('hidden');
     };
 
-    document.getElementById('confirmDeleteOrder').addEventListener('click', function() {
+    document.getElementById('confirmDeleteOrder').addEventListener('click', async function() {
         if (!orderToDelete) return;
         
-        db.collection('orders').doc(orderToDelete).delete()
-            .then(() => {
-                showNotification('Order deleted successfully', 'success');
-                orders = orders.filter(o => o.id !== orderToDelete);
-                renderOrdersTable();
-                updatePagination();
-                loadTodayStats(); // Refresh stats in case a today's order was deleted
-                closeDeleteOrderModal();
-            })
-            .catch(error => {
-                showNotification('Error deleting order: ' + error.message, 'error');
-            });
+        try {
+            await db.collection('orders').doc(orderToDelete).delete();
+            showNotification('Order deleted successfully', 'success');
+            orders = orders.filter(o => o.id !== orderToDelete);
+            refreshOrdersTable();
+            updatePagination();
+            loadTodayStats(); // Refresh stats in case a today's order was deleted
+            closeDeleteOrderModal();
+        } catch (error) {
+            showNotification('Error deleting order: ' + error.message, 'error');
+        }
     });
 
     // Print order directly
@@ -373,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Apply filters
-    document.getElementById('applyFilter').addEventListener('click', function() {
+    document.getElementById('applyFilter').addEventListener('click', async function() {
         const filters = {
             startDate: document.getElementById('startDate').value,
             endDate: document.getElementById('endDate').value,
@@ -381,24 +387,26 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         currentPage = 1;
-        loadOrders(filters);
+        await loadOrders(filters);
+        refreshOrdersTable();
     });
 
     // Reset filters
-    document.getElementById('resetFilter').addEventListener('click', function() {
+    document.getElementById('resetFilter').addEventListener('click', async function() {
         document.getElementById('startDate').value = '';
         document.getElementById('endDate').value = '';
         document.getElementById('statusFilter').value = 'all';
         
         currentPage = 1;
-        loadOrders({});
+        await loadOrders({});
+        refreshOrdersTable();
     });
 
     // Pagination
     document.getElementById('prevPage').addEventListener('click', function() {
         if (currentPage > 1) {
             currentPage--;
-            renderOrdersTable();
+            refreshOrdersTable();
             updatePagination();
         }
     });
@@ -407,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalPages = Math.ceil(orders.length / ordersPerPage);
         if (currentPage < totalPages) {
             currentPage++;
-            renderOrdersTable();
+            refreshOrdersTable();
             updatePagination();
         }
     });
@@ -438,6 +446,18 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => notification.remove(), 300);
         }, 3000);
     }
+
+    // Refresh orders table with responsive tables
+    function refreshOrdersTable() {
+        renderOrdersTable();
+        if (window.ResponsiveTables && window.ResponsiveTables.refresh) {
+            setTimeout(() => {
+                window.ResponsiveTables.refresh();
+            }, 100);
+        }
+    }
+
+    // Make functions globally accessible if needed
+    window.loadOrders = loadOrders;
+    window.refreshOrdersTable = refreshOrdersTable;
 });
-
-

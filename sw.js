@@ -102,22 +102,6 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   
-  // Detect iOS/Safari user agent from request headers
-  const userAgent = event.request.headers.get('user-agent') || '';
-  const isIOS = /iPad|iPhone|iPod/.test(userAgent);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(userAgent);
-  
-  // iOS/Safari: Skip caching for certain file types
-  if (isIOS || isSafari) {
-    // Skip caching for dynamic content
-    if (url.pathname.includes('firestore.googleapis.com') || 
-        url.pathname.includes('__') || 
-        url.search.includes('_=')) {
-      console.log('[Service Worker] iOS/Safari detected - skipping cache for:', url.pathname);
-      return fetch(event.request);
-    }
-  }
-  
   // Special handling for root URL when user might be logged in
   if (url.pathname === BASE_PATH || url.pathname === BASE_PATH + 'index.html') {
     event.respondWith(

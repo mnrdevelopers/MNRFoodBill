@@ -47,23 +47,40 @@
                 </div>
                 
 <!-- Products Table -->
-<div class="bg-white rounded-xl shadow overflow-hidden p-4">
+<div class="table-card mb-6">
+    <div class="table-header">
+        <h2 class="text-xl font-bold text-gray-800">Product List</h2>
+        <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-500 px-3 py-1 bg-gray-100 rounded-full" id="productsCount">0 products</span>
+        </div>
+    </div>
+    
     <div class="table-container">
         <div class="table-wrapper">
-            <div class="scroll-indicator">→</div>
+            <div class="scroll-indicator">
+                <i class="fas fa-chevron-right"></i>
+            </div>
             <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="py-3 px-4 text-left">Name</th>
-                        <th class="py-3 px-4 text-left">Category</th>
-                        <th class="py-3 px-4 text-left">Price</th>
-                        <th class="py-3 px-4 text-left">Quantity</th>
-                        <th class="py-3 px-4 text-left">Type</th>
-                        <th class="py-3 px-4 text-left">Actions</th>
+                        <th class="py-4 px-4 text-left">Name</th>
+                        <th class="py-4 px-4 text-left">Category</th>
+                        <th class="py-4 px-4 text-left">Price</th>
+                        <th class="py-4 px-4 text-left">Quantity</th>
+                        <th class="py-4 px-4 text-left">Type</th>
+                        <th class="py-4 px-4 text-left">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="productsTable">
+                <tbody id="productsTable" class="divide-y divide-gray-100">
                     <!-- Products will be loaded here -->
+                    <tr class="loading-row">
+                        <td colspan="6" class="py-12 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <div class="w-12 h-12 border-3 border-gray-200 border-t-red-500 rounded-full animate-spin mb-3"></div>
+                                <p class="text-gray-500 text-sm">Loading products...</p>
+                            </div>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -264,6 +281,7 @@
     </div>
 </body>
 </html>
+
 
 
 

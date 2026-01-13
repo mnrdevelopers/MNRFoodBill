@@ -292,24 +292,51 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Print order receipt
-    window.printOrderReceipt = function() {
-        if (!selectedOrder) return;
+   window.printOrderReceipt = async function() {
+    if (!selectedOrder) return;
+
+    try {
+        // Fetch restaurant details first
+        const user = auth.currentUser;
+        const resDoc = await db.collection('restaurants').doc(user.uid).get();
+        
+        if (!resDoc.exists) {
+            throw new Error('Restaurant settings not found');
+        }
+        
+        const restaurantData = resDoc.data();
+        const settings = restaurantData.settings || {};
+        
+        const restaurant = {
+            name: restaurantData.name || 'Restaurant Name',
+            ownerName: restaurantData.ownerName || '',
+            ownerPhone: restaurantData.ownerPhone || '',
+            address: settings.address || restaurantData.address || '',
+            phone: settings.phone || restaurantData.phone || '',
+            gstin: settings.gstin || '',
+            fssai: settings.fssai || ''
+        };
 
         // Prepare receipt for printing
         let receipt = `
-            ${'='.repeat(32)}
-                FASTFOOD RESTAURANT
-            ${'='.repeat(32)}
-            Date: ${selectedOrder.createdAt.toLocaleDateString('en-IN')}
-            Time: ${selectedOrder.createdAt.toLocaleTimeString('en-IN', {hour12: true})}
-            ${'-'.repeat(32)}
-            Order ID: ${selectedOrder.orderId || selectedOrder.id}
-            Customer: ${selectedOrder.customerName}
-            Phone: ${selectedOrder.customerPhone || 'N/A'}
-            ${'-'.repeat(32)}
-            ITEM            QTY   AMOUNT
-            ${'-'.repeat(32)}
-        `;
+${'='.repeat(32)}
+        ${restaurant.name.toUpperCase()}
+${'='.repeat(32)}
+${restaurant.address ? `Address: ${restaurant.address}\n` : ''}
+${restaurant.phone ? `Phone: ${restaurant.phone}\n` : ''}
+${restaurant.gstin ? `GSTIN: ${restaurant.gstin}\n` : ''}
+${restaurant.fssai ? `FSSAI: ${restaurant.fssai}\n` : ''}
+${'-'.repeat(32)}
+Date: ${selectedOrder.createdAt.toLocaleDateString('en-IN')}
+Time: ${selectedOrder.createdAt.toLocaleTimeString('en-IN', {hour12: true})}
+${'-'.repeat(32)}
+Order ID: ${selectedOrder.orderId || selectedOrder.id}
+Customer: ${selectedOrder.customerName}
+Phone: ${selectedOrder.customerPhone || 'N/A'}
+${'-'.repeat(32)}
+ITEM            QTY   AMOUNT
+${'-'.repeat(32)}
+`;
         
         if (selectedOrder.items) {
             selectedOrder.items.forEach(item => {
@@ -318,25 +345,38 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
+        // Calculate taxes based on saved rates or use defaults
+        const gstRate = selectedOrder.gstRate || settings.gstRate || 0;
+        const serviceRate = selectedOrder.serviceChargeRate || settings.serviceCharge || 0;
+        
         receipt += `
-            ${'-'.repeat(32)}
-            Subtotal:        ₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            GST (${selectedOrder.gstRate || 0}%):       ₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            Service (${selectedOrder.serviceChargeRate || 0}%):    ₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            ${'-'.repeat(32)}
-            TOTAL:          ₹${selectedOrder.total ? selectedOrder.total.toFixed(2).padStart(10) : '0.00'.padStart(10)}
-            ${'='.repeat(32)}
-            Status: ${selectedOrder.status}
-            ${'='.repeat(32)}
-            *** DUPLICATE COPY ***
-        `;
+${'-'.repeat(32)}
+Subtotal:        ₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2).padStart(10) : '0.00'.padStart(10)}
+${gstRate > 0 ? `GST (${gstRate}%):       ₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2).padStart(10) : '0.00'.padStart(10)}\n` : ''}
+${serviceRate > 0 ? `Service (${serviceRate}%):    ₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2).padStart(10) : '0.00'.padStart(10)}\n` : ''}
+${'-'.repeat(32)}
+TOTAL:          ₹${selectedOrder.total ? selectedOrder.total.toFixed(2).padStart(10) : '0.00'.padStart(10)}
+${'='.repeat(32)}
+Status: ${selectedOrder.status}
+${'='.repeat(32)}
+${restaurant.ownerPhone ? `\nContact Owner: ${restaurant.ownerPhone}\n` : ''}
+*** DUPLICATE COPY ***
+`;
         
         // Set print content and show modal
         document.getElementById('printContent').textContent = receipt;
         closeOrderModal();
         document.getElementById('printModal').classList.remove('hidden');
-    };
-
+        
+        // Store receipt text for printing
+        document.getElementById('printContent').setAttribute('data-receipt-text', receipt);
+        
+    } catch (error) {
+        console.error("Error printing receipt:", error);
+        showNotification('Error loading restaurant details: ' + error.message, 'error');
+    }
+};
+    
     // Delete logic
     function showDeleteOrderModal(orderId) {
         orderToDelete = orderId;
@@ -461,3 +501,4 @@ document.addEventListener('DOMContentLoaded', function() {
     window.loadOrders = loadOrders;
     window.refreshOrdersTable = refreshOrdersTable;
 });
+

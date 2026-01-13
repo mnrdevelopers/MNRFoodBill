@@ -19,23 +19,41 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// IMPORTANT: Set settings BEFORE calling any other Firestore methods (like enablePersistence)
+// IMPORTANT: iOS/Safari specific settings
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+// Configure Firestore with iOS compatibility
 db.settings({
-  cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+  cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+  experimentalForceLongPolling: isIOS || isSafari, // Force long polling for iOS/Safari
+  merge: true
 });
 
-// Enable offline persistence after settings are applied
-db.enablePersistence()
-  .then(() => {
-    console.log("Offline persistence enabled");
-  })
-  .catch(err => {
-    if (err.code == 'failed-precondition') {
-        console.warn("Multiple tabs open, persistence can only be enabled in one tab at a time.");
-    } else if (err.code == 'unimplemented') {
-        console.warn("Browser doesn't support persistence.");
-    }
-  });
+// Enable offline persistence with iOS-specific handling
+if (isIOS || isSafari) {
+  // iOS/Safari requires special handling
+  console.log("iOS/Safari detected - using compatible persistence settings");
+  
+  // Try to enable persistence but don't block on errors
+  db.enablePersistence({ synchronizeTabs: false })
+    .then(() => {
+      console.log("Offline persistence enabled for iOS/Safari");
+    })
+    .catch(err => {
+      console.warn("iOS/Safari persistence warning:", err.code, err.message);
+      // Continue without persistence if it fails
+    });
+} else {
+  // Normal persistence for other browsers
+  db.enablePersistence()
+    .then(() => {
+      console.log("Offline persistence enabled");
+    })
+    .catch(err => {
+      console.warn("Persistence warning:", err.code);
+    });
+}
 
 // Initialize Firebase Remote Config
 const remoteConfig = firebase.remoteConfig();
@@ -54,3 +72,16 @@ remoteConfig.defaultConfig = {
 // Export remoteConfig
 window.remoteConfig = remoteConfig;
 
+// iOS/Safari specific timeout fix
+if (isIOS || isSafari) {
+  // Increase timeout for slow connections
+  db.settings({ 
+    experimentalForceLongPolling: true,
+    experimentalAutoDetectLongPolling: false
+  });
+  
+  // Add connection state listener for debugging
+  db.enableNetwork()
+    .then(() => console.log("Firestore network enabled"))
+    .catch(err => console.error("Network enable failed:", err));
+}

@@ -1672,4 +1672,29 @@ body.table-scrolling {
     z-index: 9999;
 }
 
+/* Add to styles.css */
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+/* Hide print preview elements */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    
+    iframe {
+        visibility: visible;
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+}
+
 

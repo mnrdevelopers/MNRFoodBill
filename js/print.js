@@ -91,15 +91,31 @@ function buildReceipt(restaurant, customerName, customerPhone,
         return label + dots + value;
     }
     
+    // Function to make text appear bigger
+    function makeBigText(text) {
+        // Add spaces between characters for visual emphasis
+        let spacedText = '';
+        for (let i = 0; i < text.length; i++) {
+            spacedText += text[i] + ' ';
+        }
+        spacedText = spacedText.trim();
+        return centerText(spacedText);
+    }
+    
     // Build receipt text
     let receipt = '';
     
-    // HEADER
+    // HEADER with bigger restaurant name
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
-    // Restaurant name - make it uppercase and centered
-    const restaurantName = restaurant.name.toUpperCase() + ' RESTAURANT';
-    receipt += centerText(restaurantName) + '\n';
+    // Restaurant name in bigger style
+    const restaurantName = restaurant.name.toUpperCase();
+    receipt += makeBigText(restaurantName) + '\n';
+    
+    // Add decorative line under restaurant name
+    const underlineLength = Math.min(restaurantName.length * 2, MAX_WIDTH);
+    const underlinePadding = Math.max(0, Math.floor((MAX_WIDTH - underlineLength) / 2));
+    receipt += ' '.repeat(underlinePadding) + '*'.repeat(underlineLength) + '\n';
     
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
@@ -624,4 +640,5 @@ function showNotification(message, type) {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+
 

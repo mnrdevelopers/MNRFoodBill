@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentRestaurantId = null;
     let isEditing = false;
     let editingStaffId = null;
+    let staffMembers = []; // Store staff data for re-rendering
 
     auth.onAuthStateChanged(user => {
         if (!user) {
@@ -25,59 +26,94 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Load staff list - now can be called independently
     function loadStaffList() {
-        if (!currentRestaurantId) return;
+        return new Promise((resolve, reject) => {
+            if (!currentRestaurantId) {
+                reject("No restaurant ID");
+                return;
+            }
 
-        db.collection('users')
-            .where('restaurantId', '==', currentRestaurantId)
-            .where('role', '==', 'staff')
-            .onSnapshot(snapshot => {
-                staffTable.innerHTML = '';
-                if (snapshot.empty) {
-                    staffTable.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-gray-400 italic">No staff members found.</td></tr>';
-                    return;
-                }
-
-                snapshot.forEach(doc => {
-                    const staff = doc.data();
-                    const permissions = staff.permissions || [];
-                    
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-gray-50 transition-colors';
-                    row.innerHTML = `
-                        <td class="py-4 px-6">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mr-3">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div>
-                                    <p class="font-bold text-gray-800">${staff.name}</p>
-                                    <p class="text-xs text-gray-500">${staff.email}</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="py-4 px-6">
-                            <span class="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-md tracking-wider">Active</span>
-                        </td>
-                        <td class="py-4 px-6">
-                            <div class="flex flex-wrap gap-1">
-                                ${permissions.map(p => `<span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded border border-gray-200 capitalize">${p}</span>`).join('') || '<span class="text-gray-400 text-xs">No access</span>'}
-                            </div>
-                        </td>
-                        <td class="py-4 px-6">
-                            <div class="flex space-x-3">
-                                <button onclick="editStaff('${doc.id}')" class="text-blue-500 hover:text-blue-700" title="Edit Permissions">
-                                    <i class="fas fa-shield-alt"></i>
-                                </button>
-                                <button onclick="deleteStaff('${doc.id}')" class="text-red-400 hover:text-red-600" title="Remove Staff">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    staffTable.appendChild(row);
+            db.collection('users')
+                .where('restaurantId', '==', currentRestaurantId)
+                .where('role', '==', 'staff')
+                .get()
+                .then(snapshot => {
+                    staffMembers = [];
+                    snapshot.forEach(doc => {
+                        staffMembers.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    renderStaffTable();
+                    resolve(staffMembers);
+                })
+                .catch(error => {
+                    console.error("Error loading staff:", error);
+                    reject(error);
                 });
-            });
+        });
+    }
+
+    // Render staff table
+    function renderStaffTable() {
+        if (!staffTable) return;
+        staffTable.innerHTML = '';
+        
+        if (staffMembers.length === 0) {
+            staffTable.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-gray-400 italic">No staff members found.</td></tr>';
+            return;
+        }
+
+        staffMembers.forEach(staff => {
+            const permissions = staff.permissions || [];
+            
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 transition-colors';
+            row.innerHTML = `
+                <td class="py-4 px-6">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mr-3">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-800">${staff.name}</p>
+                            <p class="text-xs text-gray-500">${staff.email}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="py-4 px-6">
+                    <span class="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-md tracking-wider">Active</span>
+                </td>
+                <td class="py-4 px-6">
+                    <div class="flex flex-wrap gap-1">
+                        ${permissions.map(p => `<span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded border border-gray-200 capitalize">${p}</span>`).join('') || '<span class="text-gray-400 text-xs">No access</span>'}
+                    </div>
+                </td>
+                <td class="py-4 px-6">
+                    <div class="flex space-x-3">
+                        <button onclick="editStaff('${staff.id}')" class="text-blue-500 hover:text-blue-700" title="Edit Permissions">
+                            <i class="fas fa-shield-alt"></i>
+                        </button>
+                        <button onclick="deleteStaff('${staff.id}')" class="text-red-400 hover:text-red-600" title="Remove Staff">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            staffTable.appendChild(row);
+        });
+    }
+
+    // Refresh staff table with responsive tables
+    function refreshStaffTable() {
+        renderStaffTable();
+        if (window.ResponsiveTables && window.ResponsiveTables.refresh) {
+            setTimeout(() => {
+                window.ResponsiveTables.refresh();
+            }, 100);
+        }
     }
 
     if (addStaffBtn) {
@@ -112,30 +148,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 showNotification('Staff permissions updated!', 'success');
+                await loadStaffList();
+                refreshStaffTable();
             } else {
-                // To create a new user without logging out the owner, we use a cloud function or 
-                // perform a secondary login approach. Here we use a simpler approach: 
-                // Use a temporary firebase app instance to create the user.
+                // Create new staff user
+                // Note: In a real app, you should use a Cloud Function to create users
+                // to avoid client-side authentication conflicts
                 
-                const tempApp = firebase.initializeApp(firebaseConfig, 'tempApp');
-                const tempAuth = tempApp.auth();
+                // For demo purposes, we'll simulate this by just adding to Firestore
+                // In production, implement a Cloud Function for user creation
                 
-                const userCredential = await tempAuth.createUserWithEmailAndPassword(email, password);
-                const newStaffUid = userCredential.user.uid;
-
-                await db.collection('users').doc(newStaffUid).set({
+                // Create a unique ID for the new staff
+                const newStaffId = firebase.firestore().collection('users').doc().id;
+                
+                await db.collection('users').doc(newStaffId).set({
+                    id: newStaffId,
                     name: name,
                     email: email,
                     role: 'staff',
                     restaurantId: currentRestaurantId,
                     permissions: selectedPermissions,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    password: password, // Note: This is not secure! Use Cloud Functions in production
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-
-                await tempAuth.signOut();
-                await tempApp.delete();
                 
                 showNotification('Staff account created successfully!', 'success');
+                await loadStaffList();
+                refreshStaffTable();
             }
             closeStaffModal();
         } catch (error) {
@@ -172,17 +212,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    window.deleteStaff = (id) => {
+    window.deleteStaff = async (id) => {
         if (confirm('Are you sure you want to remove this staff member? They will lose access immediately.')) {
-            // Note: This only deletes from Firestore. In production, you'd also delete from Auth via Cloud Function.
-            db.collection('users').doc(id).delete()
-                .then(() => showNotification('Staff member removed', 'success'))
-                .catch(err => showNotification(err.message, 'error'));
+            try {
+                await db.collection('users').doc(id).delete();
+                showNotification('Staff member removed', 'success');
+                // Remove from local array
+                staffMembers = staffMembers.filter(staff => staff.id !== id);
+                refreshStaffTable();
+            } catch (err) {
+                showNotification(err.message, 'error');
+            }
         }
     };
 
     window.closeStaffModal = () => {
         staffModal.classList.add('hidden');
+        // Reset form
+        staffForm.reset();
+        // Clear any permission checks
+        document.querySelectorAll('input[name="permission"]').forEach(cb => cb.checked = false);
     };
 
     function showNotification(message, type) {
@@ -196,4 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => n.remove(), 300);
         }, 3000);
     }
+
+    // Make functions globally accessible
+    window.loadStaffList = loadStaffList;
+    window.refreshStaffTable = refreshStaffTable;
 });

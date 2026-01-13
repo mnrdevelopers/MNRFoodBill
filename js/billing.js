@@ -7,7 +7,34 @@ let restaurantSettings = {
     currency: ''
 };
 
-// Global rendering functions
+// Global functions
+function addToCart(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+        console.error("Product not found in local state:", productId);
+        return;
+    }
+
+    const existingItem = cart.find(item => item.id === productId);
+    
+    if (existingItem) {
+        existingItem.quantity += 1;
+    } else {
+        cart.push({
+            id: product.id,
+            name: product.name,
+            price: Number(product.price) || 0,
+            quantity: 1,
+            imageUrl: product.imageUrl,
+            category: product.category
+        });
+    }
+
+    renderCart();
+    updateTotals();
+    showNotification(`${product.name} added to cart!`, 'success');
+}
+
 function renderProductsInGridView(productsToShow) {
     const container = document.getElementById('productsGrid');
     if (!container) return;
@@ -483,33 +510,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             renderProductsInListView(productsToShow);
         }
-    }
-    
-    function addToCart(productId) {
-        const product = products.find(p => p.id === productId);
-        if (!product) {
-            console.error("Product not found in local state:", productId);
-            return;
-        }
-
-        const existingItem = cart.find(item => item.id === productId);
-        
-        if (existingItem) {
-            existingItem.quantity += 1;
-        } else {
-            cart.push({
-                id: product.id,
-                name: product.name,
-                price: Number(product.price) || 0,
-                quantity: 1,
-                imageUrl: product.imageUrl,
-                category: product.category
-            });
-        }
-
-        renderCart();
-        updateTotals();
-        showNotification(`${product.name} added to cart!`, 'success');
     }
     
     function renderCart() {

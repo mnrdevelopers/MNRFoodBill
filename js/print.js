@@ -95,19 +95,18 @@ function buildReceipt(restaurant, customerName, customerPhone,
     // Build receipt text
     let receipt = '';
     
-    // HEADER with logo placeholder
+    // HEADER with logo marker
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
-    // Check if restaurant has a logo
+    // Add logo marker if logo exists
     if (restaurant.logoUrl) {
-        // Add logo placeholder - in text receipt, we'll add [LOGO] marker
         receipt += centerText('[LOGO]') + '\n\n';
     }
     
     // Restaurant name in bigger style
     const restaurantName = restaurant.name.toUpperCase();
     
-    // Make restaurant name appear bigger by adding spaces
+    // Make restaurant name appear bigger
     let bigName = '';
     for (let i = 0; i < restaurantName.length; i++) {
         bigName += restaurantName[i] + ' ';
@@ -664,6 +663,7 @@ function showNotification(message, type) {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+
 
 
 

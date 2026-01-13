@@ -134,6 +134,9 @@ async function loadDashboardData(user) {
         
         console.log('Dashboard data loaded successfully');
         
+        // Ensure responsive tables are refreshed
+        setTimeout(refreshResponsiveTables, 200);
+        
     } catch (error) {
         console.error('Error loading dashboard:', error);
         showNotification('Dashboard loaded with limited data', 'warning');
@@ -143,6 +146,9 @@ async function loadDashboardData(user) {
             const greetingEl = document.getElementById('welcomeGreeting');
             if (greetingEl) greetingEl.textContent = 'Welcome!';
         });
+        
+        // Still try to refresh tables
+        refreshResponsiveTables();
     }
 }
 
@@ -284,6 +290,8 @@ function loadRecentOrders(user) {
                             </td>
                         </tr>
                     `;
+                    // Call refresh for responsive tables
+                    refreshResponsiveTables();
                     resolve();
                     return;
                 }
@@ -316,6 +324,9 @@ function loadRecentOrders(user) {
                     `;
                     tbody.appendChild(row);
                 });
+                
+                // Call refresh for responsive tables after loading
+                refreshResponsiveTables();
                 resolve();
             })
             .catch(err => {
@@ -327,9 +338,20 @@ function loadRecentOrders(user) {
                         </td>
                     </tr>
                 `;
+                // Still call refresh even on error
+                refreshResponsiveTables();
                 reject(err);
             });
     });
+}
+
+// Add this helper function to dashboard.js
+function refreshResponsiveTables() {
+    if (window.ResponsiveTables && window.ResponsiveTables.refresh) {
+        setTimeout(() => {
+            window.ResponsiveTables.refresh();
+        }, 100);
+    }
 }
 
 // Fallback function if PWA fails
@@ -455,3 +477,4 @@ function unregisterSW() {
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     document.addEventListener('DOMContentLoaded', addDebugButtons);
 }
+

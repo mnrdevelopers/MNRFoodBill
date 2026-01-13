@@ -96,9 +96,14 @@ function buildReceipt(restaurant, customerName, customerPhone,
     
     // HEADER
     receipt += '='.repeat(MAX_WIDTH) + '\n';
-    receipt += centerText(restaurant.name.toUpperCase()) + '\n';
+    
+    // Restaurant name - make it uppercase and centered
+    const restaurantName = restaurant.name.toUpperCase() + ' RESTAURANT';
+    receipt += centerText(restaurantName) + '\n';
+    
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
+    // Restaurant details
     if (restaurant.address) {
         receipt += centerText(restaurant.address) + '\n';
     }
@@ -375,6 +380,14 @@ function printThermalReceipt(receiptText) {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
+                    .restaurant-name {
+                        font-weight: bold !important;
+                        font-size: 16px !important;
+                        text-align: center !important;
+                        margin: 4px 0 !important;
+                        letter-spacing: 1px !important;
+                        text-transform: uppercase !important;
+                    }
                 }
                 body {
                     font-family: 'Courier New', monospace;
@@ -386,6 +399,14 @@ function printThermalReceipt(receiptText) {
                     white-space: pre;
                     word-wrap: break-word;
                 }
+                .restaurant-name {
+                    font-weight: bold;
+                    font-size: 16px;
+                    text-align: center;
+                    margin: 4px 0;
+                    letter-spacing: 1px;
+                    text-transform: uppercase;
+                }
                 .receipt-content {
                     max-width: 42ch;
                     margin: 0 auto;
@@ -394,7 +415,7 @@ function printThermalReceipt(receiptText) {
         </head>
         <body>
             <div class="receipt-content">
-                ${receiptText.replace(/\n/g, '<br>')}
+                ${formatReceiptForHTMLPrint(receiptText)}
             </div>
             <script>
                 // Auto-print
@@ -411,6 +432,27 @@ function printThermalReceipt(receiptText) {
     
     printWindow.document.write(htmlContent);
     printWindow.document.close();
+}
+
+function formatReceiptForHTMLPrint(receiptText) {
+    // Convert plain text receipt to HTML with formatting
+    const lines = receiptText.split('\n');
+    let html = '';
+    let foundRestaurantName = false;
+    
+    for (let line of lines) {
+        // Look for the restaurant name (usually after the first === line)
+        if (!foundRestaurantName && line.includes('RESTAURANT')) {
+            // This is the restaurant name line
+            html += `<div class="restaurant-name">${line.trim()}</div>`;
+            foundRestaurantName = true;
+        } else {
+            // Regular line
+            html += line + '<br>';
+        }
+    }
+    
+    return html;
 }
 
 // ========================================
@@ -582,3 +624,4 @@ function showNotification(message, type) {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+

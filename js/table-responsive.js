@@ -1,103 +1,126 @@
-// js/table-scroll.js - Isolate table scrolling
+// js/table-responsive.js - Mobile cards, Desktop tables
 document.addEventListener('DOMContentLoaded', function() {
-    initTableScrollIsolation();
+    initResponsiveTables();
     setupTouchScrolling();
+    checkScreenSize();
+    
+    // Listen for screen size changes
+    window.addEventListener('resize', checkScreenSize);
 });
 
-function initTableScrollIsolation() {
-    const tableWrappers = document.querySelectorAll('.table-wrapper');
+function initResponsiveTables() {
+    const tableContainers = document.querySelectorAll('.table-container');
     
-    tableWrappers.forEach(wrapper => {
-        const table = wrapper.querySelector('table');
+    tableContainers.forEach(container => {
+        const table = container.querySelector('table');
+        if (!table) return;
         
-        // Check if horizontal scroll is needed
-        function checkScrollNeeded() {
-            const needsScroll = table.scrollWidth > wrapper.clientWidth;
-            
-            if (needsScroll) {
-                wrapper.classList.add('has-horizontal-scroll');
-                
-                // Calculate how much scroll is available
-                const scrollPercentage = (wrapper.clientWidth / table.scrollWidth) * 100;
-                
-                if (scrollPercentage < 80) {
-                    wrapper.classList.add('significant-scroll');
-                }
-            } else {
-                wrapper.classList.remove('has-horizontal-scroll');
-                wrapper.classList.remove('significant-scroll');
+        // Create cards container for mobile
+        const cardsContainer = document.createElement('div');
+        cardsContainer.className = 'cards-container hidden grid grid-cols-1 gap-4 p-4';
+        container.appendChild(cardsContainer);
+        
+        // Function to convert table to cards
+        function convertToCards() {
+            if (window.innerWidth > 768) {
+                table.classList.remove('hidden');
+                cardsContainer.classList.add('hidden');
+                return;
             }
+            
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            if (!thead || !tbody) return;
+            
+            // Get column headers
+            const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
+            
+            // Clear existing cards
+            cardsContainer.innerHTML = '';
+            
+            // Create cards from each row
+            tbody.querySelectorAll('tr').forEach((row, rowIndex) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return;
+                
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-xl shadow-sm border border-gray-100 p-4';
+                
+                let cardContent = '';
+                
+                cells.forEach((cell, cellIndex) => {
+                    if (cellIndex >= headers.length) return;
+                    
+                    const header = headers[cellIndex];
+                    const cellContent = cell.innerHTML.trim();
+                    
+                    // Special handling for actions column
+                    if (header.toLowerCase().includes('actions') || 
+                        header.toLowerCase().includes('action')) {
+                        cardContent += `
+                            <div class="flex justify-end space-x-2 pt-3 border-t mt-3">
+                                ${cellContent}
+                            </div>
+                        `;
+                    } else if (header.toLowerCase().includes('status')) {
+                        cardContent += `
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm text-gray-500">${header}:</span>
+                                <span class="${cell.classList.toString()}">${cellContent}</span>
+                            </div>
+                        `;
+                    } else if (header.toLowerCase().includes('amount') || 
+                              header.toLowerCase().includes('price')) {
+                        cardContent += `
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm text-gray-500">${header}:</span>
+                                <span class="font-bold">${cellContent}</span>
+                            </div>
+                        `;
+                    } else {
+                        cardContent += `
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm text-gray-500">${header}:</span>
+                                <span class="text-gray-800">${cellContent}</span>
+                            </div>
+                        `;
+                    }
+                });
+                
+                card.innerHTML = cardContent;
+                cardsContainer.appendChild(card);
+            });
+            
+            // Show cards, hide table
+            table.classList.add('hidden');
+            cardsContainer.classList.remove('hidden');
         }
         
-        // Initial check
-        checkScrollNeeded();
+        // Initial conversion
+        convertToCards();
         
-        // Check on resize
-        window.addEventListener('resize', checkScrollNeeded);
-        
-        // Prevent body scroll when table is scrolling
-        wrapper.addEventListener('wheel', function(e) {
-            // If horizontal scroll, prevent default vertical scroll
-            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-                e.preventDefault();
-            }
-            
-            // If at horizontal limits and trying to scroll horizontally,
-            // prevent the event from bubbling to body
-            const atLeft = wrapper.scrollLeft === 0;
-            const atRight = wrapper.scrollLeft >= (wrapper.scrollWidth - wrapper.clientWidth - 1);
-            
-            if ((e.deltaX > 0 && atRight) || (e.deltaX < 0 && atLeft)) {
-                e.stopPropagation();
-            }
-        }, { passive: false });
-        
-        // Touch events for mobile
-        wrapper.addEventListener('touchstart', function(e) {
-            // Store initial touch position
-            this.touchStartX = e.touches[0].clientX;
-            this.touchStartY = e.touches[0].clientY;
-            this.isScrolling = null;
-        }, { passive: true });
-        
-        wrapper.addEventListener('touchmove', function(e) {
-            if (!this.touchStartX || !this.touchStartY) return;
-            
-            const touchX = e.touches[0].clientX;
-            const touchY = e.touches[0].clientY;
-            
-            const diffX = this.touchStartX - touchX;
-            const diffY = this.touchStartY - touchY;
-            
-            // Determine scroll direction
-            if (this.isScrolling === null) {
-                this.isScrolling = Math.abs(diffX) > Math.abs(diffY);
-            }
-            
-            // If horizontal scrolling, prevent body scroll
-            if (this.isScrolling) {
-                e.preventDefault();
-                wrapper.scrollLeft += diffX;
-                this.touchStartX = touchX;
-                this.touchStartY = touchY;
-            }
-        }, { passive: false });
-        
-        wrapper.addEventListener('touchend', function() {
-            this.touchStartX = null;
-            this.touchStartY = null;
-            this.isScrolling = null;
-        }, { passive: true });
+        // Store function for resize events
+        container.convertToCards = convertToCards;
+    });
+}
+
+function checkScreenSize() {
+    const tableContainers = document.querySelectorAll('.table-container');
+    
+    tableContainers.forEach(container => {
+        if (container.convertToCards) {
+            container.convertToCards();
+        }
     });
 }
 
 function setupTouchScrolling() {
-    // Only for mobile
-    if (window.innerWidth > 768) return;
-    
     const tableWrappers = document.querySelectorAll('.table-wrapper');
     
     tableWrappers.forEach(wrapper => {
+        // Only apply touch scrolling on desktop (table view)
+        if (window.innerWidth <= 768) return;
+        
         let isDragging = false;
         let startX, scrollLeft;
         
@@ -106,7 +129,6 @@ function setupTouchScrolling() {
             startX = e.pageX - wrapper.offsetLeft;
             scrollLeft = wrapper.scrollLeft;
             wrapper.style.cursor = 'grabbing';
-            document.body.style.overflow = 'hidden'; // Prevent body scroll
         });
         
         wrapper.addEventListener('mousemove', (e) => {
@@ -119,51 +141,19 @@ function setupTouchScrolling() {
         
         wrapper.addEventListener('mouseup', () => {
             isDragging = false;
-            wrapper.style.cursor = 'grab';
-            document.body.style.overflow = ''; // Restore body scroll
+            wrapper.style.cursor = '';
         });
         
         wrapper.addEventListener('mouseleave', () => {
             isDragging = false;
-            wrapper.style.cursor = 'grab';
-            document.body.style.overflow = '';
+            wrapper.style.cursor = '';
         });
     });
 }
 
-// Add scroll boundary detection
-function setupScrollBoundaries() {
-    const tableWrappers = document.querySelectorAll('.table-wrapper');
-    
-    tableWrappers.forEach(wrapper => {
-        wrapper.addEventListener('scroll', function() {
-            const atLeft = this.scrollLeft === 0;
-            const atRight = this.scrollLeft >= (this.scrollWidth - this.clientWidth - 1);
-            
-            // Add/remove classes for styling
-            if (atLeft) {
-                this.classList.add('at-left');
-                this.classList.remove('at-right');
-            } else if (atRight) {
-                this.classList.add('at-right');
-                this.classList.remove('at-left');
-            } else {
-                this.classList.remove('at-left', 'at-right');
-            }
-        });
-    });
-}
-
-// Initialize everything
-window.TableScroll = {
-    init: function() {
-        initTableScrollIsolation();
-        setupTouchScrolling();
-        setupScrollBoundaries();
+// Initialize responsive tables
+window.ResponsiveTables = {
+    refresh: function() {
+        checkScreenSize();
     }
 };
-
-// Re-initialize on window resize
-window.addEventListener('resize', function() {
-    setTimeout(initTableScrollIsolation, 100);
-});

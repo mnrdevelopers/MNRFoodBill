@@ -39,11 +39,20 @@
                     </button>
                 </div>
 
-           <!-- Staff List -->
-<div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden p-4">
+         <!-- Staff List -->
+<div class="table-card mb-6">
+    <div class="table-header">
+        <h2 class="text-xl font-bold text-gray-800">Staff Members</h2>
+        <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-500 px-3 py-1 bg-gray-100 rounded-full" id="staffCount">0 staff</span>
+        </div>
+    </div>
+    
     <div class="table-container">
         <div class="table-wrapper">
-            <div class="scroll-indicator">→</div>
+            <div class="scroll-indicator">
+                <i class="fas fa-chevron-right"></i>
+            </div>
             <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>
@@ -55,11 +64,11 @@
                 </thead>
                 <tbody id="staffTable" class="divide-y divide-gray-100">
                     <!-- Staff rows will be injected here -->
-                    <tr>
-                        <td colspan="4" class="py-10 text-center text-gray-400">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-users text-4xl mb-3 opacity-20"></i>
-                                <p>Loading staff data...</p>
+                    <tr class="loading-row">
+                        <td colspan="4" class="py-12 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <div class="w-12 h-12 border-3 border-gray-200 border-t-red-500 rounded-full animate-spin mb-3"></div>
+                                <p class="text-gray-500 text-sm">Loading staff data...</p>
                             </div>
                         </td>
                     </tr>

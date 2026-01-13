@@ -20,7 +20,8 @@ async function prepareReceipt() {
             address: settings.address || restaurantData.address || '',
             phone: settings.phone || restaurantData.phone || '',
             gstin: settings.gstin || '',
-            fssai: settings.fssai || ''
+            fssai: settings.fssai || '',
+            logoUrl: settings.logoUrl || restaurantData.logoUrl || '' // Add logo URL
         };
         
         const MAX_WIDTH = 42;
@@ -63,8 +64,8 @@ async function prepareReceipt() {
             // Mobile: Use RawBT printing
             await mobilePrintWithRawBT(receipt, restaurant.name, billNo);
         } else {
-            // Desktop: Show print preview modal
-            showDesktopPrintPreview(receipt, restaurant.name, billNo);
+            // Desktop: Show print preview modal with logo
+            showDesktopPrintPreview(receipt, restaurant.name, billNo, restaurant.logoUrl); // Pass logo URL
         }
         
     } catch (error) {
@@ -91,31 +92,30 @@ function buildReceipt(restaurant, customerName, customerPhone,
         return label + dots + value;
     }
     
-    // Function to make text appear bigger
-    function makeBigText(text) {
-        // Add spaces between characters for visual emphasis
-        let spacedText = '';
-        for (let i = 0; i < text.length; i++) {
-            spacedText += text[i] + ' ';
-        }
-        spacedText = spacedText.trim();
-        return centerText(spacedText);
-    }
-    
     // Build receipt text
     let receipt = '';
     
-    // HEADER with bigger restaurant name
+    // HEADER with logo placeholder
     receipt += '='.repeat(MAX_WIDTH) + '\n';
+    
+    // Check if restaurant has a logo
+    if (restaurant.logoUrl) {
+        // Add logo placeholder - in text receipt, we'll add [LOGO] marker
+        receipt += centerText('[LOGO]') + '\n\n';
+    }
     
     // Restaurant name in bigger style
     const restaurantName = restaurant.name.toUpperCase();
-    receipt += makeBigText(restaurantName) + '\n';
     
-    // Add decorative line under restaurant name
-    const underlineLength = Math.min(restaurantName.length * 2, MAX_WIDTH);
-    const underlinePadding = Math.max(0, Math.floor((MAX_WIDTH - underlineLength) / 2));
-    receipt += ' '.repeat(underlinePadding) + '*'.repeat(underlineLength) + '\n';
+    // Make restaurant name appear bigger by adding spaces
+    let bigName = '';
+    for (let i = 0; i < restaurantName.length; i++) {
+        bigName += restaurantName[i] + ' ';
+    }
+    bigName = bigName.trim();
+    
+    receipt += centerText(bigName) + '\n';
+    receipt += centerText('RESTAURANT') + '\n';
     
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
@@ -268,15 +268,16 @@ async function mobilePrintWithRawBT(receiptText, restaurantName, billNo) {
 // ========================================
 // DESKTOP: BROWSER PRINTING
 // ========================================
-function showDesktopPrintPreview(receiptText, restaurantName, billNo) {
+function showDesktopPrintPreview(receiptText, restaurantName, billNo, logoUrl = '') {
     const printContent = document.getElementById('printContent');
     const modal = document.getElementById('printModal');
     
-    // Store receipt in data attribute
+    // Store receipt and logo in data attributes
     printContent.setAttribute('data-receipt-text', receiptText);
+    printContent.setAttribute('data-logo-url', logoUrl);
     
     // Create HTML with proper thermal printer styling
-    const receiptHTML = formatReceiptForHTML(receiptText);
+    const receiptHTML = formatReceiptForHTMLPrint(receiptText, logoUrl);
     
     // Update modal content for desktop
     printContent.innerHTML = `
@@ -357,7 +358,8 @@ function formatReceiptForHTML(receiptText) {
 
 window.desktopPrintReceipt = function() {
     const receiptText = document.getElementById('printContent').getAttribute('data-receipt-text');
-    printThermalReceipt(receiptText);
+    const logoUrl = document.getElementById('printContent').getAttribute('data-logo-url');
+    printThermalReceipt(receiptText, logoUrl);
     saveOrderAndClearCart();
     closePrintModal();
 };
@@ -369,7 +371,7 @@ window.downloadReceiptDesktop = function() {
     showNotification('Receipt downloaded!', 'success');
 };
 
-function printThermalReceipt(receiptText) {
+function printThermalReceipt(receiptText, restaurantLogoUrl = '') {
     // Create a print window with thermal printer styling
     const printWindow = window.open('', '_blank');
     
@@ -396,6 +398,15 @@ function printThermalReceipt(receiptText) {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
+                    .restaurant-logo {
+                        text-align: center !important;
+                        margin: 5px 0 !important;
+                    }
+                    .restaurant-logo img {
+                        max-width: 40mm !important;
+                        max-height: 25mm !important;
+                        object-fit: contain !important;
+                    }
                     .restaurant-name {
                         font-weight: bold !important;
                         font-size: 16px !important;
@@ -415,6 +426,15 @@ function printThermalReceipt(receiptText) {
                     white-space: pre;
                     word-wrap: break-word;
                 }
+                .restaurant-logo {
+                    text-align: center;
+                    margin: 5px 0;
+                }
+                .restaurant-logo img {
+                    max-width: 40mm;
+                    max-height: 25mm;
+                    object-fit: contain;
+                }
                 .restaurant-name {
                     font-weight: bold;
                     font-size: 16px;
@@ -431,7 +451,7 @@ function printThermalReceipt(receiptText) {
         </head>
         <body>
             <div class="receipt-content">
-                ${formatReceiptForHTMLPrint(receiptText)}
+                ${formatReceiptForHTMLPrint(receiptText, restaurantLogoUrl)}
             </div>
             <script>
                 // Auto-print
@@ -450,21 +470,25 @@ function printThermalReceipt(receiptText) {
     printWindow.document.close();
 }
 
-function formatReceiptForHTMLPrint(receiptText) {
+function formatReceiptForHTMLPrint(receiptText, restaurantLogoUrl = '') {
     // Convert plain text receipt to HTML with formatting
     const lines = receiptText.split('\n');
     let html = '';
-    let foundRestaurantName = false;
     
     for (let line of lines) {
-        // Look for the restaurant name (usually after the first === line)
-        if (!foundRestaurantName && line.includes('RESTAURANT')) {
-            // This is the restaurant name line
+        if (line.includes('[LOGO]') && restaurantLogoUrl) {
+            // Replace [LOGO] with actual logo image
+            html += `<div class="restaurant-logo">
+                        <img src="${restaurantLogoUrl}" alt="Restaurant Logo" onerror="this.style.display='none'">
+                     </div>`;
+        } else if (line.toUpperCase() === line && line.trim().length > 3 && 
+                  !line.includes('=') && !line.includes('-') && !line.includes('[LOGO]')) {
+            // This is likely the restaurant name line
             html += `<div class="restaurant-name">${line.trim()}</div>`;
-            foundRestaurantName = true;
         } else {
             // Regular line
-            html += line + '<br>';
+            html += line.replace(/=/g, '<span style="color: #666;">=</span>')
+                       .replace(/-/g, '<span style="color: #999;">-</span>') + '<br>';
         }
     }
     
@@ -640,5 +664,6 @@ function showNotification(message, type) {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+
 
 

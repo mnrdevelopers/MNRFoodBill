@@ -1,9 +1,9 @@
 // js/logo-upload.js - Logo upload using ImgBB
 let imgbbApiKey = null;
-const LOGO_MAX_SIZE = 200 * 1024; // 200KB for logos
-const LOGO_QUALITY = 0.9; // 90% quality for logos
-const LOGO_MAX_WIDTH = 300;
-const LOGO_MAX_HEIGHT = 300;
+const LOGO_MAX_SIZE = 50 * 1024; // 50KB for logos (smaller)
+const LOGO_QUALITY = 0.8; // 80% quality for logos
+const LOGO_MAX_WIDTH = 150; // Smaller width
+const LOGO_MAX_HEIGHT = 100; // Smaller height (for horizontal logos)
 
 // Initialize ImgBB API key
 async function initImgBB() {
@@ -44,41 +44,58 @@ async function compressLogoImage(file) {
                 let width = img.width;
                 let height = img.height;
                 
-                // Calculate new dimensions maintaining aspect ratio
+                // Calculate new dimensions maintaining aspect ratio - smaller size
+                const maxWidth = LOGO_MAX_WIDTH;
+                const maxHeight = LOGO_MAX_HEIGHT;
+                
                 if (width > height) {
-                    if (width > LOGO_MAX_WIDTH) {
-                        height = Math.round((height * LOGO_MAX_WIDTH) / width);
-                        width = LOGO_MAX_WIDTH;
+                    // Landscape image
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
                     }
                 } else {
-                    if (height > LOGO_MAX_HEIGHT) {
-                        width = Math.round((width * LOGO_MAX_HEIGHT) / height);
-                        height = LOGO_MAX_HEIGHT;
+                    // Portrait or square image
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
                     }
                 }
                 
                 // Ensure minimum dimensions
-                width = Math.max(width, 100);
-                height = Math.max(height, 100);
+                width = Math.max(width, 80);
+                height = Math.max(height, 60);
+                
+                console.log(`Logo resized to: ${width}x${height}`);
                 
                 // Set canvas dimensions
                 canvas.width = width;
                 canvas.height = height;
                 
-                // Draw with white background (for logos with transparency)
+                // Draw with white background
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = 'white';
                 ctx.fillRect(0, 0, width, height);
                 
-                // Draw logo
+                // Draw logo with smooth scaling
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Convert to PNG for logo (preserves transparency)
-                const compressedDataUrl = canvas.toDataURL('image/png', LOGO_QUALITY);
+                // Convert to WebP for better compression
+                let format = 'image/jpeg';
+                let quality = LOGO_QUALITY;
+                
+                // Try WebP first, fallback to JPEG
+                if (canvas.toDataURL('image/webp').includes('webp')) {
+                    format = 'image/webp';
+                }
+                
+                const compressedDataUrl = canvas.toDataURL(format, quality);
                 
                 // Convert data URL to Blob
                 const byteString = atob(compressedDataUrl.split(',')[1]);
-                const mimeString = 'image/png';
+                const mimeString = format;
                 const ab = new ArrayBuffer(byteString.length);
                 const ia = new Uint8Array(ab);
                 
@@ -89,8 +106,8 @@ async function compressLogoImage(file) {
                 const compressedBlob = new Blob([ab], { type: mimeString });
                 
                 // Create compressed file
-                const compressedFile = new File([compressedBlob], 'logo.png', {
-                    type: 'image/png',
+                const compressedFile = new File([compressedBlob], 'logo.' + (format === 'image/webp' ? 'webp' : 'jpg'), {
+                    type: mimeString,
                     lastModified: Date.now()
                 });
                 
@@ -102,7 +119,8 @@ async function compressLogoImage(file) {
                     compressedSize: compressedFile.size,
                     width: width,
                     height: height,
-                    dataUrl: compressedDataUrl
+                    dataUrl: compressedDataUrl,
+                    format: format
                 });
             };
             

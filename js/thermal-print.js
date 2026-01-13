@@ -1,416 +1,86 @@
-class ThermalPrinter {
+// Fast Thermal Printing for Mobile - No Preview, Direct Print
+class FastThermalPrinter {
     constructor() {
-        this.printer = null;
-        this.isConnected = false;
-        this.encoding = 'UTF-8';
-        this.maxChars = 42; // 80mm paper width
+        this.isPrinting = false;
+        this.useDirectPrint = true;
+        this.printerName = localStorage.getItem('selectedPrinter') || 'default';
     }
 
-    // Initialize printer connection
-    async init() {
+    // Fast print function - no delays, no preview
+    async printBillNow() {
+        if (this.isPrinting) {
+            showNotification('Already printing...', 'warning');
+            return;
+        }
+
+        this.isPrinting = true;
+        showNotification('Sending to printer...', 'info');
+
         try {
-            // Check available interfaces
-            if (navigator.usb) {
-                await this.connectUSB();
-            } else if (navigator.bluetooth) {
-                await this.connectBluetooth();
-            } else if (window.escpos) {
-                await this.connectESCPOS();
-            }
-        } catch (error) {
-            console.warn('No direct printer found, using browser print');
-        }
-    }
-
-    // Connect to USB thermal printer
-    async connectUSB() {
-        try {
-            const device = await navigator.usb.requestDevice({
-                filters: [
-                    { vendorId: 0x0416, productId: 0x5011 }, // Citizen
-                    { vendorId: 0x0483, productId: 0x5740 }, // STMicro
-                    { vendorId: 0x067B, productId: 0x2303 }, // Prolific
-                    { vendorId: 0x1A86, productId: 0x7584 }  // CH340
-                ]
-            });
-
-            await device.open();
-            await device.selectConfiguration(1);
-            await device.claimInterface(0);
+            // 1. Get bill data (fast)
+            const receiptData = await this.getBillData();
             
-            this.printer = device;
-            this.isConnected = true;
-            this.interface = 'usb';
+            // 2. Generate ESC/POS commands
+            const escposData = this.generateESCPOS(receiptData);
             
-            console.log('USB Printer connected');
-            return true;
-        } catch (error) {
-            console.error('USB connection failed:', error);
-            return false;
-        }
-    }
-
-    // Connect to Bluetooth printer
-    async connectBluetooth() {
-        try {
-            const device = await navigator.bluetooth.requestDevice({
-                filters: [{ namePrefix: 'POS' }, { namePrefix: 'BT' }, { namePrefix: 'Printer' }],
-                optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
-            });
-
-            const server = await device.gatt.connect();
-            const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
-            const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+            // 3. Try different print methods
+            await this.tryPrintMethods(escposData);
             
-            this.printer = characteristic;
-            this.isConnected = true;
-            this.interface = 'bluetooth';
+            // 4. Save order
+            await this.saveOrder(receiptData);
             
-            console.log('Bluetooth Printer connected');
-            return true;
-        } catch (error) {
-            console.error('Bluetooth connection failed:', error);
-            return false;
-        }
-    }
-
-    // ESC/POS commands
-    getCommands() {
-        return {
-            INIT: '\x1B\x40',           // Initialize printer
-            ALIGN_LEFT: '\x1B\x61\x00', // Left alignment
-            ALIGN_CENTER: '\x1B\x61\x01', // Center alignment
-            ALIGN_RIGHT: '\x1B\x61\x02', // Right alignment
-            BOLD_ON: '\x1B\x45\x01',    // Bold on
-            BOLD_OFF: '\x1B\x45\x00',   // Bold off
-            DOUBLE_HEIGHT: '\x1B\x21\x10', // Double height
-            DOUBLE_WIDTH: '\x1B\x21\x20',  // Double width
-            NORMAL_TEXT: '\x1B\x21\x00',   // Normal text
-            UNDERLINE_ON: '\x1B\x2D\x01',  // Underline on
-            UNDERLINE_OFF: '\x1B\x2D\x00', // Underline off
-            LINE_SPACING: '\x1B\x33',      // Set line spacing
-            CUT_PAPER: '\x1D\x56\x00',     // Cut paper
-            FEED_LINES: '\x1B\x64'         // Feed lines
-        };
-    }
-
-    // Send raw data to printer
-    async send(data) {
-        if (!this.isConnected) {
-            throw new Error('Printer not connected');
-        }
-
-        const encoder = new TextEncoder();
-        
-        if (this.interface === 'usb') {
-            await this.printer.transferOut(1, encoder.encode(data));
-        } else if (this.interface === 'bluetooth') {
-            const buffer = encoder.encode(data);
-            await this.printer.writeValue(buffer);
-        }
-    }
-
-    // Format text for thermal printer
-    formatText(text, options = {}) {
-        const { 
-            align = 'left', 
-            bold = false, 
-            size = 'normal',
-            underline = false 
-        } = options;
-        
-        let formatted = '';
-        const cmd = this.getCommands();
-        
-        // Set alignment
-        if (align === 'center') formatted += cmd.ALIGN_CENTER;
-        else if (align === 'right') formatted += cmd.ALIGN_RIGHT;
-        else formatted += cmd.ALIGN_LEFT;
-        
-        // Set text style
-        if (bold) formatted += cmd.BOLD_ON;
-        if (underline) formatted += cmd.UNDERLINE_ON;
-        
-        // Set text size
-        if (size === 'double') formatted += cmd.DOUBLE_HEIGHT + cmd.DOUBLE_WIDTH;
-        else if (size === 'large') formatted += cmd.DOUBLE_HEIGHT;
-        
-        formatted += text;
-        
-        // Reset styles
-        if (bold) formatted += cmd.BOLD_OFF;
-        if (underline) formatted += cmd.UNDERLINE_OFF;
-        if (size !== 'normal') formatted += cmd.NORMAL_TEXT;
-        
-        return formatted;
-    }
-
-    // Print receipt directly (Vyapar style)
-    async printReceipt(receiptData) {
-        const cmd = this.getCommands();
-        let output = cmd.INIT;
-        
-        try {
-            // Header
-            output += this.formatText(receiptData.restaurant.name.toUpperCase(), 
-                { align: 'center', bold: true, size: 'double' }) + '\n';
+            // 5. Clear cart
+            this.clearCart();
             
-            output += cmd.LINE_SPACING + '\x18'; // Line spacing
-            
-            // Restaurant details
-            if (receiptData.restaurant.address) {
-                output += this.formatText(receiptData.restaurant.address, 
-                    { align: 'center' }) + '\n';
-            }
-            
-            if (receiptData.restaurant.phone) {
-                output += this.formatText(`📞 ${receiptData.restaurant.phone}`, 
-                    { align: 'center' }) + '\n';
-            }
-            
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            // Bill info
-            output += this.formatText(`Date: ${receiptData.date}`, { bold: true }) + '\n';
-            output += this.formatText(`Time: ${receiptData.time}`, { bold: true }) + '\n';
-            output += this.formatText(`Bill No: ${receiptData.billNo}`, { bold: true }) + '\n';
-            
-            if (receiptData.tableNo) {
-                output += this.formatText(`Table: ${receiptData.tableNo}`, { bold: true }) + '\n';
-            }
-            
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            // Customer info
-            output += this.formatText(`Customer: ${receiptData.customer.name}`, { bold: true }) + '\n';
-            if (receiptData.customer.phone) {
-                output += this.formatText(`Phone: ${receiptData.customer.phone}`, { bold: true }) + '\n';
-            }
-            
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            // Items header
-            output += this.formatText('SL  Item                Qty   Amount', { bold: true, underline: true }) + '\n';
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            // Items list
-            receiptData.items.forEach((item, index) => {
-                const sl = (index + 1).toString().padStart(2);
-                const name = item.name.length > 18 ? item.name.substring(0, 18) + '...' : item.name.padEnd(20);
-                const qty = item.quantity.toString().padStart(3);
-                const amount = receiptData.currency + item.total.toFixed(2).padStart(8);
-                
-                output += `${sl}. ${name} ${qty}  ${amount}\n`;
-                
-                // Print variations if any
-                if (item.variations && item.variations.length > 0) {
-                    item.variations.forEach(variation => {
-                        output += `   ${variation.name}: ${variation.value}\n`;
-                    });
-                }
-            });
-            
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            // Bill summary
-            output += this.formatText('BILL SUMMARY', { align: 'center', bold: true, size: 'large' }) + '\n';
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            output += this.formatText(
-                `Sub Total:${' '.repeat(20)}${receiptData.currency}${receiptData.subtotal.toFixed(2).padStart(10)}`, 
-                { bold: true }) + '\n';
-            
-            if (receiptData.discount > 0) {
-                output += this.formatText(
-                    `Discount:${' '.repeat(21)}${receiptData.currency}${receiptData.discount.toFixed(2).padStart(10)}`, 
-                    { bold: true }) + '\n';
-            }
-            
-            if (receiptData.tax > 0) {
-                output += this.formatText(
-                    `Tax (${receiptData.taxRate}%):${' '.repeat(15)}${receiptData.currency}${receiptData.tax.toFixed(2).padStart(10)}`, 
-                    { bold: true }) + '\n';
-            }
-            
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            // Grand Total
-            output += this.formatText(
-                `GRAND TOTAL:${' '.repeat(17)}${receiptData.currency}${receiptData.grandTotal.toFixed(2).padStart(10)}`, 
-                { align: 'center', bold: true, size: 'large' }) + '\n';
-            
-            output += this.formatText('='.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            // Payment details
-            output += this.formatText('PAYMENT DETAILS', { align: 'center', bold: true }) + '\n';
-            output += this.formatText(
-                `Mode: ${receiptData.payment.mode.toUpperCase()}`, 
-                { bold: true }) + '\n';
-            
-            if (receiptData.payment.mode === 'cash') {
-                output += this.formatText(
-                    `Received: ${receiptData.currency}${receiptData.payment.received.toFixed(2)}`, 
-                    { bold: true }) + '\n';
-                output += this.formatText(
-                    `Change: ${receiptData.currency}${receiptData.payment.change.toFixed(2)}`, 
-                    { bold: true }) + '\n';
-            }
-            
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            // Footer
-            output += this.formatText('Thank you for your visit!', { align: 'center', bold: true }) + '\n';
-            output += this.formatText('Please visit again', { align: 'center' }) + '\n';
-            
-            if (receiptData.restaurant.phone) {
-                output += this.formatText(`For feedback: ${receiptData.restaurant.phone}`, { align: 'center' }) + '\n';
-            }
-            
-            output += this.formatText('*' + '-'.repeat(this.maxChars - 2) + '*', { align: 'center' }) + '\n';
-            output += this.formatText('** COMPUTER GENERATED BILL **', { align: 'center' }) + '\n';
-            output += this.formatText('** NO SIGNATURE REQUIRED **', { align: 'center' }) + '\n';
-            output += this.formatText('='.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            // Feed and cut
-            output += cmd.FEED_LINES + '\x03'; // Feed 3 lines
-            output += cmd.CUT_PAPER;
-            
-            // Send to printer
-            await this.send(output);
-            
-            console.log('Receipt printed successfully');
-            return true;
+            showNotification('✅ Bill printed successfully!', 'success');
             
         } catch (error) {
             console.error('Print error:', error);
-            throw error;
-        }
-    }
-
-    // Print kitchen order (KOT)
-    async printKOT(orderData) {
-        const cmd = this.getCommands();
-        let output = cmd.INIT;
-        
-        try {
-            output += this.formatText('KITCHEN ORDER TICKET', 
-                { align: 'center', bold: true, size: 'double' }) + '\n';
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
+            showNotification('Print completed', 'info');
             
-            output += this.formatText(`Order No: ${orderData.orderId}`, { bold: true }) + '\n';
-            output += this.formatText(`Time: ${new Date().toLocaleTimeString()}`, { bold: true }) + '\n';
-            output += this.formatText(`Table: ${orderData.tableNo || 'Take Away'}`, { bold: true }) + '\n';
-            
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            
-            output += this.formatText('Items:', { bold: true, underline: true }) + '\n';
-            
-            orderData.items.forEach((item, index) => {
-                output += this.formatText(`${item.quantity}x ${item.name}`, { bold: true }) + '\n';
-                
-                if (item.instructions) {
-                    output += this.formatText(`  Note: ${item.instructions}`, {}) + '\n';
-                }
-                
-                if (item.variations && item.variations.length > 0) {
-                    item.variations.forEach(variation => {
-                        output += this.formatText(`  ${variation.name}: ${variation.value}`, {}) + '\n';
-                    });
-                }
-            });
-            
-            output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-            output += this.formatText('*** KITCHEN COPY ***', { align: 'center', bold: true }) + '\n';
-            output += cmd.FEED_LINES + '\x02';
-            output += cmd.CUT_PAPER;
-            
-            await this.send(output);
-            return true;
-            
-        } catch (error) {
-            console.error('KOT print error:', error);
-            throw error;
-        }
-    }
-
-    // Print test page
-    async printTest() {
-        const cmd = this.getCommands();
-        let output = cmd.INIT;
-        
-        output += this.formatText('PRINTER TEST PAGE', { align: 'center', bold: true, size: 'double' }) + '\n';
-        output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-        output += this.formatText('Vyapar Style Thermal Printing', { align: 'center' }) + '\n';
-        output += this.formatText(`Date: ${new Date().toLocaleDateString()}`, { align: 'center' }) + '\n';
-        output += this.formatText(`Time: ${new Date().toLocaleTimeString()}`, { align: 'center' }) + '\n';
-        output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-        output += this.formatText('ABCDEFGHIJKLMNOPQRSTUVWXYZ', {}) + '\n';
-        output += this.formatText('abcdefghijklmnopqrstuvwxyz', {}) + '\n';
-        output += this.formatText('1234567890!@#$%^&*()', {}) + '\n';
-        output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-        output += this.formatText('Normal Text', {}) + '\n';
-        output += this.formatText('Bold Text', { bold: true }) + '\n';
-        output += this.formatText('Large Text', { size: 'large' }) + '\n';
-        output += this.formatText('Double Size', { size: 'double' }) + '\n';
-        output += this.formatText('-'.repeat(this.maxChars), { align: 'center' }) + '\n';
-        output += this.formatText('*** TEST COMPLETE ***', { align: 'center', bold: true }) + '\n';
-        output += cmd.FEED_LINES + '\x03';
-        output += cmd.CUT_PAPER;
-        
-        await this.send(output);
-    }
-
-    // Disconnect printer
-    async disconnect() {
-        if (this.printer) {
-            if (this.interface === 'usb') {
-                await this.printer.close();
-            } else if (this.interface === 'bluetooth') {
-                const server = await this.printer.service.device.gatt;
-                if (server.connected) {
-                    server.disconnect();
-                }
+            // Even if printing fails, save the order
+            try {
+                await this.saveOrder(await this.getBillData());
+                this.clearCart();
+            } catch (e) {
+                console.error('Save error:', e);
             }
+        } finally {
+            this.isPrinting = false;
         }
-        this.printer = null;
-        this.isConnected = false;
     }
-}
 
-// Global printer instance
-window.thermalPrinter = new ThermalPrinter();
-
-// Simplified printing function for billing page
-async function printBillDirect() {
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    try {
+    // Get bill data quickly
+    async getBillData() {
+        const user = auth.currentUser;
+        if (!user) throw new Error('Not authenticated');
+        
         // Get restaurant data
-        const restaurantDoc = await db.collection('restaurants').doc(user.uid).get();
-        if (!restaurantDoc.exists) {
-            throw new Error('Restaurant not found');
+        let restaurantData = {};
+        try {
+            const doc = await db.collection('restaurants').doc(user.uid).get();
+            restaurantData = doc.exists ? doc.data() : {};
+        } catch (e) {
+            console.warn('Using cached restaurant data');
         }
         
-        const restaurantData = restaurantDoc.data();
         const settings = restaurantData.settings || {};
-        
-        // Calculate totals from cart
         const currency = settings.currency || '₹';
         const gstRate = parseFloat(settings.gstRate) || 0;
+        
+        // Calculate totals
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const gstAmount = subtotal * (gstRate / 100);
         const grandTotal = subtotal + gstAmount;
         
-        // Get customer details
+        // Get form values
         const customerName = document.getElementById('customerName')?.value || 'Walk-in Customer';
         const customerPhone = document.getElementById('customerPhone')?.value || '';
         const paymentMode = document.getElementById('paymentMode')?.value || 'cash';
         const cashReceived = parseFloat(document.getElementById('cashReceived')?.value || 0);
-        const changeAmount = cashReceived - grandTotal;
+        const changeAmount = Math.max(0, cashReceived - grandTotal);
         
-        // Prepare receipt data
-        const receiptData = {
+        return {
             restaurant: {
                 name: restaurantData.name || 'Restaurant',
                 address: settings.address || '',
@@ -420,198 +90,403 @@ async function printBillDirect() {
             },
             date: new Date().toLocaleDateString('en-IN'),
             time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-            billNo: generateOrderId(),
-            tableNo: 'T01',
-            customer: {
-                name: customerName,
-                phone: customerPhone
-            },
+            billNo: this.generateBillNumber(),
+            customer: { name: customerName, phone: customerPhone },
             items: cart.map(item => ({
-                name: item.name,
+                name: item.name.substring(0, 20),
                 quantity: item.quantity,
                 price: item.price,
                 total: item.price * item.quantity
             })),
             currency: currency,
             subtotal: subtotal,
-            discount: 0,
-            tax: gstAmount,
-            taxRate: gstRate,
+            gstAmount: gstAmount,
+            gstRate: gstRate,
             grandTotal: grandTotal,
             payment: {
                 mode: paymentMode,
                 received: paymentMode === 'cash' ? cashReceived : grandTotal,
-                change: paymentMode === 'cash' ? Math.max(0, changeAmount) : 0
+                change: changeAmount
             }
         };
+    }
+
+    // Generate ESC/POS commands for 80mm printer
+    generateESCPOS(receiptData) {
+        const cmds = [];
         
-        // Initialize printer if not already done
-        if (!window.thermalPrinter.isConnected) {
-            await window.thermalPrinter.init();
+        // Initialize
+        cmds.push('\x1B\x40'); // Init
+        
+        // Restaurant name (center, bold, double height)
+        cmds.push('\x1B\x61\x01'); // Center
+        cmds.push('\x1B\x21\x30'); // Double height + bold
+        cmds.push(receiptData.restaurant.name.toUpperCase());
+        cmds.push('\x1B\x21\x00'); // Normal text
+        cmds.push('\x0A');
+        
+        // Restaurant details
+        if (receiptData.restaurant.address) {
+            cmds.push(receiptData.restaurant.address);
+            cmds.push('\x0A');
+        }
+        if (receiptData.restaurant.phone) {
+            cmds.push('📞 ' + receiptData.restaurant.phone);
+            cmds.push('\x0A');
         }
         
-        // Print receipt
-        await window.thermalPrinter.printReceipt(receiptData);
+        cmds.push('----------------------------------------');
+        cmds.push('\x0A');
         
-        // Save order
-        await saveOrderAfterPrint(receiptData);
+        // Bill info
+        cmds.push('\x1B\x61\x00'); // Left align
+        cmds.push('Date: ' + receiptData.date);
+        cmds.push('\x0A');
+        cmds.push('Time: ' + receiptData.time);
+        cmds.push('\x0A');
+        cmds.push('Bill No: ' + receiptData.billNo);
+        cmds.push('\x0A');
         
-        // Clear cart
+        // Customer info
+        cmds.push('Customer: ' + receiptData.customer.name);
+        cmds.push('\x0A');
+        if (receiptData.customer.phone) {
+            cmds.push('Phone: ' + receiptData.customer.phone);
+            cmds.push('\x0A');
+        }
+        
+        cmds.push('----------------------------------------');
+        cmds.push('\x0A');
+        
+        // Items header
+        cmds.push('SL  Item                Qty   Amount');
+        cmds.push('\x0A');
+        cmds.push('----------------------------------------');
+        cmds.push('\x0A');
+        
+        // Items
+        receiptData.items.forEach((item, index) => {
+            const sl = (index + 1).toString().padStart(2);
+            const name = item.name.padEnd(20);
+            const qty = item.quantity.toString().padStart(3);
+            const amount = receiptData.currency + item.total.toFixed(2).padStart(8);
+            cmds.push(sl + '. ' + name + ' ' + qty + '  ' + amount);
+            cmds.push('\x0A');
+        });
+        
+        cmds.push('----------------------------------------');
+        cmds.push('\x0A');
+        
+        // Summary
+        cmds.push('\x1B\x61\x01'); // Center
+        cmds.push('\x1B\x45\x01'); // Bold
+        cmds.push('BILL SUMMARY');
+        cmds.push('\x1B\x45\x00'); // Bold off
+        cmds.push('\x0A');
+        cmds.push('----------------------------------------');
+        cmds.push('\x0A');
+        cmds.push('\x1B\x61\x00'); // Left
+        
+        cmds.push('Sub Total:' + ' '.repeat(23) + receiptData.currency + receiptData.subtotal.toFixed(2));
+        cmds.push('\x0A');
+        
+        if (receiptData.gstRate > 0) {
+            cmds.push('GST (' + receiptData.gstRate + '%):' + ' '.repeat(19) + receiptData.currency + receiptData.gstAmount.toFixed(2));
+            cmds.push('\x0A');
+        }
+        
+        cmds.push('----------------------------------------');
+        cmds.push('\x0A');
+        
+        cmds.push('\x1B\x61\x01'); // Center
+        cmds.push('\x1B\x21\x30'); // Double height + bold
+        cmds.push('GRAND TOTAL: ' + receiptData.currency + receiptData.grandTotal.toFixed(2));
+        cmds.push('\x1B\x21\x00'); // Normal
+        cmds.push('\x0A');
+        
+        cmds.push('========================================');
+        cmds.push('\x0A');
+        
+        // Payment
+        cmds.push('Payment Mode: ' + receiptData.payment.mode.toUpperCase());
+        cmds.push('\x0A');
+        
+        if (receiptData.payment.mode === 'cash') {
+            cmds.push('Amount Paid: ' + receiptData.currency + receiptData.payment.received.toFixed(2));
+            cmds.push('\x0A');
+            cmds.push('Change: ' + receiptData.currency + receiptData.payment.change.toFixed(2));
+            cmds.push('\x0A');
+        }
+        
+        cmds.push('----------------------------------------');
+        cmds.push('\x0A');
+        cmds.push('\x1B\x61\x01'); // Center
+        cmds.push('Thank you for dining with us!');
+        cmds.push('\x0A');
+        cmds.push('Please visit again');
+        cmds.push('\x0A');
+        cmds.push('*'.repeat(40));
+        cmds.push('\x0A');
+        cmds.push('** COMPUTER GENERATED BILL **');
+        cmds.push('\x0A');
+        cmds.push('** NO SIGNATURE REQUIRED **');
+        cmds.push('\x0A');
+        
+        // Feed and cut
+        cmds.push('\x1B\x64\x03'); // Feed 3 lines
+        cmds.push('\x1D\x56\x00'); // Cut paper
+        
+        return cmds.join('');
+    }
+
+    // Try different printing methods
+    async tryPrintMethods(escposData) {
+        // Method 1: Direct intent for Android (FASTEST)
+        if (this.tryAndroidIntent(escposData)) {
+            return;
+        }
+        
+        // Method 2: Web USB (if available)
+        if (navigator.usb && await this.tryWebUSB(escposData)) {
+            return;
+        }
+        
+        // Method 3: Silent browser print (fallback)
+        await this.silentBrowserPrint(escposData);
+    }
+
+    // Android Intent method (fastest for mobile)
+    tryAndroidIntent(escposData) {
+        // Convert to base64 for intent
+        const base64Data = btoa(unescape(encodeURIComponent(escposData)));
+        
+        // Check if Android
+        if (/Android/i.test(navigator.userAgent)) {
+            try {
+                // Try to open with thermal printer app
+                window.location.href = `intent://print/#Intent;scheme=escpos;type=text/plain;S.text=${encodeURIComponent(base64Data)};end`;
+                return true;
+            } catch (e) {
+                console.warn('Android intent failed:', e);
+            }
+        }
+        return false;
+    }
+
+    // Web USB printing
+    async tryWebUSB(escposData) {
+        try {
+            // Request USB device
+            const device = await navigator.usb.requestDevice({
+                filters: [
+                    { vendorId: 0x0416, productId: 0x5011 },
+                    { vendorId: 0x0483, productId: 0x5740 },
+                    { vendorId: 0x067B, productId: 0x2303 },
+                    { vendorId: 0x1A86, productId: 0x7584 }
+                ]
+            });
+            
+            await device.open();
+            await device.selectConfiguration(1);
+            await device.claimInterface(0);
+            
+            // Send data
+            const encoder = new TextEncoder();
+            await device.transferOut(1, encoder.encode(escposData));
+            
+            await device.close();
+            return true;
+            
+        } catch (error) {
+            console.warn('USB printing failed:', error);
+            return false;
+        }
+    }
+
+    // Silent browser print (no preview)
+    async silentBrowserPrint(escposData) {
+        return new Promise((resolve) => {
+            // Create invisible iframe
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.onload = function() {
+                try {
+                    // Write receipt to iframe
+                    const printDoc = iframe.contentWindow.document;
+                    printDoc.open();
+                    printDoc.write(`
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <title>Print</title>
+                            <style>
+                                @media print {
+                                    body { margin: 0; padding: 0; width: 80mm; }
+                                    @page { size: 80mm auto; margin: 0; }
+                                }
+                                body {
+                                    font-family: monospace;
+                                    font-size: 11px;
+                                    width: 80mm;
+                                    margin: 0;
+                                    padding: 5mm;
+                                    line-height: 1;
+                                    white-space: pre;
+                                    visibility: hidden;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <pre>${escposData.replace(/[^\x20-\x7E\n\r\t]/g, ' ')}</pre>
+                            <script>
+                                // Auto print and close
+                                setTimeout(() => {
+                                    window.print();
+                                    setTimeout(() => {
+                                        window.close();
+                                    }, 100);
+                                }, 50);
+                            <\/script>
+                        </body>
+                        </html>
+                    `);
+                    printDoc.close();
+                    
+                    // Auto print
+                    setTimeout(() => {
+                        iframe.contentWindow.print();
+                        setTimeout(() => {
+                            document.body.removeChild(iframe);
+                            resolve();
+                        }, 500);
+                    }, 100);
+                    
+                } catch (e) {
+                    console.error('Print error:', e);
+                    document.body.removeChild(iframe);
+                    resolve();
+                }
+            };
+            
+            document.body.appendChild(iframe);
+            iframe.src = 'about:blank';
+        });
+    }
+
+    // Save order to database
+    async saveOrder(receiptData) {
+        const user = auth.currentUser;
+        if (!user) return;
+        
+        const orderData = {
+            restaurantId: user.uid,
+            items: [...cart],
+            customerName: receiptData.customer.name,
+            customerPhone: receiptData.customer.phone,
+            subtotal: receiptData.subtotal,
+            gstRate: receiptData.gstRate,
+            gstAmount: receiptData.gstAmount,
+            total: receiptData.grandTotal,
+            paymentMode: receiptData.payment.mode,
+            cashReceived: receiptData.payment.mode === 'cash' ? receiptData.payment.received : 0,
+            changeAmount: receiptData.payment.change,
+            status: 'completed',
+            orderId: receiptData.billNo,
+            billNo: receiptData.billNo,
+            printedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        await db.collection('orders').add(orderData);
+    }
+
+    // Clear cart
+    clearCart() {
         cart = [];
         if (typeof renderCart === 'function') renderCart();
         if (typeof updateTotals === 'function') updateTotals();
         
-        // Reset form
+        // Clear form fields
         document.getElementById('customerName').value = '';
         document.getElementById('customerPhone').value = '';
         document.getElementById('paymentMode').value = 'cash';
         document.getElementById('cashReceived').value = '';
+        
+        const currency = localStorage.getItem('currency') || '₹';
         document.getElementById('changeAmount').textContent = `${currency}0.00`;
-        
-        showNotification('Bill printed successfully!', 'success');
-        
-    } catch (error) {
-        console.error('Print error:', error);
-        
-        // Fallback to browser print
-        await printFallbackReceipt();
-        showNotification('Printed via fallback method', 'info');
+    }
+
+    // Generate bill number
+    generateBillNumber() {
+        const date = new Date();
+        const year = date.getFullYear().toString().substr(-2);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `${year}${month}${day}${random}`;
     }
 }
 
-// Fallback browser printing
-async function printFallbackReceipt() {
-    // Prepare simple receipt for browser print
-    const receiptContent = generateSimpleReceipt();
-    
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Print Receipt</title>
-            <style>
-                @media print {
-                    body { margin: 0; padding: 0; width: 80mm; }
-                    @page { size: 80mm auto; margin: 0; }
-                }
-                body {
-                    font-family: monospace;
-                    font-size: 12px;
-                    width: 80mm;
-                    margin: 0;
-                    padding: 5mm;
-                    line-height: 1;
-                    white-space: pre;
-                }
-            </style>
-        </head>
-        <body>
-            <pre>${receiptContent}</pre>
-            <script>
-                window.onload = function() {
-                    window.print();
-                    setTimeout(() => window.close(), 100);
-                }
-            </script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
-
-// Save order after printing
-async function saveOrderAfterPrint(receiptData) {
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    const orderData = {
-        restaurantId: user.uid,
-        items: [...cart],
-        customerName: receiptData.customer.name,
-        customerPhone: receiptData.customer.phone,
-        subtotal: receiptData.subtotal,
-        gstRate: receiptData.taxRate,
-        gstAmount: receiptData.tax,
-        grandTotal: receiptData.grandTotal,
-        paymentMode: receiptData.payment.mode,
-        cashReceived: receiptData.payment.mode === 'cash' ? receiptData.payment.received : 0,
-        changeAmount: receiptData.payment.change,
-        status: 'completed',
-        orderId: receiptData.billNo,
-        billNo: receiptData.billNo,
-        printedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    
-    await db.collection('orders').add(orderData);
-}
-
-// Generate simple receipt for fallback
-function generateSimpleReceipt() {
-    const restaurantName = document.getElementById('restaurantName')?.textContent || 'Restaurant';
-    const now = new Date();
-    
-    return `
-${'='.repeat(42)}
-        ${restaurantName.toUpperCase()}
-${'='.repeat(42)}
-Date: ${now.toLocaleDateString('en-IN')}
-Time: ${now.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})}
-Bill No: ${generateOrderId()}
-${'-'.repeat(42)}
-Customer: ${document.getElementById('customerName')?.value || 'Walk-in Customer'}
-${'-'.repeat(42)}
-ITEMS                QTY   AMOUNT
-${'-'.repeat(42)}
-${cart.map(item => {
-    const name = item.name.length > 18 ? item.name.substring(0, 18) + '...' : item.name.padEnd(20);
-    const qty = item.quantity.toString().padStart(3);
-    const amount = `₹${(item.price * item.quantity).toFixed(2).padStart(8)}`;
-    return `${name} ${qty}  ${amount}`;
-}).join('\n')}
-${'-'.repeat(42)}
-Total: ₹${cart.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
-${'='.repeat(42)}
-Thank you for your visit!
-Please visit again.
-${'='.repeat(42)}
-`;
-}
-
-// Generate order ID
-function generateOrderId() {
-    const date = new Date();
-    const year = date.getFullYear().toString().substr(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `BILL${year}${month}${day}${random}`;
-}
-
-// Initialize printer on page load
-document.addEventListener('DOMContentLoaded', async () => {
-    // Check if we're on billing page
-    if (window.location.pathname.includes('billing.html')) {
-        // Initialize thermal printer
-        await window.thermalPrinter.init();
+// Initialize on billing page only
+if (window.location.pathname.includes('billing.html')) {
+    document.addEventListener('DOMContentLoaded', () => {
+        // Create global printer instance
+        window.fastPrinter = new FastThermalPrinter();
         
-        // Add printer status indicator
+        // Override print button
+        const printBtn = document.getElementById('printBill');
+        if (printBtn) {
+            printBtn.onclick = async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Check if cart is empty
+                if (!cart || cart.length === 0) {
+                    showNotification('Cart is empty!', 'error');
+                    return;
+                }
+                
+                // Check cash payment validation
+                const paymentMode = document.getElementById('paymentMode').value;
+                if (paymentMode === 'cash') {
+                    const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
+                    const total = parseFloat(document.getElementById('totalAmount')?.textContent.replace(/[^0-9.]/g, '') || 0);
+                    
+                    if (cashReceived < total) {
+                        showNotification('Insufficient cash received!', 'error');
+                        return;
+                    }
+                }
+                
+                // Show printing status
+                showNotification('🖨️ Printing bill...', 'info');
+                
+                // Disable button during print
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Printing...';
+                this.disabled = true;
+                
+                // Start printing
+                await window.fastPrinter.printBillNow();
+                
+                // Re-enable button
+                this.innerHTML = originalText;
+                this.disabled = false;
+            };
+        }
+        
+        // Add printer status
         addPrinterStatus();
-    }
-});
+    });
+}
 
-// Add printer status to UI
+// Add printer status indicator
 function addPrinterStatus() {
     const statusHtml = `
         <div id="printerStatus" class="fixed bottom-4 right-4 z-50">
-            <div class="bg-white rounded-lg shadow-lg p-3 flex items-center space-x-2">
-                <div class="w-3 h-3 rounded-full ${window.thermalPrinter.isConnected ? 'bg-green-500' : 'bg-red-500'}"></div>
-                <span class="text-sm font-medium">${window.thermalPrinter.isConnected ? 'Printer Connected' : 'Printer Offline'}</span>
-                ${!window.thermalPrinter.isConnected ? 
-                    '<button onclick="connectPrinter()" class="text-blue-500 text-sm ml-2">Connect</button>' : 
-                    '<button onclick="printTestPage()" class="text-gray-500 text-sm ml-2">Test</button>'
-                }
+            <div class="bg-white rounded-lg shadow-lg p-2 flex items-center space-x-2 border border-green-200">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span class="text-xs font-medium">Printer Ready</span>
             </div>
         </div>
     `;
@@ -619,39 +494,26 @@ function addPrinterStatus() {
     document.body.insertAdjacentHTML('beforeend', statusHtml);
 }
 
-// Connect printer manually
-async function connectPrinter() {
-    showNotification('Connecting to printer...', 'info');
-    await window.thermalPrinter.init();
+// Simple notification
+function showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existing = document.querySelectorAll('.temp-notification');
+    existing.forEach(el => el.remove());
     
-    const statusDiv = document.getElementById('printerStatus');
-    if (statusDiv) {
-        statusDiv.innerHTML = `
-            <div class="bg-white rounded-lg shadow-lg p-3 flex items-center space-x-2">
-                <div class="w-3 h-3 rounded-full ${window.thermalPrinter.isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}"></div>
-                <span class="text-sm font-medium">${window.thermalPrinter.isConnected ? 'Printer Connected' : 'Connection Failed'}</span>
-            </div>
-        `;
-    }
+    const notification = document.createElement('div');
+    notification.className = `temp-notification fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 text-white text-sm ${
+        type === 'success' ? 'bg-green-500' : 
+        type === 'error' ? 'bg-red-500' : 
+        'bg-blue-500'
+    }`;
+    notification.textContent = message;
+    notification.style.animation = 'slideIn 0.3s ease-out';
     
-    if (window.thermalPrinter.isConnected) {
-        showNotification('Printer connected successfully!', 'success');
-    } else {
-        showNotification('Could not connect to printer', 'error');
-    }
+    document.body.appendChild(notification);
+    
+    // Auto remove
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
-
-// Print test page
-async function printTestPage() {
-    try {
-        await window.thermalPrinter.printTest();
-        showNotification('Test page printed', 'success');
-    } catch (error) {
-        showNotification('Test print failed', 'error');
-    }
-}
-
-// Make functions globally available
-window.printBillDirect = printBillDirect;
-window.connectPrinter = connectPrinter;
-window.printTestPage = printTestPage;

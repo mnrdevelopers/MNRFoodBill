@@ -80,35 +80,35 @@
         <input type="file" id="logoImageInput" accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp" class="hidden">
         
         <!-- Upload Content (shown when no logo) -->
-        <div class="space-y-3" id="logoUploadContent">
-            <div class="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
-                <i class="fas fa-image text-red-500 text-xl"></i>
-            </div>
-            <div>
-                <p class="font-medium text-gray-700">Click to upload restaurant logo</p>
-                <p class="text-xs text-gray-500 mt-1">
-                    PNG, JPG, SVG, WebP up to 5MB<br>
-                    <span class="text-red-500">Best size: 150x150px (square)</span>
-                </p>
-            </div>
-            <button type="button" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">
-                Browse Files
+      <div class="space-y-3" id="logoUploadContent">
+    <div class="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
+        <i class="fas fa-image text-red-500 text-xl"></i>
+    </div>
+    <div>
+        <p class="font-medium text-gray-700">Click to upload restaurant logo</p>
+        <p class="text-xs text-gray-500 mt-1">
+            PNG, JPG, WebP up to 5MB<br>
+            <span class="text-red-500">Optimal size: 150x100px</span><br>
+            <span class="text-gray-400">Will appear small & centered on receipts</span>
+        </p>
+    </div>
+    <button type="button" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">
+        Browse Files
+    </button>
+</div>
+        
+       <!-- Logo Preview (shown when logo is selected) -->
+<div id="logoPreviewContainer" class="hidden">
+    <div class="logo-preview">
+        <div class="relative inline-block bg-white p-2 rounded-lg border">
+            <img id="logoPreview" class="w-24 h-16 object-contain" src="" alt="Logo Preview">
+            <button type="button" id="removeLogo" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600">
+                <i class="fas fa-times text-xs"></i>
             </button>
         </div>
-        
-        <!-- Logo Preview (shown when logo is selected) -->
-        <div id="logoPreviewContainer" class="hidden">
-            <div class="logo-preview">
-                <div class="relative inline-block">
-                    <img id="logoPreview" class="w-32 h-32 object-contain rounded-lg shadow" src="" alt="Logo Preview">
-                    <button type="button" id="removeLogo" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600">
-                        <i class="fas fa-times text-xs"></i>
-                    </button>
-                </div>
-                <p class="text-xs text-gray-500 mt-2">Click image to change</p>
-            </div>
-        </div>
+        <p class="text-xs text-gray-500 mt-2 text-center">Small logo for receipts (max 150x100px)</p>
     </div>
+</div>
     
     <!-- Progress Bar Section for Logo -->
     <div class="mt-3 hidden" id="logoProgressSection">

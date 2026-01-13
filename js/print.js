@@ -254,6 +254,9 @@ function showDesktopPrintPreview(receiptText, restaurantName, billNo) {
     // Store receipt in data attribute
     printContent.setAttribute('data-receipt-text', receiptText);
     
+    // Create HTML with proper thermal printer styling
+    const receiptHTML = formatReceiptForHTML(receiptText);
+    
     // Update modal content for desktop
     printContent.innerHTML = `
         <div class="space-y-4">
@@ -267,8 +270,29 @@ function showDesktopPrintPreview(receiptText, restaurantName, billNo) {
                 </div>
             </div>
             
-            <div class="bg-gray-50 p-3 rounded border border-gray-200 max-h-64 overflow-y-auto">
-                <pre class="text-xs font-mono whitespace-pre">${receiptText}</pre>
+            <div class="thermal-preview">
+                <div class="thermal-receipt" style="
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    line-height: 1.1;
+                    white-space: pre;
+                    background: white;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    max-height: 400px;
+                    overflow-y: auto;
+                    width: 100%;
+                    max-width: 300px;
+                    margin: 0 auto;
+                ">
+                    ${receiptHTML}
+                </div>
+            </div>
+            
+            <div class="text-xs text-gray-500 text-center">
+                <p>Preview shows thermal printer layout (42 chars width)</p>
+                <p>Actual print will use thermal printer formatting</p>
             </div>
             
             <div class="grid grid-cols-1 gap-3">
@@ -281,11 +305,6 @@ function showDesktopPrintPreview(receiptText, restaurantName, billNo) {
                         class="bg-gray-500 text-white py-3 rounded-lg font-bold hover:bg-gray-600 transition flex items-center justify-center">
                     <i class="fas fa-download mr-2"></i> Download as Text
                 </button>
-            </div>
-            
-            <div class="text-xs text-gray-500">
-                <p>Thermal printer paper width: 58mm</p>
-                <p>Make sure to select thermal printer in print dialog</p>
             </div>
         </div>
     `;
@@ -304,9 +323,20 @@ function showDesktopPrintPreview(receiptText, restaurantName, billNo) {
     modal.classList.remove('hidden');
 }
 
+function formatReceiptForHTML(receiptText) {
+    // Convert plain text receipt to HTML with proper formatting
+    return receiptText
+        .replace(/=/g, '<span style="color: #666;">=</span>')
+        .replace(/-/g, '<span style="color: #999;">-</span>')
+        .replace(/\n/g, '<br>')
+        .replace(/^(.*RESTAURANT.*)$/gmi, '<strong>$1</strong>')
+        .replace(/^(GRAND TOTAL.*)$/gmi, '<strong style="color: #000;">$1</strong>')
+        .replace(/^(Thank you.*)$/gmi, '<span style="color: #333;">$1</span>');
+}
+
 window.desktopPrintReceipt = function() {
     const receiptText = document.getElementById('printContent').getAttribute('data-receipt-text');
-    printViaBrowser(receiptText);
+    printThermalReceipt(receiptText);
     saveOrderAndClearCart();
     closePrintModal();
 };
@@ -318,34 +348,69 @@ window.downloadReceiptDesktop = function() {
     showNotification('Receipt downloaded!', 'success');
 };
 
-function printViaBrowser(receiptText) {
-    // Create a hidden div for printing
-    const printDiv = document.createElement('div');
-    printDiv.id = 'printableReceipt';
-    printDiv.style.cssText = `
-        position: absolute;
-        left: -9999px;
-        top: -9999px;
-        width: 58mm;
-        font-family: 'Courier New', monospace;
-        font-size: 9pt;
-        white-space: pre;
-        line-height: 1;
-        padding: 2mm;
-        background: white;
+function printThermalReceipt(receiptText) {
+    // Create a print window with thermal printer styling
+    const printWindow = window.open('', '_blank');
+    
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Print Receipt</title>
+            <style>
+                @media print {
+                    body, html {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 58mm !important;
+                        font-family: 'Courier New', monospace !important;
+                        font-size: 12px !important;
+                        line-height: 1.1 !important;
+                    }
+                    @page {
+                        margin: 0 !important;
+                        size: 58mm auto !important;
+                    }
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                }
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    line-height: 1.1;
+                    width: 58mm;
+                    margin: 0 auto;
+                    padding: 2mm;
+                    white-space: pre;
+                    word-wrap: break-word;
+                }
+                .receipt-content {
+                    max-width: 42ch;
+                    margin: 0 auto;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="receipt-content">
+                ${receiptText.replace(/\n/g, '<br>')}
+            </div>
+            <script>
+                // Auto-print
+                setTimeout(function() {
+                    window.print();
+                    setTimeout(function() {
+                        window.close();
+                    }, 500);
+                }, 100);
+            </script>
+        </body>
+        </html>
     `;
-    printDiv.textContent = receiptText;
-    document.body.appendChild(printDiv);
     
-    // Trigger print
-    window.print();
-    
-    // Clean up
-    setTimeout(() => {
-        if (printDiv.parentNode) {
-            printDiv.parentNode.removeChild(printDiv);
-        }
-    }, 100);
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
 }
 
 // ========================================

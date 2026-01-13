@@ -314,12 +314,14 @@ document.addEventListener('DOMContentLoaded', function() {
             address: settings.address || restaurantData.address || '',
             phone: settings.phone || restaurantData.phone || '',
             gstin: settings.gstin || '',
-            fssai: settings.fssai || ''
+            fssai: settings.fssai || '',
+            logoUrl: settings.logoUrl || restaurantData.logoUrl || ''
         };
 
         // Prepare receipt for printing
         let receipt = `
 ${'='.repeat(32)}
+${restaurant.logoUrl ? '      [LOGO]\n\n' : ''}
         ${restaurant.name.toUpperCase()}
 ${'='.repeat(32)}
 ${restaurant.address ? `Address: ${restaurant.address}\n` : ''}
@@ -345,7 +347,7 @@ ${'-'.repeat(32)}
             });
         }
         
-        // Calculate taxes based on saved rates or use defaults
+        // Calculate taxes
         const gstRate = selectedOrder.gstRate || settings.gstRate || 0;
         const serviceRate = selectedOrder.serviceChargeRate || settings.serviceCharge || 0;
         
@@ -365,11 +367,11 @@ ${restaurant.ownerPhone ? `\nContact Owner: ${restaurant.ownerPhone}\n` : ''}
         
         // Set print content and show modal
         document.getElementById('printContent').textContent = receipt;
+        document.getElementById('printContent').setAttribute('data-receipt-text', receipt);
+        document.getElementById('printContent').setAttribute('data-logo-url', restaurant.logoUrl);
+        
         closeOrderModal();
         document.getElementById('printModal').classList.remove('hidden');
-        
-        // Store receipt text for printing
-        document.getElementById('printContent').setAttribute('data-receipt-text', receipt);
         
     } catch (error) {
         console.error("Error printing receipt:", error);
@@ -584,3 +586,4 @@ window.closePrintModal = function() {
         document.body.style.overflow = '';
     }
 };
+

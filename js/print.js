@@ -213,34 +213,85 @@ async function mobilePrintWithRawBT(receiptText, restaurantName, billNo) {
         const fileName = `receipt_${billNo}.txt`;
         const file = new File([receiptText], fileName, { type: 'text/plain' });
         
-        // Check if Web Share API is available
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            // Share with Web Share API (this will open RawBT)
-            await navigator.share({
-                title: `${restaurantName} - Bill ${billNo}`,
-                text: `Receipt ${billNo}\nTotal: ₹${getTotalAmount()}`,
-                files: [file]
-            });
-            
-            showNotification('Receipt sent to printer!', 'success');
-            
-        } else {
-            // Fallback: Download file (which should open RawBT)
-            downloadFile(receiptText, fileName);
-            showNotification('Opening RawBT...', 'info');
+        // Try Web Share API directly without canShare check
+        if (navigator.share) {
+            try {
+                // Share with Web Share API (this will open RawBT)
+                await navigator.share({
+                    title: `${restaurantName} - Bill ${billNo}`,
+                    text: `Receipt ${billNo}\nTotal: ₹${getTotalAmount()}`,
+                    files: [file]
+                });
+                
+                showNotification('Receipt sent to printer!', 'success');
+                return;
+            } catch (shareError) {
+                console.log('Share API error:', shareError);
+                // If share fails, try without files
+                if (shareError.name === 'TypeError' || shareError.toString().includes('files')) {
+                    // Try sharing just text
+                    await navigator.share({
+                        title: `${restaurantName} - Bill ${billNo}`,
+                        text: receiptText.substring(0, 100) + '...\n\n(Full receipt downloaded as file)'
+                    });
+                    
+                    // Then download the file
+                    downloadFile(receiptText, fileName);
+                    showNotification('Share initiated! File downloaded for printing.', 'info');
+                    return;
+                }
+                throw shareError; // Re-throw other errors
+            }
         }
+        
+        // If Web Share API is not available, try RawBT intent
+        if (/Android/i.test(navigator.userAgent)) {
+            const rawbtSuccess = tryRawBTIntent(receiptText);
+            if (rawbtSuccess) {
+                showNotification('Opening RawBT...', 'info');
+                return;
+            }
+        }
+        
+        // Fallback: Download file (which should open RawBT)
+        downloadFile(receiptText, fileName);
+        showNotification('Downloading receipt... Opening RawBT', 'info');
         
     } catch (error) {
         console.error('Mobile print failed:', error);
         
-        if (error.name !== 'AbortError') {
-            // Fallback to download
-            downloadFile(receiptText, `receipt_${billNo}.txt`);
-            showNotification('Downloading receipt...', 'info');
-            
-            // Still save the order
-            await saveOrderAndClearCart();
-        }
+        // Always download as fallback
+        const fileName = `receipt_${billNo}.txt`;
+        downloadFile(receiptText, fileName);
+        showNotification('Downloading receipt for printing...', 'info');
+        
+        // Still save the order
+        await saveOrderAndClearCart();
+    }
+}
+
+function tryRawBTIntent(receiptText) {
+    try {
+        // RawBT Android Intent
+        const intentUrl = `intent://rawbt.ru/print#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.text=${encodeURIComponent(receiptText)};end`;
+        
+        // Create hidden iframe to trigger intent
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = intentUrl;
+        document.body.appendChild(iframe);
+        
+        // Remove iframe after a moment
+        setTimeout(() => {
+            if (iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe);
+            }
+        }, 1000);
+        
+        return true;
+    } catch (error) {
+        console.error('RawBT intent failed:', error);
+        return false;
     }
 }
 

@@ -56,16 +56,8 @@ async function prepareReceipt() {
             cgstAmount, sgstAmount
         );
         
-        // Check if mobile or desktop
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-            // Mobile: Use RawBT printing
-            await mobilePrintWithRawBT(receipt, restaurant.name, billNo);
-        } else {
-            // Desktop: Show print preview modal
-            showDesktopPrintPreview(receipt, restaurant.name, billNo);
-        }
+        // IMMEDIATELY SHARE TO RAWTB
+        await shareToRawBT(receipt, billNo, restaurant.name);
         
     } catch (error) {
         console.error("Error preparing receipt:", error);
@@ -201,10 +193,7 @@ function buildReceipt(restaurant, customerName, customerPhone,
     return receipt;
 }
 
-// ========================================
-// MOBILE: RAWBT PRINTING
-// ========================================
-async function mobilePrintWithRawBT(receiptText, restaurantName, billNo) {
+async function shareToRawBT(receiptText, billNo, restaurantName) {
     try {
         // First, save the order (do this BEFORE sharing)
         await saveOrderAndClearCart();
@@ -213,260 +202,35 @@ async function mobilePrintWithRawBT(receiptText, restaurantName, billNo) {
         const fileName = `receipt_${billNo}.txt`;
         const file = new File([receiptText], fileName, { type: 'text/plain' });
         
-        // Try Web Share API directly without canShare check
-        if (navigator.share) {
-            try {
-                // Share with Web Share API (this will open RawBT)
-                await navigator.share({
-                    title: `${restaurantName} - Bill ${billNo}`,
-                    text: `Receipt ${billNo}\nTotal: ₹${getTotalAmount()}`,
-                    files: [file]
-                });
-                
-                showNotification('Receipt sent to printer!', 'success');
-                return;
-            } catch (shareError) {
-                console.log('Share API error:', shareError);
-                // If share fails, try without files
-                if (shareError.name === 'TypeError' || shareError.toString().includes('files')) {
-                    // Try sharing just text
-                    await navigator.share({
-                        title: `${restaurantName} - Bill ${billNo}`,
-                        text: receiptText.substring(0, 100) + '...\n\n(Full receipt downloaded as file)'
-                    });
-                    
-                    // Then download the file
-                    downloadFile(receiptText, fileName);
-                    showNotification('Share initiated! File downloaded for printing.', 'info');
-                    return;
-                }
-                throw shareError; // Re-throw other errors
-            }
+        // Check if Web Share API is available
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            // Share with Web Share API (this will open RawBT)
+            await navigator.share({
+                title: `${restaurantName} - Bill ${billNo}`,
+                text: `Receipt ${billNo}\nTotal: ₹${getTotalAmount()}`,
+                files: [file]
+            });
+            
+            showNotification('Receipt sent to printer!', 'success');
+            
+        } else {
+            // Fallback: Download file (which should open RawBT)
+            downloadFile(receiptText, fileName);
+            showNotification('Downloading receipt... Opening RawBT', 'info');
         }
         
-        // If Web Share API is not available, try RawBT intent
-        if (/Android/i.test(navigator.userAgent)) {
-            const rawbtSuccess = tryRawBTIntent(receiptText);
-            if (rawbtSuccess) {
-                showNotification('Opening RawBT...', 'info');
-                return;
-            }
+    } catch (error) {
+        console.error('Share failed:', error);
+        
+        // Fallback methods
+        if (error.name !== 'AbortError') {
+            // Try download method
+            downloadFile(receiptText, `receipt_${billNo}.txt`);
+            showNotification('Opening RawBT...', 'info');
         }
-        
-        // Fallback: Download file (which should open RawBT)
-        downloadFile(receiptText, fileName);
-        showNotification('Downloading receipt... Opening RawBT', 'info');
-        
-    } catch (error) {
-        console.error('Mobile print failed:', error);
-        
-        // Always download as fallback
-        const fileName = `receipt_${billNo}.txt`;
-        downloadFile(receiptText, fileName);
-        showNotification('Downloading receipt for printing...', 'info');
-        
-        // Still save the order
-        await saveOrderAndClearCart();
     }
 }
 
-function tryRawBTIntent(receiptText) {
-    try {
-        // RawBT Android Intent
-        const intentUrl = `intent://rawbt.ru/print#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.text=${encodeURIComponent(receiptText)};end`;
-        
-        // Create hidden iframe to trigger intent
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = intentUrl;
-        document.body.appendChild(iframe);
-        
-        // Remove iframe after a moment
-        setTimeout(() => {
-            if (iframe.parentNode) {
-                iframe.parentNode.removeChild(iframe);
-            }
-        }, 1000);
-        
-        return true;
-    } catch (error) {
-        console.error('RawBT intent failed:', error);
-        return false;
-    }
-}
-
-// ========================================
-// DESKTOP: BROWSER PRINTING
-// ========================================
-function showDesktopPrintPreview(receiptText, restaurantName, billNo) {
-    const printContent = document.getElementById('printContent');
-    const modal = document.getElementById('printModal');
-    
-    // Store receipt in data attribute
-    printContent.setAttribute('data-receipt-text', receiptText);
-    
-    // Create HTML with proper thermal printer styling
-    const receiptHTML = formatReceiptForHTML(receiptText);
-    
-    // Update modal content for desktop
-    printContent.innerHTML = `
-        <div class="space-y-4">
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div class="flex items-center space-x-3">
-                    <i class="fas fa-print text-blue-500 text-2xl"></i>
-                    <div>
-                        <h4 class="font-bold text-blue-800">Print Preview</h4>
-                        <p class="text-sm text-blue-600">${restaurantName} • Bill: ${billNo}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="thermal-preview">
-                <div class="thermal-receipt" style="
-                    font-family: 'Courier New', monospace;
-                    font-size: 12px;
-                    line-height: 1.1;
-                    white-space: pre;
-                    background: white;
-                    padding: 10px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    max-height: 400px;
-                    overflow-y: auto;
-                    width: 100%;
-                    max-width: 300px;
-                    margin: 0 auto;
-                ">
-                    ${receiptHTML}
-                </div>
-            </div>
-            
-            <div class="text-xs text-gray-500 text-center">
-                <p>Preview shows thermal printer layout (42 chars width)</p>
-                <p>Actual print will use thermal printer formatting</p>
-            </div>
-            
-            <div class="grid grid-cols-1 gap-3">
-                <button onclick="desktopPrintReceipt()" 
-                        class="bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600 transition flex items-center justify-center">
-                    <i class="fas fa-print mr-2"></i> PRINT NOW
-                </button>
-                
-                <button onclick="downloadReceiptDesktop()" 
-                        class="bg-gray-500 text-white py-3 rounded-lg font-bold hover:bg-gray-600 transition flex items-center justify-center">
-                    <i class="fas fa-download mr-2"></i> Download as Text
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Update modal footer
-    const modalFooter = modal.querySelector('.flex.space-x-3');
-    if (modalFooter) {
-        modalFooter.innerHTML = `
-            <button onclick="closePrintModal()" 
-                    class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
-                Cancel
-            </button>
-        `;
-    }
-    
-    modal.classList.remove('hidden');
-}
-
-function formatReceiptForHTML(receiptText) {
-    // Convert plain text receipt to HTML with proper formatting
-    return receiptText
-        .replace(/=/g, '<span style="color: #666;">=</span>')
-        .replace(/-/g, '<span style="color: #999;">-</span>')
-        .replace(/\n/g, '<br>')
-        .replace(/^(.*RESTAURANT.*)$/gmi, '<strong>$1</strong>')
-        .replace(/^(GRAND TOTAL.*)$/gmi, '<strong style="color: #000;">$1</strong>')
-        .replace(/^(Thank you.*)$/gmi, '<span style="color: #333;">$1</span>');
-}
-
-window.desktopPrintReceipt = function() {
-    const receiptText = document.getElementById('printContent').getAttribute('data-receipt-text');
-    printThermalReceipt(receiptText);
-    saveOrderAndClearCart();
-    closePrintModal();
-};
-
-window.downloadReceiptDesktop = function() {
-    const receiptText = document.getElementById('printContent').getAttribute('data-receipt-text');
-    const billNo = generateOrderId();
-    downloadFile(receiptText, `receipt_${billNo}.txt`);
-    showNotification('Receipt downloaded!', 'success');
-};
-
-function printThermalReceipt(receiptText) {
-    // Create a print window with thermal printer styling
-    const printWindow = window.open('', '_blank');
-    
-    const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Print Receipt</title>
-            <style>
-                @media print {
-                    body, html {
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        width: 58mm !important;
-                        font-family: 'Courier New', monospace !important;
-                        font-size: 12px !important;
-                        line-height: 1.1 !important;
-                    }
-                    @page {
-                        margin: 0 !important;
-                        size: 58mm auto !important;
-                    }
-                    * {
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
-                }
-                body {
-                    font-family: 'Courier New', monospace;
-                    font-size: 12px;
-                    line-height: 1.1;
-                    width: 58mm;
-                    margin: 0 auto;
-                    padding: 2mm;
-                    white-space: pre;
-                    word-wrap: break-word;
-                }
-                .receipt-content {
-                    max-width: 42ch;
-                    margin: 0 auto;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="receipt-content">
-                ${receiptText.replace(/\n/g, '<br>')}
-            </div>
-            <script>
-                // Auto-print
-                setTimeout(function() {
-                    window.print();
-                    setTimeout(function() {
-                        window.close();
-                    }, 500);
-                }, 100);
-            </script>
-        </body>
-        </html>
-    `;
-    
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-}
-
-// ========================================
-// COMMON FUNCTIONS
-// ========================================
 function downloadFile(content, fileName) {
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -521,7 +285,7 @@ async function saveOrderAndClearCart() {
 
         await db.collection('orders').add(orderData);
         
-        // Clear cart
+        // Clear cart IMMEDIATELY
         cart = [];
         if (typeof renderCart === 'function') renderCart();
         if (typeof updateTotals === 'function') updateTotals();
@@ -539,7 +303,7 @@ async function saveOrderAndClearCart() {
         
     } catch (error) {
         console.error('Error saving order:', error);
-        // Don't show error to user during printing
+        // Don't show error to user - just log it
     }
 }
 
@@ -552,17 +316,8 @@ function generateOrderId() {
     return `BILL${year}${month}${day}${random}`;
 }
 
-function closePrintModal() {
-    const modal = document.getElementById('printModal');
-    if (modal) {
-        modal.classList.add('hidden');
-        document.body.style.overflow = '';
-    }
-}
-
-// ========================================
-// INITIALIZATION
-// ========================================
+// Remove the old print modal function - we don't need it anymore
+window.prepareReceipt = prepareReceipt;
 
 // Override the printBill button click handler
 document.addEventListener('DOMContentLoaded', function() {
@@ -594,28 +349,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Show processing notification
-            showNotification('Processing receipt...', 'info');
+            // Show printing notification
+            showNotification('Printing receipt...', 'info');
             
-            // Call prepareReceipt which handles mobile/desktop differently
+            // Call prepareReceipt which will trigger shareToRawBT
             await prepareReceipt();
         });
     }
 });
-
-// Make functions available globally
-window.prepareReceipt = prepareReceipt;
-window.printReceipt = function() {
-    // For backward compatibility
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
-        const receiptText = document.getElementById('printContent').getAttribute('data-receipt-text');
-        mobilePrintWithRawBT(receiptText, 'Restaurant', generateOrderId());
-    } else {
-        desktopPrintReceipt();
-    }
-};
-window.closePrintModal = closePrintModal;
 
 // Helper for notifications
 function showNotification(message, type) {
@@ -632,4 +373,25 @@ function showNotification(message, type) {
         notification.style.transform = 'translateY(-20px)';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+// Optional: Add a quick print status indicator
+function addPrintStatusIndicator() {
+    const statusDiv = document.createElement('div');
+    statusDiv.id = 'printStatus';
+    statusDiv.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hidden';
+    statusDiv.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <span>Printing...</span>
+        </div>
+    `;
+    document.body.appendChild(statusDiv);
+}
+
+// Initialize on load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', addPrintStatusIndicator);
+} else {
+    addPrintStatusIndicator();
 }

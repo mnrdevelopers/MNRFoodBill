@@ -131,6 +131,9 @@ async function loadDashboardData(user) {
             Promise.all(loadPromises),
             timeoutPromise
         ]);
+
+         // Add filters after loading data
+        addDashboardFilters();
         
         console.log('Dashboard data loaded successfully');
         
@@ -211,26 +214,42 @@ function loadRestaurantAndUserInfo(user) {
 }
 
 // Load dashboard stats with better error handling
-function loadDashboardStats(user) {
+function loadDashboardStats(user, filters = {}) {
     return new Promise((resolve, reject) => {
         if (!user) {
             reject(new Error('No user'));
             return;
         }
 
-        // Total revenue and orders (All time)
-        const revenuePromise = db.collection('orders')
-            .where('restaurantId', '==', user.uid)
-            .where('status', '==', 'completed')
-            .get()
+        let query = db.collection('orders')
+            .where('restaurantId', '==', user.uid);
+
+        // Apply filters
+        if (filters.startDate && filters.endDate) {
+            const start = new Date(filters.startDate);
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            
+            query = query.where('createdAt', '>=', start)
+                        .where('createdAt', '<=', end);
+        }
+
+        if (filters.status && filters.status !== 'all') {
+            query = query.where('status', '==', filters.status);
+        }
+
+        // Revenue and orders
+        query.get()
             .then(snapshot => {
                 let totalRevenue = 0;
                 let totalOrders = 0;
                 
                 snapshot.forEach(doc => {
                     const order = doc.data();
-                    totalRevenue += order.total || 0;
-                    totalOrders++;
+                    if (order.status === 'completed') {
+                        totalRevenue += order.total || 0;
+                        totalOrders++;
+                    }
                 });
 
                 const revEl = document.getElementById('totalRevenue');
@@ -242,7 +261,7 @@ function loadDashboardStats(user) {
                 console.warn('Could not load revenue stats:', err);
             });
 
-        // Total products
+        // Total products (unfiltered)
         const productsPromise = db.collection('products')
             .where('restaurantId', '==', user.uid)
             .get()
@@ -254,9 +273,71 @@ function loadDashboardStats(user) {
                 console.warn('Could not load product count:', err);
             });
 
-        Promise.all([revenuePromise, productsPromise])
+        Promise.all([productsPromise])
             .then(resolve)
             .catch(reject);
+    });
+}
+
+// Add filters to dashboard.html (add this after welcome section)
+function addDashboardFilters() {
+    const welcomeSection = document.querySelector('.bg-white.rounded-xl.shadow.p-6.mb-6');
+    if (!welcomeSection) return;
+
+    const filtersHTML = `
+        <div class="mt-4 bg-gray-50 p-4 rounded-lg">
+            <div class="flex flex-wrap gap-4 items-center">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+                    <div class="flex items-center">
+                        <input type="date" id="dashboardStartDate" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+                        <span class="mx-2 text-gray-500">to</span>
+                        <input type="date" id="dashboardEndDate" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Order Status</label>
+                    <select id="dashboardStatusFilter" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+                        <option value="all">All Orders</option>
+                        <option value="completed">Completed Only</option>
+                    </select>
+                </div>
+                
+                <button id="applyDashboardFilter" class="bg-red-500 text-white px-4 py-1.5 rounded-lg hover:bg-red-600 text-sm">
+                    <i class="fas fa-filter mr-1"></i> Apply Filter
+                </button>
+                
+                <button id="resetDashboardFilter" class="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-lg hover:bg-gray-50 text-sm">
+                    Reset
+                </button>
+            </div>
+        </div>
+    `;
+
+    welcomeSection.insertAdjacentHTML('beforeend', filtersHTML);
+
+    // Add event listeners
+    document.getElementById('applyDashboardFilter')?.addEventListener('click', () => {
+        const filters = {
+            startDate: document.getElementById('dashboardStartDate').value,
+            endDate: document.getElementById('dashboardEndDate').value,
+            status: document.getElementById('dashboardStatusFilter').value
+        };
+        
+        const user = auth.currentUser;
+        loadDashboardStats(user, filters);
+        loadRecentOrders(user); // You might want to filter recent orders too
+    });
+
+    document.getElementById('resetDashboardFilter')?.addEventListener('click', () => {
+        document.getElementById('dashboardStartDate').value = '';
+        document.getElementById('dashboardEndDate').value = '';
+        document.getElementById('dashboardStatusFilter').value = 'all';
+        
+        const user = auth.currentUser;
+        loadDashboardStats(user, {});
+        loadRecentOrders(user);
     });
 }
 
@@ -477,4 +558,5 @@ function unregisterSW() {
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     document.addEventListener('DOMContentLoaded', addDebugButtons);
 }
+
 

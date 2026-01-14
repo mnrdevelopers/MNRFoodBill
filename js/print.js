@@ -232,7 +232,7 @@ function buildReceiptWithTable(
         receipt += centerText('FSSAI: ' + restaurant.fssai) + '\n';
     }
     
-    receipt += '-'.repeat(MAX_WIDTH) + '\n';
+    receipt += '='.repeat(MAX_WIDTH) + '\n';
     
     // TABLE INFORMATION
     if (tableNumber) {
@@ -331,11 +331,6 @@ function buildReceiptWithTable(
     
     receipt += '='.repeat(MAX_WIDTH) + '\n';
     
-    // Add duplicate copy header
-    receipt += '\n\n';
-    receipt += centerText('*** DUPLICATE COPY ***') + '\n';
-    receipt += '='.repeat(MAX_WIDTH) + '\n';
-    
     // Add extra line feeds for thermal printer
     receipt += '\n\n\n';
     
@@ -410,15 +405,11 @@ function showDesktopPrintModal(receipt, restaurantName, billNo, tableNumber = ''
     // Store receipt
     printContent.setAttribute('data-receipt-text', receipt);
     
-    // Format receipt for display
-    const formattedReceipt = receipt
-        .replace(/=/g, '<span class="text-gray-400">=</span>')
-        .replace(/-/g, '<span class="text-gray-400">-</span>')
-        .replace(/\n/g, '<br>');
-    
+    // FIXED: Don't replace characters with HTML, just display plain text
+    // Use <pre> tag to preserve formatting
     printContent.innerHTML = `
-        <div class="font-mono text-xs leading-tight">
-            ${formattedReceipt}
+        <div class="font-mono text-xs leading-tight whitespace-pre-wrap bg-gray-50 p-4 rounded">
+            ${receipt.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
         </div>
     `;
     
@@ -758,3 +749,4 @@ window.prepareReceiptForTableOrder = prepareReceiptForTableOrder;
 window.printReceipt = printReceipt;
 window.closePrintModal = closePrintModal;
 window.prepareReceipt = prepareReceipt;
+

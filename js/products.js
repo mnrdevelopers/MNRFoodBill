@@ -1,4 +1,6 @@
+let products = []; // Move this to global scope
 let isStaff = false;
+let productToDelete = null;
 
 auth.onAuthStateChanged(async user => {
     if (!user) {
@@ -15,9 +17,6 @@ auth.onAuthStateChanged(async user => {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
-    let products = [];
-    let productToDelete = null;
-
     // Check auth
     auth.onAuthStateChanged(async user => {
         if (!user) {
@@ -42,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .orderBy('name')
                 .get()
                 .then(snapshot => {
-                    products = [];
+                    products = []; // Reset products array
                     snapshot.forEach(doc => {
                         products.push({ id: doc.id, ...doc.data() });
                     });
@@ -178,6 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('productModal').classList.add('hidden');
     };
 
+    // Edit product function - FIXED
     function editProduct(productId) {
         const product = products.find(p => p.id === productId);
         if (product) {
@@ -293,8 +293,11 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => n.remove(), 3000);
     }
 
-    // Make loadProducts globally accessible if needed
+    // Make functions globally accessible
+    window.editProduct = editProduct;
+    window.showDeleteModal = showDeleteModal;
     window.loadProducts = loadProducts;
+    window.getProducts = () => products; // Add this to access products from outside
 });
 
 // After loading products in products.js, refresh responsive tables
@@ -309,41 +312,122 @@ function refreshResponsiveTables() {
 // Make refreshResponsiveTables globally accessible
 window.refreshResponsiveTables = refreshResponsiveTables;
 
-// Add to products.js (at the end or after DOMContentLoaded)
+// Alternative editProduct function that's always available
 window.editProduct = function(productId) {
-    const product = products.find(p => p.id === productId);
-    if (product) {
-        openProductModal(product);
-        
-        // Set food type radio button
-        const foodTypeRadio = document.querySelector(`input[name="foodType"][value="${product.foodType || 'veg'}"]`);
-        if (foodTypeRadio) foodTypeRadio.checked = true;
-        
-        // Set other fields
-        document.getElementById('quantityType').value = product.quantityType || 'plate';
-        document.getElementById('baseQuantity').value = product.baseQuantity || 1;
-        
-        // Load existing image
-        if (product.imageUrl && window.ImageUpload?.setImageForEdit) {
-            window.ImageUpload.setImageForEdit(product.imageUrl);
+    // Try to find product in global products array
+    if (products && Array.isArray(products)) {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+            // Open modal directly
+            openProductModalDirect(product);
+        } else {
+            console.error('Product not found:', productId);
+            // Fallback: reload products and try again
+            loadProducts().then(() => {
+                const product = products.find(p => p.id === productId);
+                if (product) {
+                    openProductModalDirect(product);
+                } else {
+                    showNotification('Product not found', 'error');
+                }
+            });
         }
+    } else {
+        console.error('Products array not available');
+        // Emergency fallback - open modal with just the ID
+        openProductModalWithId(productId);
     }
 };
 
+// Helper function to open modal directly
+function openProductModalDirect(product) {
+    const modal = document.getElementById('productModal');
+    const form = document.getElementById('productForm');
+    const title = document.getElementById('modalTitle');
+    
+    if (!modal || !form) {
+        console.error('Product modal elements not found');
+        return;
+    }
+    
+    // Ensure modal is in DOM
+    if (!document.body.contains(modal)) {
+        console.error('Product modal not in DOM');
+        return;
+    }
+    
+    form.reset();
+    title.textContent = 'Edit Product';
+    
+    document.getElementById('productId').value = product.id;
+    document.getElementById('productName').value = product.name;
+    document.getElementById('productCategory').value = product.category;
+    document.getElementById('productPrice').value = product.price;
+    document.getElementById('productDescription').value = product.description || '';
+    
+    // Set food type radio button
+    const foodTypeRadio = document.querySelector(`input[name="foodType"][value="${product.foodType || 'veg'}"]`);
+    if (foodTypeRadio) foodTypeRadio.checked = true;
+    
+    // Set other fields
+    const quantityType = document.getElementById('quantityType');
+    const baseQuantity = document.getElementById('baseQuantity');
+    
+    if (quantityType) quantityType.value = product.quantityType || 'plate';
+    if (baseQuantity) baseQuantity.value = product.baseQuantity || 1;
+    
+    // Load existing image
+    if (product.imageUrl && window.ImageUpload?.setImageForEdit) {
+        window.ImageUpload.setImageForEdit(product.imageUrl);
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+// Emergency fallback
+function openProductModalWithId(productId) {
+    const modal = document.getElementById('productModal');
+    if (!modal) return;
+    
+    modal.innerHTML = `
+        <div class="p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Edit Product</h3>
+            <div class="text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mb-4"></div>
+                <p class="text-gray-600">Loading product details...</p>
+                <p class="text-sm text-gray-400 mt-2">Product ID: ${productId}</p>
+            </div>
+            <div class="flex space-x-3 pt-4 border-t">
+                <button onclick="closeProductModal()" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    
+    // Try to load the product
+    loadProducts().then(() => {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+            openProductModalDirect(product);
+        } else {
+            modal.querySelector('.text-center').innerHTML = `
+                <i class="fas fa-exclamation-triangle text-red-500 text-3xl mb-4"></i>
+                <p class="text-gray-600">Product not found</p>
+                <p class="text-sm text-gray-400 mt-2">The product may have been deleted</p>
+            `;
+        }
+    });
+}
+
+// Make showDeleteModal globally accessible
 window.showDeleteModal = function(productId) {
     productToDelete = productId;
-    document.getElementById('deleteModal').classList.remove('hidden');
-};
-
-    // Make functions globally accessible
-    window.editProduct = editProduct;
-    window.showDeleteModal = showDeleteModal;
-    
-    // Also expose the functions
-    if (!window.ProductsManager) {
-        window.ProductsManager = {};
+    const modal = document.getElementById('deleteModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    } else {
+        console.error('Delete modal not found');
     }
-    window.ProductsManager.editProduct = editProduct;
-    window.ProductsManager.showDeleteModal = showDeleteModal;
-
-
+};

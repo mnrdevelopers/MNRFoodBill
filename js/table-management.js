@@ -1,116 +1,177 @@
 // js/table-management.js
-let tables = [];
-let activeTable = null;
-let tableOrders = {}; // {tableId: {orders: [], customer: {}, total: 0}}
-
 class TableManager {
     constructor() {
+        this.tables = [];
+        this.activeTableId = null;
+        this.tableOrders = {};
         this.initializeTables();
     }
 
     initializeTables() {
-        // Create 4 tables by default (can be extended)
-        tables = [
-            { id: 'table-1', name: 'Table 1', status: 'available', capacity: 4 },
-            { id: 'table-2', name: 'Table 2', status: 'available', capacity: 4 },
-            { id: 'table-3', name: 'Table 3', status: 'available', capacity: 4 },
-            { id: 'table-4', name: 'Table 4', status: 'available', capacity: 4 }
-        ];
-        
-        // Initialize table orders
-        tables.forEach(table => {
-            tableOrders[table.id] = {
-                orders: [],
-                customer: null,
-                total: 0,
-                subtotal: 0,
-                gst: 0,
-                service: 0
-            };
-        });
+        // Try to load from localStorage first
+        const savedTables = localStorage.getItem('restaurantTables');
+        const savedOrders = localStorage.getItem('tableOrders');
+        const savedActive = localStorage.getItem('activeTableId');
+
+        if (savedTables) {
+            this.tables = JSON.parse(savedTables);
+        } else {
+            // Create default tables
+            this.tables = [
+                { id: 'table-1', name: 'Table 1', status: 'available', capacity: 4 },
+                { id: 'table-2', name: 'Table 2', status: 'available', capacity: 4 },
+                { id: 'table-3', name: 'Table 3', status: 'available', capacity: 4 },
+                { id: 'table-4', name: 'Table 4', status: 'available', capacity: 4 }
+            ];
+        }
+
+        if (savedOrders) {
+            this.tableOrders = JSON.parse(savedOrders);
+        } else {
+            // Initialize empty orders for each table
+            this.tables.forEach(table => {
+                this.tableOrders[table.id] = {
+                    orders: [],
+                    customer: null,
+                    subtotal: 0,
+                    gst: 0,
+                    service: 0,
+                    total: 0
+                };
+            });
+        }
+
+        if (savedActive) {
+            this.activeTableId = savedActive;
+        }
+
+        this.saveToStorage();
+    }
+
+    saveToStorage() {
+        localStorage.setItem('restaurantTables', JSON.stringify(this.tables));
+        localStorage.setItem('tableOrders', JSON.stringify(this.tableOrders));
+        localStorage.setItem('activeTableId', this.activeTableId);
+    }
+
+    getAllTables() {
+        return this.tables;
+    }
+
+    getTableById(tableId) {
+        return this.tables.find(t => t.id === tableId);
     }
 
     setActiveTable(tableId) {
-        activeTable = tableId;
-        // Load cart from this table's orders
-        loadCartFromTable(tableId);
+        this.activeTableId = tableId;
+        this.saveToStorage();
+        
+        // Dispatch event for other components to listen
+        document.dispatchEvent(new CustomEvent('tableChanged', {
+            detail: { tableId }
+        }));
     }
 
     getActiveTable() {
-        return activeTable;
+        return this.activeTableId;
     }
 
-    getTableStatus(tableId) {
-        const table = tables.find(t => t.id === tableId);
-        return table ? table.status : 'available';
-    }
-
-    markTableOccupied(tableId, customerInfo = null) {
-        const table = tables.find(t => t.id === tableId);
+    occupyTable(tableId, customerInfo = null) {
+        const table = this.getTableById(tableId);
         if (table) {
             table.status = 'occupied';
+            
             if (customerInfo) {
-                tableOrders[tableId].customer = customerInfo;
+                this.tableOrders[tableId].customer = {
+                    name: customerInfo.name || '',
+                    phone: customerInfo.phone || '',
+                    guests: customerInfo.guests || 1
+                };
             }
-            saveTablesToLocalStorage();
+            
+            this.setActiveTable(tableId);
+            this.saveToStorage();
+            return true;
         }
+        return false;
     }
 
-    markTableAvailable(tableId) {
-        const table = tables.find(t => t.id === tableId);
+    clearTable(tableId) {
+        const table = this.getTableById(tableId);
         if (table) {
             table.status = 'available';
-            tableOrders[tableId] = {
+            this.tableOrders[tableId] = {
                 orders: [],
                 customer: null,
-                total: 0,
                 subtotal: 0,
                 gst: 0,
-                service: 0
+                service: 0,
+                total: 0
             };
-            saveTablesToLocalStorage();
+            
+            if (this.activeTableId === tableId) {
+                this.activeTableId = null;
+            }
+            
+            this.saveToStorage();
+            return true;
         }
+        return false;
     }
 
     addOrderToTable(tableId, orderItems, customerInfo = null) {
-        if (!tableOrders[tableId]) {
-            tableOrders[tableId] = {
+        if (!this.tableOrders[tableId]) {
+            this.tableOrders[tableId] = {
                 orders: [],
                 customer: null,
-                total: 0,
                 subtotal: 0,
                 gst: 0,
-                service: 0
+                service: 0,
+                total: 0
             };
         }
 
-        // Create a new order group
+        // Create order group
         const orderGroup = {
             id: `order-${Date.now()}`,
-            timestamp: new Date(),
-            items: [...orderItems],
+            timestamp: new Date().toISOString(),
+            items: JSON.parse(JSON.stringify(orderItems)), // Deep copy
             subtotal: orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
         };
 
-        tableOrders[tableId].orders.push(orderGroup);
+        // Add to table's orders
+        this.tableOrders[tableId].orders.push(orderGroup);
         
-        if (customerInfo && !tableOrders[tableId].customer) {
-            tableOrders[tableId].customer = customerInfo;
+        // Update customer info if provided
+        if (customerInfo && !this.tableOrders[tableId].customer) {
+            this.tableOrders[tableId].customer = {
+                name: customerInfo.name || '',
+                phone: customerInfo.phone || '',
+                guests: customerInfo.guests || 1
+            };
         }
 
+        // Update totals
         this.updateTableTotal(tableId);
-        saveTablesToLocalStorage();
+        
+        // Save to storage
+        this.saveToStorage();
+        
         return orderGroup;
     }
 
     updateTableTotal(tableId) {
-        const tableOrder = tableOrders[tableId];
+        const tableOrder = this.tableOrders[tableId];
         if (!tableOrder) return;
 
-        // Calculate totals from all order groups
+        // Get restaurant settings
+        const gstRate = window.restaurantSettings?.gstRate || 0;
+        const serviceRate = window.restaurantSettings?.serviceCharge || 0;
+
+        // Calculate from all orders
         const subtotal = tableOrder.orders.reduce((sum, order) => sum + order.subtotal, 0);
-        const gst = subtotal * (restaurantSettings.gstRate / 100);
-        const service = subtotal * (restaurantSettings.serviceCharge / 100);
+        const gst = subtotal * (gstRate / 100);
+        const service = subtotal * (serviceRate / 100);
         const total = subtotal + gst + service;
 
         tableOrder.subtotal = subtotal;
@@ -118,117 +179,86 @@ class TableManager {
         tableOrder.service = service;
         tableOrder.total = total;
 
-        saveTablesToLocalStorage();
+        this.saveToStorage();
     }
 
     getTableOrders(tableId) {
-        return tableOrders[tableId] || { orders: [], customer: null, total: 0 };
-    }
-
-    getAllTables() {
-        return tables;
-    }
-
-    getTableById(tableId) {
-        return tables.find(t => t.id === tableId);
-    }
-
-    clearTableOrder(tableId) {
-        tableOrders[tableId] = {
+        return this.tableOrders[tableId] || {
             orders: [],
             customer: null,
-            total: 0,
             subtotal: 0,
             gst: 0,
-            service: 0
+            service: 0,
+            total: 0
         };
-        this.markTableAvailable(tableId);
-        saveTablesToLocalStorage();
     }
 
-    mergeTables(sourceTableId, targetTableId) {
-        // Merge orders from source table to target table
-        const sourceOrders = tableOrders[sourceTableId];
-        const targetOrders = tableOrders[targetTableId];
-
-        if (sourceOrders && targetOrders) {
-            targetOrders.orders = [...targetOrders.orders, ...sourceOrders.orders];
-            this.updateTableTotal(targetTableId);
-            this.clearTableOrder(sourceTableId);
-        }
+    getTableCartItems(tableId) {
+        const tableOrder = this.getTableOrders(tableId);
+        const cartItems = [];
+        
+        tableOrder.orders.forEach(order => {
+            order.items.forEach(item => {
+                const existingItem = cartItems.find(ci => ci.id === item.id);
+                if (existingItem) {
+                    existingItem.quantity += item.quantity;
+                } else {
+                    cartItems.push({...item});
+                }
+            });
+        });
+        
+        return cartItems;
     }
 
     splitTableBill(tableId, splitWays = 2) {
-        const tableOrder = tableOrders[tableId];
-        if (!tableOrder || tableOrder.orders.length === 0) return [];
+        const tableOrder = this.getTableOrders(tableId);
+        if (!tableOrder || tableOrder.total === 0) return [];
 
-        const splitAmounts = [];
         const perPerson = tableOrder.total / splitWays;
+        const splitAmounts = [];
 
         for (let i = 0; i < splitWays; i++) {
             splitAmounts.push({
                 person: i + 1,
                 amount: perPerson,
-                items: tableOrder.orders.flatMap(order => order.items)
+                items: []
             });
         }
 
         return splitAmounts;
     }
-}
 
-// Load cart from table's orders
-function loadCartFromTable(tableId) {
-    const tableOrder = tableOrders[tableId];
-    if (!tableOrder) {
-        cart = [];
-        if (typeof renderCart === 'function') renderCart();
-        if (typeof updateTotals === 'function') updateTotals();
-        return;
-    }
+    mergeTables(sourceTableId, targetTableId) {
+        const sourceOrders = this.tableOrders[sourceTableId];
+        const targetOrders = this.tableOrders[targetTableId];
 
-    // Combine all items from all order groups
-    cart = [];
-    tableOrder.orders.forEach(orderGroup => {
-        orderGroup.items.forEach(item => {
-            const existingItem = cart.find(cartItem => cartItem.id === item.id);
-            if (existingItem) {
-                existingItem.quantity += item.quantity;
-            } else {
-                cart.push({...item});
-            }
-        });
-    });
-
-    if (typeof renderCart === 'function') renderCart();
-    if (typeof updateTotals === 'function') updateTotals();
-
-    // Set customer info if available
-    if (tableOrder.customer) {
-        document.getElementById('customerName').value = tableOrder.customer.name || '';
-        document.getElementById('customerPhone').value = tableOrder.customer.phone || '';
-    }
-}
-
-function saveTablesToLocalStorage() {
-    localStorage.setItem('restaurantTables', JSON.stringify(tables));
-    localStorage.setItem('tableOrders', JSON.stringify(tableOrders));
-}
-
-function loadTablesFromLocalStorage() {
-    const savedTables = localStorage.getItem('restaurantTables');
-    const savedOrders = localStorage.getItem('tableOrders');
-
-    if (savedTables) {
-        tables = JSON.parse(savedTables);
-    }
-
-    if (savedOrders) {
-        tableOrders = JSON.parse(savedOrders);
+        if (sourceOrders && targetOrders) {
+            // Merge orders
+            targetOrders.orders = [...targetOrders.orders, ...sourceOrders.orders];
+            
+            // Clear source table
+            this.clearTable(sourceTableId);
+            
+            // Update target table totals
+            this.updateTableTotal(targetTableId);
+            
+            return true;
+        }
+        return false;
     }
 }
 
 // Initialize global TableManager
 window.TableManager = new TableManager();
-window.loadTablesFromLocalStorage = loadTablesFromLocalStorage;
-window.loadCartFromTable = loadCartFromTable;
+
+// Helper functions
+window.getStatusClass = function(status) {
+    switch(status) {
+        case 'available': return 'bg-green-100 text-green-800';
+        case 'occupied': return 'bg-yellow-100 text-yellow-800';
+        case 'reserved': return 'bg-blue-100 text-blue-800';
+        case 'cleaning': return 'bg-pink-100 text-pink-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+};

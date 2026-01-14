@@ -722,3 +722,29 @@ document.addEventListener('DOMContentLoaded', function() {
     window.updateTotals = updateTotals;
 });
 
+async function loadTablesForBilling() {
+    const user = auth.currentUser;
+    try {
+        const snapshot = await db.collection('tables')
+            .where('restaurantId', '==', user.uid)
+            .where('status', '==', 'available')
+            .orderBy('tableNumber')
+            .get();
+        
+        const select = document.getElementById('tableSelect');
+        if (select) {
+            select.innerHTML = '<option value="">No Table (Takeaway/Counter)</option>';
+            snapshot.forEach(doc => {
+                const table = doc.data();
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = `${table.tableNumber} (${table.capacity} persons)`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error("Error loading tables:", error);
+    }
+}
+
+

@@ -232,7 +232,7 @@ function buildReceiptWithTable(
         receipt += centerText('FSSAI: ' + restaurant.fssai) + '\n';
     }
     
-    receipt += '='.repeat(MAX_WIDTH) + '\n';
+    receipt += '-'.repeat(MAX_WIDTH) + '\n';
     
     // TABLE INFORMATION
     if (tableNumber) {
@@ -391,7 +391,7 @@ function getTotalAmount() {
     return parseFloat(totalText.replace(currency, '')).toFixed(2);
 }
 
-// DESKTOP: Print Functions
+// DESKTOP: Print Functions - FIXED VERSION
 function showDesktopPrintModal(receipt, restaurantName, billNo, tableNumber = '') {
     const printContent = document.getElementById('printContent');
     const modal = document.getElementById('printModal');
@@ -405,10 +405,9 @@ function showDesktopPrintModal(receipt, restaurantName, billNo, tableNumber = ''
     // Store receipt
     printContent.setAttribute('data-receipt-text', receipt);
     
-    // FIXED: Don't replace characters with HTML, just display plain text
-    // Use <pre> tag to preserve formatting
+    // FIXED: Display plain text without HTML tags
     printContent.innerHTML = `
-        <div class="font-mono text-xs leading-tight whitespace-pre-wrap bg-gray-50 p-4 rounded">
+        <div class="font-mono text-xs leading-tight whitespace-pre-wrap bg-gray-50 p-4 rounded border">
             ${receipt.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
         </div>
     `;
@@ -657,9 +656,15 @@ function showNotification(message, type) {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
+    // Override the printBill button click handler
     const printBillBtn = document.getElementById('printBill');
     if (printBillBtn) {
-        printBillBtn.addEventListener('click', async function(e) {
+        // Remove any existing event listeners
+        const newPrintBillBtn = printBillBtn.cloneNode(true);
+        printBillBtn.parentNode.replaceChild(newPrintBillBtn, printBillBtn);
+        
+        // Add new event listener
+        newPrintBillBtn.addEventListener('click', async function(e) {
             e.preventDefault();
             
             if (cart.length === 0) {
@@ -680,11 +685,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Call prepareReceipt which handles both desktop and mobile
+            // Show printing notification
+            showNotification('Processing receipt...', 'info');
+            
+            // Call prepareReceipt which will:
+            // - On mobile: Trigger RawBT via Web Share API
+            // - On desktop: Show print modal
             await prepareReceipt();
         });
     }
-});
     
     // Close print modal when clicking outside or on close button
     document.getElementById('printModal')?.addEventListener('click', function(e) {
@@ -739,5 +748,3 @@ window.prepareReceiptForTableOrder = prepareReceiptForTableOrder;
 window.printReceipt = printReceipt;
 window.closePrintModal = closePrintModal;
 window.prepareReceipt = prepareReceipt;
-
-

@@ -1826,4 +1826,85 @@ body.table-scrolling {
     margin-top: 4px;
 }
 
+/* css/table-styles.css */
+.table-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.table-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.table-card.active {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+.table-card.occupied {
+    background-color: #fef3c7;
+}
+
+.table-card.available {
+    background-color: #f0fdf4;
+}
+
+.table-status {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.status-available {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.status-occupied {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.status-reserved {
+    background-color: #e0e7ff;
+    color: #3730a3;
+}
+
+.status-cleaning {
+    background-color: #fce7f3;
+    color: #9d174d;
+}
+
+.table-actions {
+    display: none;
+}
+
+.table-card:hover .table-actions {
+    display: flex;
+}
+
+.order-group {
+    border-left: 3px solid #ef4444;
+    background-color: #fafafa;
+}
+
+.order-group-header {
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.order-time {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+/* Split bill styles */
+.split-bill-item {
+    border: 1px dashed #cbd5e1;
+    background-color: #f8fafc;
+}
+
+
 

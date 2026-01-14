@@ -4,192 +4,206 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Billing - MNRFoodBill</title>
-
+    <!-- Favicon -->
+    <link rel="icon" href="icons/icon-192x192.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    
+    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ef4444">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MNRFoodBill">
-<link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <meta name="theme-color" content="#ef4444">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MNRFoodBill">
+    
+    <!-- External CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-remote-config.js"></script>
-    <script src="firebase-config.js"></script>
-    <script src="js/layout.js" defer></script>
-    <script src="js/billing.js" defer></script>
-    <script src="js/print.js" defer></script>
-    <script src="js/image-upload.js"></script>
-    <script src="js/table-responsive.js" defer></script>
-    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-gray-600">Loading Billing System...</p>
+    </div>
+
     <!-- Header (loaded via layout.js) -->
     <div id="header"></div>
 
     <div class="container mx-auto px-4 py-6">
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6"> 
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6"> 
             <!-- Sidebar (loaded via layout.js) -->
             <div id="sidebar"></div>
 
             <!-- Main Content -->
-         <div id="mainContent" class="lg:col-span-4">
-            <div class="lg:col-span-3">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                   <!-- Product Selection -->
-<div class="lg:col-span-2">
-    <div class="bg-white rounded-xl shadow p-6 mb-6">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-800">Select Products</h2>
-            
-            <!-- View Toggle -->
-            <div class="flex items-center space-x-2">
-                <span class="text-sm text-gray-600 mr-2">View:</span>
-                <div class="flex bg-gray-100 rounded-lg p-1">
-                    <button id="gridViewBtn" class="view-toggle active p-2 rounded-md" title="Grid View">
-                        <i class="fas fa-th-large"></i>
-                    </button>
-                    <button id="listViewBtn" class="view-toggle p-2 rounded-md" title="List View">
-                        <i class="fas fa-list"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Category Tabs -->
-        <div class="flex overflow-x-auto mb-4 space-x-2 pb-2">
-            <button class="category-tab active px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm whitespace-nowrap" data-category="all">All Items</button>
-            <!-- Categories will be loaded dynamically -->
-        </div>
-
-        <!-- Search -->
-        <div class="mb-4">
-            <div class="relative">
-                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
-                <input type="text" id="productSearch" 
-                       class="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                       placeholder="Search products...">
-            </div>
-        </div>
-
-        <!-- Products Container -->
-        <div id="productsContainer">
-            <!-- Grid View -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" id="productsGrid">
-                <!-- Products will be loaded here -->
-            </div>
-            
-            <!-- List View (hidden by default) -->
-            <div class="hidden" id="productsList">
-                <!-- Products will be loaded here in list format -->
-            </div>
-        </div>
-    </div>
-</div>
-
-                    <!-- Cart & Billing -->
-                    <div class="lg:col-span-1">
-                        <div class="bg-white rounded-xl shadow p-6 sticky top-6">
-                            <h2 class="text-2xl font-bold text-gray-800 mb-6">Order Summary</h2>
-                            
-                            <!-- Customer Info -->
-                            <div class="mb-6">
-                                <h3 class="font-bold text-gray-700 mb-3">Customer Details</h3>
-                                <input type="text" id="customerName" 
-                                       class="w-full mb-3 px-4 py-2 border border-gray-300 rounded-lg"
-                                       placeholder="Customer Name (Optional)">
-                                <input type="tel" id="customerPhone" 
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                                       placeholder="Phone Number (Optional)">
-                            </div>
-
-                            <!-- Cart Items -->
-                            <div class="mb-6">
-                                <h3 class="font-bold text-gray-700 mb-3">Items</h3>
-                                <div class="space-y-3 max-h-64 overflow-y-auto" id="cartItems">
-                                    <!-- Cart items will be shown here -->
-                                    <div class="text-center text-gray-500 py-8" id="emptyCart">
-                                        <i class="fas fa-shopping-cart text-3xl mb-2"></i>
-                                        <p>No items added yet</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Totals -->
-                            <div class="border-t pt-4">
-                                <div class="flex justify-between mb-2">
-                                    <span class="text-gray-600">Subtotal</span>
-                                    <span class="font-bold" id="subtotal">₹0.00</span>
-                                </div>
-                                <div class="flex justify-between mb-2">
-                                    <span class="text-gray-600">GST (18%)</span>
-                                    <span id="gstAmount">₹0.00</span>
-                                </div>
-                                <div class="flex justify-between mb-4">
-                                    <span class="text-gray-600">Service Charge (5%)</span>
-                                    <span id="serviceCharge">₹0.00</span>
-                                </div>
-                                <div class="flex justify-between text-xl font-bold border-t pt-4 mb-4">
-                                    <span>Total</span>
-                                    <span id="totalAmount">₹0.00</span>
-                                </div>
-
-                                <!-- Payment Section -->
-                                <div class="border-t pt-4 mb-4">
-                                    <h3 class="font-bold text-gray-700 mb-3">Payment Details</h3>
+            <div id="mainContent" class="lg:col-span-4">
+                <div class="lg:col-span-3">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Product Selection -->
+                        <div class="lg:col-span-2">
+                            <div class="bg-white rounded-xl shadow p-6 mb-6">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h2 class="text-2xl font-bold text-gray-800">Select Products</h2>
                                     
-                                    <div class="mb-4">
-                                        <label class="block text-gray-600 mb-2">Payment Mode *</label>
-                                        <select id="paymentMode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
-                                            <option value="cash">Cash</option>
-                                            <option value="card">Card</option>
-                                            <option value="upi">UPI</option>
-                                            <option value="online">Online</option>
-                                        </select>
-                                    </div>
-
-                                    <!-- Cash Payment Fields -->
-                                    <div id="cashPaymentFields" class="space-y-3">
-                                        <div>
-                                            <label class="block text-gray-600 mb-2">Cash Received *</label>
-                                            <input type="number" id="cashReceived" step="0.01" min="0"
-                                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                                                   placeholder="Enter cash amount">
-                                        </div>
-                                        <div class="flex justify-between items-center bg-green-50 p-3 rounded-lg">
-                                            <span class="font-bold text-gray-700">Change to Return:</span>
-                                            <span id="changeAmount" class="text-xl font-bold text-green-600">₹0.00</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Non-cash Payment Fields -->
-                                    <div id="nonCashPaymentFields" class="hidden">
-                                        <div class="bg-blue-50 p-3 rounded-lg">
-                                            <p class="text-blue-700 text-sm">
-                                                <i class="fas fa-info-circle mr-1"></i>
-                                                Payment will be processed via selected method.
-                                            </p>
+                                    <!-- View Toggle -->
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-sm text-gray-600 mr-2">View:</span>
+                                        <div class="flex bg-gray-100 rounded-lg p-1">
+                                            <button id="gridViewBtn" class="view-toggle active p-2 rounded-md" title="Grid View">
+                                                <i class="fas fa-th-large"></i>
+                                            </button>
+                                            <button id="listViewBtn" class="view-toggle p-2 rounded-md" title="List View">
+                                                <i class="fas fa-list"></i>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                                
+                                <!-- Category Tabs -->
+                                <div class="flex overflow-x-auto mb-4 space-x-2 pb-2">
+                                    <button class="category-tab active px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm whitespace-nowrap" data-category="all">All Items</button>
+                                    <!-- Categories will be loaded dynamically -->
+                                </div>
 
-                            <!-- Actions -->
-                            <div class="mt-6 space-y-3">
-                                <button id="clearCart" 
-                                        class="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50 transition">
-                                    <i class="fas fa-trash-alt mr-2"></i> Clear All
-                                </button>
-                                <button id="saveOrder" 
-                                        class="w-full bg-blue-500 text-white py-3 rounded-lg font-bold hover:bg-blue-600 transition">
-                                    <i class="fas fa-save mr-2"></i> Save Order
-                                </button>
-                                <button id="printBill" 
-                                        class="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-3 rounded-lg font-bold hover:from-red-600 hover:to-orange-600 transition">
-                                    <i class="fas fa-print mr-2"></i> Print Bill & Complete
-                                </button>
+                                <!-- Search -->
+                                <div class="mb-4">
+                                    <div class="relative">
+                                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                                        <input type="text" id="productSearch" 
+                                               class="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                                               placeholder="Search products...">
+                                    </div>
+                                </div>
+
+                                <!-- Products Container -->
+                                <div id="productsContainer">
+                                    <!-- Loading Products -->
+                                    <div id="productsLoading" class="text-center py-8">
+                                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mb-3"></div>
+                                        <p class="text-gray-500">Loading products...</p>
+                                    </div>
+                                    
+                                    <!-- Grid View -->
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 hidden" id="productsGrid">
+                                        <!-- Products will be loaded here -->
+                                    </div>
+                                    
+                                    <!-- List View (hidden by default) -->
+                                    <div class="hidden" id="productsList">
+                                        <!-- Products will be loaded here in list format -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cart & Billing -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-white rounded-xl shadow p-6 sticky top-6">
+                                <h2 class="text-2xl font-bold text-gray-800 mb-6">Order Summary</h2>
+                                
+                                <!-- Customer Info -->
+                                <div class="mb-6">
+                                    <h3 class="font-bold text-gray-700 mb-3">Customer Details</h3>
+                                    <input type="text" id="customerName" 
+                                           class="w-full mb-3 px-4 py-2 border border-gray-300 rounded-lg"
+                                           placeholder="Customer Name (Optional)">
+                                    <input type="tel" id="customerPhone" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                           placeholder="Phone Number (Optional)">
+                                </div>
+
+                                <!-- Cart Items -->
+                                <div class="mb-6">
+                                    <h3 class="font-bold text-gray-700 mb-3">Items</h3>
+                                    <div class="space-y-3 max-h-64 overflow-y-auto" id="cartItems">
+                                        <!-- Cart items will be shown here -->
+                                        <div class="text-center text-gray-500 py-8" id="emptyCart">
+                                            <i class="fas fa-shopping-cart text-3xl mb-2"></i>
+                                            <p>No items added yet</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Totals -->
+                                <div class="border-t pt-4">
+                                    <div class="flex justify-between mb-2">
+                                        <span class="text-gray-600">Subtotal</span>
+                                        <span class="font-bold" id="subtotal">₹0.00</span>
+                                    </div>
+                                    <div class="flex justify-between mb-2">
+                                        <span class="text-gray-600">GST (18%)</span>
+                                        <span id="gstAmount">₹0.00</span>
+                                    </div>
+                                    <div class="flex justify-between mb-4">
+                                        <span class="text-gray-600">Service Charge (5%)</span>
+                                        <span id="serviceCharge">₹0.00</span>
+                                    </div>
+                                    <div class="flex justify-between text-xl font-bold border-t pt-4 mb-4">
+                                        <span>Total</span>
+                                        <span id="totalAmount">₹0.00</span>
+                                    </div>
+
+                                    <!-- Payment Section -->
+                                    <div class="border-t pt-4 mb-4">
+                                        <h3 class="font-bold text-gray-700 mb-3">Payment Details</h3>
+                                        
+                                        <div class="mb-4">
+                                            <label class="block text-gray-600 mb-2">Payment Mode *</label>
+                                            <select id="paymentMode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required>
+                                                <option value="cash">Cash</option>
+                                                <option value="card">Card</option>
+                                                <option value="upi">UPI</option>
+                                                <option value="online">Online</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Cash Payment Fields -->
+                                        <div id="cashPaymentFields" class="space-y-3">
+                                            <div>
+                                                <label class="block text-gray-600 mb-2">Cash Received *</label>
+                                                <input type="number" id="cashReceived" step="0.01" min="0"
+                                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                                                       placeholder="Enter cash amount">
+                                            </div>
+                                            <div class="flex justify-between items-center bg-green-50 p-3 rounded-lg">
+                                                <span class="font-bold text-gray-700">Change to Return:</span>
+                                                <span id="changeAmount" class="text-xl font-bold text-green-600">₹0.00</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Non-cash Payment Fields -->
+                                        <div id="nonCashPaymentFields" class="hidden">
+                                            <div class="bg-blue-50 p-3 rounded-lg">
+                                                <p class="text-blue-700 text-sm">
+                                                    <i class="fas fa-info-circle mr-1"></i>
+                                                    Payment will be processed via selected method.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="mt-6 space-y-3">
+                                    <button id="clearCart" 
+                                            class="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50 transition">
+                                        <i class="fas fa-trash-alt mr-2"></i> Clear All
+                                    </button>
+                                    <button id="saveOrder" 
+                                            class="w-full bg-blue-500 text-white py-3 rounded-lg font-bold hover:bg-blue-600 transition">
+                                        <i class="fas fa-save mr-2"></i> Save Order
+                                    </button>
+                                    <button id="printBill" 
+                                            class="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-3 rounded-lg font-bold hover:from-red-600 hover:to-orange-600 transition">
+                                        <i class="fas fa-print mr-2"></i> Print Bill & Complete
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -220,38 +234,37 @@
         </div>
     </div>
 
-        <script>
-            // In your main.js or layout.js
-if ('serviceWorker' in navigator) {
-  // Register service worker
-  navigator.serviceWorker.register('/MNRFoodBill/sw.js')
-    .then(registration => {
-      console.log('Service Worker registered');
-      
-      // Check if iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      
-      if (isIOS) {
-        console.log('iOS detected - using minimal caching strategy');
-        // Tell service worker about iOS (optional - via message)
-        registration.active?.postMessage({
-          type: 'SET_STRATEGY',
-          strategy: 'network-first'
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="js/layout.js" defer></script>
+    <script src="js/billing.js" defer></script>
+    <script src="js/print.js" defer></script>
+    <script src="js/image-upload.js" defer></script>
+    <script src="js/table-responsive.js" defer></script>
+    
+    <!-- Service Worker and Initialization -->
+    <script>
+        // Hide loading overlay when page is loaded
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }, 1000);
         });
-        
-        // Clear cache more frequently on iOS
-        setInterval(() => {
-          registration.active?.postMessage({
-            type: 'CLEAR_CACHE'
-          });
-        }, 60 * 60 * 1000); // Every hour
-      }
-    })
-    .catch(error => {
-      console.error('Service Worker registration failed:', error);
-    });
-}
-        </script>
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/MNRFoodBill/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
-

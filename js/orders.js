@@ -243,51 +243,63 @@ document.addEventListener('DOMContentLoaded', function() {
         const orderDate = selectedOrder.createdAt.toLocaleDateString('en-IN');
         const orderTime = selectedOrder.createdAt.toLocaleTimeString('en-IN');
 
-        details.innerHTML = `
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <p class="text-gray-600">Order ID</p>
-                    <p class="font-bold">${selectedOrder.orderId || selectedOrder.id}</p>
-                </div>
-                <div>
-                    <p class="text-gray-600">Date & Time</p>
-                    <p class="font-bold">${orderDate} ${orderTime}</p>
-                </div>
-                <div>
-                    <p class="text-gray-600">Customer Name</p>
-                    <p class="font-bold">${selectedOrder.customerName}</p>
-                </div>
-                <div>
-                    <p class="text-gray-600">Phone</p>
-                    <p class="font-bold">${selectedOrder.customerPhone || 'N/A'}</p>
-                </div>
-                <div>
-                    <p class="text-gray-600">Status</p>
-                    <span class="px-3 py-1 rounded-full text-sm ${getStatusClass(selectedOrder.status)}">
-                        ${selectedOrder.status}
-                    </span>
-                </div>
+      details.innerHTML = `
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <p class="text-gray-600">Order ID</p>
+            <p class="font-bold">${selectedOrder.orderId || selectedOrder.id}</p>
+        </div>
+        <div>
+            <p class="text-gray-600">Date & Time</p>
+            <p class="font-bold">${orderDate} ${orderTime}</p>
+        </div>
+        ${selectedOrder.tableNumber ? `
+            <div>
+                <p class="text-gray-600">Table</p>
+                <p class="font-bold">${selectedOrder.tableNumber}</p>
             </div>
-            ${itemsHtml}
-            <div class="border-t pt-4">
-                <div class="flex justify-between mb-2">
-                    <span>Subtotal:</span>
-                    <span>₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2) : '0.00'}</span>
-                </div>
-                <div class="flex justify-between mb-2">
-                    <span>GST (${selectedOrder.gstRate || 0}%):</span>
-                    <span>₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2) : '0.00'}</span>
-                </div>
-                <div class="flex justify-between mb-2">
-                    <span>Service Charge (${selectedOrder.serviceChargeRate || 0}%):</span>
-                    <span>₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2) : '0.00'}</span>
-                </div>
-                <div class="flex justify-between text-xl font-bold pt-2 border-t">
-                    <span>Total:</span>
-                    <span>₹${selectedOrder.total ? selectedOrder.total.toFixed(2) : '0.00'}</span>
-                </div>
+        ` : ''}
+        <div>
+            <p class="text-gray-600">Customer Name</p>
+            <p class="font-bold">${selectedOrder.customerName}</p>
+        </div>
+        ${selectedOrder.customerCount ? `
+            <div>
+                <p class="text-gray-600">Guests</p>
+                <p class="font-bold">${selectedOrder.customerCount} persons</p>
             </div>
-        `;
+        ` : ''}
+        <div>
+            <p class="text-gray-600">Phone</p>
+            <p class="font-bold">${selectedOrder.customerPhone || 'N/A'}</p>
+        </div>
+        <div>
+            <p class="text-gray-600">Status</p>
+            <span class="px-3 py-1 rounded-full text-sm ${getStatusClass(selectedOrder.status)}">
+                ${selectedOrder.status}
+            </span>
+        </div>
+    </div>
+    ${itemsHtml}
+    <div class="border-t pt-4">
+        <div class="flex justify-between mb-2">
+            <span>Subtotal:</span>
+            <span>₹${selectedOrder.subtotal ? selectedOrder.subtotal.toFixed(2) : '0.00'}</span>
+        </div>
+        <div class="flex justify-between mb-2">
+            <span>GST (${selectedOrder.gstRate || 0}%):</span>
+            <span>₹${selectedOrder.gstAmount ? selectedOrder.gstAmount.toFixed(2) : '0.00'}</span>
+        </div>
+        <div class="flex justify-between mb-2">
+            <span>Service Charge (${selectedOrder.serviceChargeRate || 0}%):</span>
+            <span>₹${selectedOrder.serviceCharge ? selectedOrder.serviceCharge.toFixed(2) : '0.00'}</span>
+        </div>
+        <div class="flex justify-between text-xl font-bold pt-2 border-t">
+            <span>Total:</span>
+            <span>₹${selectedOrder.total ? selectedOrder.total.toFixed(2) : '0.00'}</span>
+        </div>
+    </div>
+`;
 
         modal.classList.remove('hidden');
     }
@@ -641,5 +653,6 @@ function filterOrdersBySearch(searchTerm) {
     window.OrdersManager.viewOrderDetails = viewOrderDetails;
     window.OrdersManager.printOrder = printOrder;
     window.OrdersManager.showDeleteOrderModal = showDeleteOrderModal;
+
 
 

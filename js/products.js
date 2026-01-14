@@ -308,3 +308,30 @@ function refreshResponsiveTables() {
 
 // Make refreshResponsiveTables globally accessible
 window.refreshResponsiveTables = refreshResponsiveTables;
+
+// Add to products.js (at the end or after DOMContentLoaded)
+window.editProduct = function(productId) {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+        openProductModal(product);
+        
+        // Set food type radio button
+        const foodTypeRadio = document.querySelector(`input[name="foodType"][value="${product.foodType || 'veg'}"]`);
+        if (foodTypeRadio) foodTypeRadio.checked = true;
+        
+        // Set other fields
+        document.getElementById('quantityType').value = product.quantityType || 'plate';
+        document.getElementById('baseQuantity').value = product.baseQuantity || 1;
+        
+        // Load existing image
+        if (product.imageUrl && window.ImageUpload?.setImageForEdit) {
+            window.ImageUpload.setImageForEdit(product.imageUrl);
+        }
+    }
+};
+
+window.showDeleteModal = function(productId) {
+    productToDelete = productId;
+    document.getElementById('deleteModal').classList.remove('hidden');
+};
+

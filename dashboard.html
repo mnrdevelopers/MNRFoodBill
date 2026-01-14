@@ -121,6 +121,35 @@
                     </div>
                 </div>
 
+                <!-- Most Ordered Products -->
+<div class="bg-white rounded-xl shadow p-4 mt-6">
+    <h2 class="text-xl font-bold text-gray-800 mb-4">Most Ordered Products</h2>
+    <div class="table-container">
+        <div class="table-wrapper">
+            <div class="scroll-indicator">→</div>
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b">
+                        <th class="text-left py-3 px-4">Rank</th>
+                        <th class="text-left py-3 px-4">Product Name</th>
+                        <th class="text-left py-3 px-4">Category</th>
+                        <th class="text-left py-3 px-4">Total Orders</th>
+                        <th class="text-left py-3 px-4">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody id="mostOrderedProducts">
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-gray-500">
+                            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-red-500 mr-2"></div>
+                            Loading product analytics...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
                 <!-- Quick Actions -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                     <div class="bg-gradient-to-r from-red-500 to-orange-500 rounded-xl shadow p-6 text-white">
@@ -197,3 +226,4 @@
     </script>
 </body>
 </html>
+

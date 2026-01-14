@@ -81,6 +81,11 @@ function setupTabNavigation() {
 }
 
 function setActiveTab(tabName) {
+    // Get the elements each time
+    const tablesTab = document.getElementById('tablesTab');
+    const billingTab = document.getElementById('billingTab');
+    const takeawayTab = document.getElementById('takeawayTab');
+    
     // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active', 'border-red-500', 'text-gray-700');
@@ -1099,17 +1104,23 @@ function updateTotals() {
     if (serviceChargeEl) serviceChargeEl.textContent = `${currency}${serviceCharge.toFixed(2)}`;
     if (totalAmountEl) totalAmountEl.textContent = `${currency}${total.toFixed(2)}`;
     
-    // Update labels
-    const gstLabel = document.querySelector('span[id="gstLabel"], span:contains("GST")');
-    const serviceLabel = document.querySelector('span[id="serviceLabel"], span:contains("Service Charge")');
+    // FIXED: Use a different approach to update labels
+    // Look for elements that might contain GST text
+    document.querySelectorAll('span').forEach(span => {
+        const text = span.textContent.trim();
+        if (text.includes('GST') && text.includes('%')) {
+            span.textContent = `GST (${gstRate}%)`;
+        } else if (text.includes('Service Charge') && text.includes('%')) {
+            span.textContent = `Service Charge (${serviceRate}%)`;
+        }
+    });
     
-    if (gstLabel) {
-        gstLabel.textContent = `GST (${gstRate}%)`;
-    }
+    // Or update specific elements if they exist
+    const gstLabel = document.querySelector('[data-label="gst"]');
+    const serviceLabel = document.querySelector('[data-label="service"]');
     
-    if (serviceLabel) {
-        serviceLabel.textContent = `Service Charge (${serviceRate}%)`;
-    }
+    if (gstLabel) gstLabel.textContent = `GST (${gstRate}%)`;
+    if (serviceLabel) serviceLabel.textContent = `Service Charge (${serviceRate}%)`;
     
     // Calculate change if cash payment
     if (document.getElementById('paymentMode')?.value === 'cash') {
@@ -1468,3 +1479,4 @@ function showNotification(message, type) {
 window.closeTableModal = closeTableModal;
 window.closeOrderDetailsModal = closeOrderDetailsModal;
 window.generateBillForOrder = generateBillForOrder;
+

@@ -4,23 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MNRFoodBill - Login</title>
+    <!-- Favicon -->
+    <link rel="icon" href="icons/icon-192x192.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    
+    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ef4444">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MNRFoodBill">
-<link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <meta name="theme-color" content="#ef4444">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MNRFoodBill">
+    
+    <!-- External CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.2/dist/fetch.umd.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="firebase-config.js"></script>
-    <script src="js/auth.js" defer></script>
-
-    <script src="js/pwa-install.js" defer></script>
-    <link rel="stylesheet" href="css/styles.css">
+    
     <style>
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -33,6 +37,12 @@
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-gray-600">Loading MNRFoodBill...</p>
+    </div>
+
     <div class="login-card rounded-2xl shadow-2xl w-full max-w-md p-8">
         <div class="text-center mb-8">
             <div class="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -148,60 +158,53 @@
     </div>
 
     <!-- Install Button (will be added dynamically by pwa-install.js) -->
-<div id="installContainer"></div>
+    <div id="installContainer"></div>
 
-<!-- Offline Indicator -->
-<div id="offlineIndicator" class="hidden fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-2 z-50">
-  <i class="fas fa-wifi-slash mr-2"></i>
-  You are currently offline
+    <!-- Offline Indicator -->
+    <div id="offlineIndicator" class="hidden fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-2 z-50">
+        <i class="fas fa-wifi-slash mr-2"></i>
+        You are currently offline
+    </div>
 
-    // Add this at the end of index.html body, before closing </body> tag
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  // Check Firebase auth immediately
-  firebase.auth().onAuthStateChanged(function(user) {
-    if (user) {
-      // User is logged in, redirect to dashboard
-      console.log('User already logged in, redirecting...');
-      window.location.href = 'dashboard.html';
-    }
-    // If no user, the login form will remain visible
-  });
-});
-
-    // In your main.js or layout.js
-if ('serviceWorker' in navigator) {
-  // Register service worker
-  navigator.serviceWorker.register('/MNRFoodBill/sw.js')
-    .then(registration => {
-      console.log('Service Worker registered');
-      
-      // Check if iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      
-      if (isIOS) {
-        console.log('iOS detected - using minimal caching strategy');
-        // Tell service worker about iOS (optional - via message)
-        registration.active?.postMessage({
-          type: 'SET_STRATEGY',
-          strategy: 'network-first'
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="js/auth.js" defer></script>
+    <script src="js/pwa-install.js" defer></script>
+    
+    <!-- Service Worker and Initialization -->
+    <script>
+        // Hide loading overlay when page is loaded
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay) overlay.style.display = 'none';
+            }, 1000);
         });
-        
-        // Clear cache more frequently on iOS
-        setInterval(() => {
-          registration.active?.postMessage({
-            type: 'CLEAR_CACHE'
-          });
-        }, 60 * 60 * 1000); // Every hour
-      }
-    })
-    .catch(error => {
-      console.error('Service Worker registration failed:', error);
-    });
-}
-</script>
-</div>
+
+        // Check Firebase auth immediately
+        document.addEventListener('DOMContentLoaded', function() {
+            firebase.auth().onAuthStateChanged(function(user) {
+                if (user) {
+                    console.log('User already logged in, redirecting...');
+                    window.location.href = 'dashboard.html';
+                }
+            });
+        });
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/MNRFoodBill/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
-
-

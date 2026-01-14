@@ -1,6 +1,6 @@
-const CACHE_NAME = 'mnrfoodbill-v3.0.6'; // Change version to force update
+const CACHE_NAME = 'mnrfoodbill-v3.0.7'; // Change version to force update
 const BASE_PATH = '/MNRFoodBill/';
-const AUTH_CHECK_URL = '/MNRFoodBill/auth-check.html';
+const AUTH_CHECK_URL = '/MNRFoodBill/index.html';
 
 // Detect iOS
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;

@@ -116,15 +116,26 @@ async function loadRestaurantSettings() {
         const doc = await db.collection('restaurants').doc(user.uid).get();
         if (doc.exists) {
             const data = doc.data();
-            restaurantSettings = data.settings || {
-                gstRate: 18,
-                serviceCharge: 5,
-                currency: '₹'
+            // Get settings from the correct location
+            const settings = data.settings || {};
+            
+            restaurantSettings = {
+                name: data.name || '',
+                address: data.address || '',
+                phone: data.phone || '',
+                ownerName: data.ownerName || '',
+                gstRate: parseFloat(settings.gstRate) || 18, // Default to 18 if not set
+                serviceCharge: parseFloat(settings.serviceCharge) || 5, // Default to 5 if not set
+                currency: settings.currency || '₹',
+                gstin: settings.gstin || '',
+                fssai: settings.fssai || ''
             };
             
             // Update UI with restaurant name
             const navName = document.getElementById('restaurantName');
             if (navName) navName.textContent = data.name;
+            
+            console.log('Loaded settings:', restaurantSettings); // Debug log
         }
     } catch (error) {
         console.error("Error loading settings:", error);
@@ -1041,8 +1052,8 @@ function removeFromCart(index) {
 
 function updateTotals() {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const gstRate = restaurantSettings.gstRate || 18;
-    const serviceRate = restaurantSettings.serviceCharge || 5;
+    const gstRate = restaurantSettings.gstRate || 18; // Use loaded settings
+    const serviceRate = restaurantSettings.serviceCharge || 5; // Use loaded settings
     const currency = restaurantSettings.currency || '₹';
     
     const gstAmount = subtotal * (gstRate / 100);
@@ -1054,15 +1065,12 @@ function updateTotals() {
     document.getElementById('serviceCharge').textContent = `${currency}${serviceCharge.toFixed(2)}`;
     document.getElementById('totalAmount').textContent = `${currency}${total.toFixed(2)}`;
     
-    // Update labels
-    document.querySelectorAll('span').forEach(span => {
-        if (span.textContent.includes('GST')) {
-            span.textContent = `GST (${gstRate}%)`;
-        }
-        if (span.textContent.includes('Service Charge')) {
-            span.textContent = `Service Charge (${serviceRate}%)`;
-        }
-    });
+    // Update labels to show correct percentages
+    const gstLabel = document.querySelector('span:contains("GST")');
+    const serviceLabel = document.querySelector('span:contains("Service Charge")');
+    
+    if (gstLabel) gstLabel.textContent = `GST (${gstRate}%)`;
+    if (serviceLabel) serviceLabel.textContent = `Service Charge (${serviceRate}%)`;
     
     // Calculate change if cash payment
     if (document.getElementById('paymentMode')?.value === 'cash') {
@@ -1402,3 +1410,4 @@ function showNotification(message, type) {
 window.closeTableModal = closeTableModal;
 window.closeOrderDetailsModal = closeOrderDetailsModal;
 window.generateBillForOrder = generateBillForOrder;
+

@@ -914,14 +914,24 @@ async function generateBillForOrder(orderId) {
         // Show printing notification
         showNotification('Preparing bill for printing...', 'info');
         
-        // Use the new print function
-        await window.prepareReceiptForTableOrder(orderId, order.tableId);
+        // Check if the function exists
+        if (typeof window.prepareReceiptForTableOrder === 'function') {
+            // Use the print function
+            await window.prepareReceiptForTableOrder(orderId, order.tableId);
+        } else if (typeof window.generateBill === 'function') {
+            // Use fallback function
+            await window.generateBill(orderId, order.tableId);
+        } else {
+            // Direct print implementation as fallback
+            await directPrintOrderBill(orderId, order.tableId);
+        }
         
     } catch (error) {
         console.error("Error generating bill:", error);
         showNotification('Error generating bill: ' + error.message, 'error');
     }
 }
+
     
   // Close order and generate bill
 async function closeOrderAndGenerateBill(orderId) {

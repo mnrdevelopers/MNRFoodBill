@@ -292,6 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             loadRestaurantSettings();
             loadProducts();
+            loadTablesForBilling();
             setupViewToggle();
             setupPaymentHandlers();
         }
@@ -727,7 +728,7 @@ async function loadTablesForBilling() {
     try {
         const snapshot = await db.collection('tables')
             .where('restaurantId', '==', user.uid)
-            .where('status', '==', 'available')
+            .where('status', 'in', ['available', 'reserved']) // Only show available/reserved tables
             .orderBy('tableNumber')
             .get();
         
@@ -738,13 +739,12 @@ async function loadTablesForBilling() {
                 const table = doc.data();
                 const option = document.createElement('option');
                 option.value = doc.id;
-                option.textContent = `${table.tableNumber} (${table.capacity} persons)`;
+                option.textContent = `${table.tableNumber} (${table.capacity} persons) - ${table.status}`;
                 select.appendChild(option);
             });
         }
     } catch (error) {
         console.error("Error loading tables:", error);
+        showNotification('Failed to load tables', 'error');
     }
 }
-
-

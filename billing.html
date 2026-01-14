@@ -33,6 +33,44 @@
         <p class="text-gray-600">Loading Billing System...</p>
     </div>
 
+<!-- Table Management Section -->
+<div id="tableManagement" class="container mx-auto px-4 py-4">
+    <div class="bg-white rounded-xl shadow p-4 mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-800">Table Management</h2>
+            <div class="flex space-x-2">
+                <button id="addTableBtn" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600">
+                    <i class="fas fa-plus mr-2"></i>Add Table
+                </button>
+                <button id="tableSettingsBtn" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600">
+                    <i class="fas fa-cog mr-2"></i>Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- Active Table Display -->
+        <div id="activeTableInfo" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 hidden">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-red-700">
+                        <i class="fas fa-chair mr-2"></i>
+                        Active: <span id="currentTableName">Table 1</span>
+                    </h3>
+                    <p class="text-sm text-red-600">Taking orders for this table</p>
+                </div>
+                <button id="clearActiveTable" class="text-red-600 hover:text-red-800">
+                    <i class="fas fa-times-circle"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tables Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="tablesContainer">
+            <!-- Tables will be loaded here -->
+        </div>
+    </div>
+</div>
+
     <!-- Header (loaded via layout.js) -->
     <div id="header"></div>
 
@@ -234,6 +272,7 @@
     <!-- Application Scripts -->
     <script src="js/layout.js" defer></script>
     <script src="js/billing.js" defer></script>
+    <script src="js/table-management.js" defer></script>
     <script src="js/print.js" defer></script>
     <script src="js/image-upload.js" defer></script>
     <script src="js/table-responsive.js" defer></script>
@@ -263,4 +302,5 @@
     </script>
 </body>
 </html>
+
 

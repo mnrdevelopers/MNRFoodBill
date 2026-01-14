@@ -629,4 +629,17 @@ function filterOrdersBySearch(searchTerm) {
     orders = tempOrders; // Restore original orders
 }
 
+    // Make functions globally accessible
+    window.viewOrderDetails = viewOrderDetails;
+    window.printOrder = printOrder;
+    window.showDeleteOrderModal = showDeleteOrderModal;
+    
+    // Also expose the functions as properties of the global window object
+    if (!window.OrdersManager) {
+        window.OrdersManager = {};
+    }
+    window.OrdersManager.viewOrderDetails = viewOrderDetails;
+    window.OrdersManager.printOrder = printOrder;
+    window.OrdersManager.showDeleteOrderModal = showDeleteOrderModal;
+
 

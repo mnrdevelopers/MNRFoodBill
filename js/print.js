@@ -1,4 +1,6 @@
 // Thermal printing functions - Professional Restaurant Bill Style
+// Mobile: Uses RawBT | Desktop: Uses print dialog
+
 async function prepareReceipt() {
     const user = auth.currentUser;
     if (!user) return;
@@ -56,19 +58,13 @@ async function prepareReceipt() {
             cgstAmount, sgstAmount
         );
         
-        // Check device type
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isAndroid) {
-            // Android: Try RawBT directly
-            await printWithRawBT(receipt, billNo, restaurant.name);
-        } else if (isMobile) {
-            // iOS or other mobile: Use Share API
+        // Check if mobile or desktop
+        if (isMobileDevice()) {
+            // MOBILE: Send to RawBT
             await shareToRawBT(receipt, billNo, restaurant.name);
         } else {
-            // Desktop: Show print modal
-            showDesktopPrintModal(receipt);
+            // DESKTOP: Show print modal
+            showDesktopPrintModal(receipt, restaurant.name, billNo);
         }
         
     } catch (error) {
@@ -200,233 +196,93 @@ function buildReceipt(restaurant, customerName, customerPhone,
     }
     
     receipt += '='.repeat(MAX_WIDTH) + '\n';
+    
+    // Add extra line feeds for thermal printer
     receipt += '\n\n\n';
     
     return receipt;
 }
 
-// ================= ANDROID: DIRECT RAWTB PRINTING =================
-async function printWithRawBT(receiptText, billNo, restaurantName) {
-    try {
-        // First, save the order
-        await saveOrderAndClearCart();
-        
-        // Try multiple RawBT methods
-        const success = await tryRawBTMethods(receiptText, billNo);
-        
-        if (success) {
-            showNotification('Receipt sent to printer!', 'success');
-        } else {
-            // Fallback to download
-            showNotification('Opening RawBT...', 'info');
-            downloadForRawBT(receiptText, billNo);
-        }
-        
-    } catch (error) {
-        console.error('RawBT print failed:', error);
-        downloadForRawBT(receiptText, billNo);
-    }
-}
-
-async function tryRawBTMethods(receiptText, billNo) {
-    // Method 1: RawBT Intent URL (Android deep link)
-    try {
-        // Create a temporary file URL
-        const blob = new Blob([receiptText], { type: 'text/plain' });
-        const fileUrl = URL.createObjectURL(blob);
-        
-        // RawBT intent URL format
-        const rawbtIntent = `intent://rawbt.ru/print_file#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.path=${encodeURIComponent(fileUrl)};end`;
-        
-        // Try to open RawBT via iframe
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = rawbtIntent;
-        document.body.appendChild(iframe);
-        
-        // Check if RawBT opened
-        let rawbtOpened = false;
-        const timeout = setTimeout(() => {
-            document.body.removeChild(iframe);
-            if (!rawbtOpened) {
-                throw new Error('RawBT timeout');
-            }
-        }, 1000);
-        
-        // Listen for blur (app switch)
-        window.addEventListener('blur', function onBlur() {
-            rawbtOpened = true;
-            clearTimeout(timeout);
-            window.removeEventListener('blur', onBlur);
-            setTimeout(() => {
-                if (iframe.parentNode) {
-                    document.body.removeChild(iframe);
-                }
-            }, 1000);
-        });
-        
-        return true;
-        
-    } catch (error) {
-        console.log('Method 1 failed:', error);
-        
-        // Method 2: Alternative intent format
-        try {
-            const altIntent = `intent://rawbt.ru/print?text=${encodeURIComponent(receiptText)}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end`;
-            
-            window.location.href = altIntent;
-            
-            // If we're still here after 500ms, RawBT didn't open
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve(false);
-                }, 500);
-            });
-            
-        } catch (error2) {
-            console.log('Method 2 failed:', error2);
-            return false;
-        }
-    }
-}
-
-function downloadForRawBT(receiptText, billNo) {
-    // Create and download .txt file
-    const blob = new Blob([receiptText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    
-    // Use .txt extension
-    a.href = url;
-    a.download = `receipt_${billNo}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-// ================= IOS/MOBILE: SHARE API =================
+// MOBILE: RawBT Functions
 async function shareToRawBT(receiptText, billNo, restaurantName) {
     try {
-        // Save order first
+        // First, save the order (do this BEFORE sharing)
         await saveOrderAndClearCart();
         
         // Create file for sharing
         const fileName = `receipt_${billNo}.txt`;
         const file = new File([receiptText], fileName, { type: 'text/plain' });
         
-        // Check if Web Share API supports files
+        // Check if Web Share API is available
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            // Share with Web Share API (this will open RawBT)
             await navigator.share({
                 title: `${restaurantName} - Bill ${billNo}`,
-                text: `Receipt ${billNo}`,
+                text: `Receipt ${billNo}\nTotal: ₹${getTotalAmount()}`,
                 files: [file]
             });
             
-            showNotification('Receipt shared to printer!', 'success');
+            showNotification('Receipt sent to printer!', 'success');
+            
         } else {
-            // Web Share API not available
-            throw new Error('Share API not supported');
+            // Fallback: Download file (which should open RawBT)
+            downloadFile(receiptText, fileName);
+            showNotification('Downloading receipt... Opening RawBT', 'info');
         }
         
     } catch (error) {
         console.error('Share failed:', error);
         
+        // Fallback methods
         if (error.name !== 'AbortError') {
-            // Fallback to show options
-            showMobilePrintOptions(receiptText, billNo, restaurantName);
+            // Try download method
+            downloadFile(receiptText, `receipt_${billNo}.txt`);
+            showNotification('Opening RawBT...', 'info');
         }
     }
 }
 
-function showMobilePrintOptions(receiptText, billNo, restaurantName) {
+function downloadFile(content, fileName) {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function getTotalAmount() {
+    const currency = '₹';
+    const totalText = document.getElementById('totalAmount')?.textContent || '₹0.00';
+    return parseFloat(totalText.replace(currency, '')).toFixed(2);
+}
+
+// DESKTOP: Print Functions
+function showDesktopPrintModal(receipt, restaurantName, billNo) {
     const printContent = document.getElementById('printContent');
     const modal = document.getElementById('printModal');
     
     // Store receipt
-    printContent.setAttribute('data-receipt-text', receiptText);
-    
-    // Update modal for mobile
-    printContent.innerHTML = `
-        <div class="space-y-4">
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div class="flex items-center space-x-3">
-                    <i class="fas fa-mobile-alt text-blue-500 text-2xl"></i>
-                    <div>
-                        <h4 class="font-bold text-blue-800">Mobile Printing</h4>
-                        <p class="text-sm text-blue-600">${restaurantName} • Bill: ${billNo}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-1 gap-3">
-                <button onclick="downloadAndPrint()" 
-                        class="bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600 transition flex items-center justify-center">
-                    <i class="fas fa-download mr-2"></i> Download & Print
-                </button>
-                
-                <button onclick="copyReceiptText()" 
-                        class="bg-blue-500 text-white py-3 rounded-lg font-bold hover:bg-blue-600 transition flex items-center justify-center">
-                    <i class="fas fa-copy mr-2"></i> Copy Text
-                </button>
-            </div>
-            
-            <div class="text-xs text-gray-500 bg-gray-50 p-3 rounded">
-                <p class="font-semibold mb-1">Instructions:</p>
-                <p>1. Click "Download & Print"</p>
-                <p>2. Open the .txt file with RawBT app</p>
-                <p>3. Printer will start automatically</p>
-            </div>
-        </div>
-    `;
-    
-    // Update modal footer
-    const modalFooter = modal.querySelector('.flex.space-x-3');
-    if (modalFooter) {
-        modalFooter.innerHTML = `
-            <button onclick="closePrintModal()" 
-                    class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
-                Close
-            </button>
-        `;
-    }
-    
-    modal.classList.remove('hidden');
-}
-
-// ================= DESKTOP: REGULAR PRINTING =================
-function showDesktopPrintModal(receiptText) {
-    // Save order first
-    saveOrderAndClearCart();
-    
-    // Set print content
-    const printContent = document.getElementById('printContent');
-    printContent.textContent = receiptText;
+    printContent.setAttribute('data-receipt-text', receipt);
+    printContent.textContent = receipt;
     
     // Show modal
-    const modal = document.getElementById('printModal');
     modal.classList.remove('hidden');
     
-    // Update modal buttons for desktop
-    const modalFooter = modal.querySelector('.flex.space-x-3');
-    if (modalFooter) {
-        modalFooter.innerHTML = `
-            <button onclick="printDesktopReceipt()" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600">
-                <i class="fas fa-print mr-2"></i> Print Now
-            </button>
-            <button onclick="closePrintModal()" class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-50">
-                Close
-            </button>
-        `;
-    }
+    // Prevent body scrolling
+    document.body.style.overflow = 'hidden';
 }
 
-window.printDesktopReceipt = function() {
+function printReceipt() {
     const printContent = document.getElementById('printContent').textContent;
     
-    // Create print window
+    // Create a print-friendly window
     const printWindow = window.open('', '_blank', 'width=240,height=600');
     if (!printWindow) {
+        // Fallback to browser print
         printViaBrowser(printContent);
         return;
     }
@@ -447,6 +303,10 @@ window.printDesktopReceipt = function() {
                     @page {
                         margin: 0 !important;
                         size: 58mm auto !important;
+                    }
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                 }
                 body {
@@ -476,9 +336,13 @@ window.printDesktopReceipt = function() {
         </html>
     `);
     printWindow.document.close();
-};
+    
+    // Save order
+    saveOrderAndClearCart();
+}
 
 function printViaBrowser(printContent) {
+    // Create hidden div for printing
     const printDiv = document.createElement('div');
     printDiv.id = 'printableReceipt';
     printDiv.style.cssText = `
@@ -496,38 +360,30 @@ function printViaBrowser(printContent) {
     printDiv.textContent = printContent;
     document.body.appendChild(printDiv);
     
+    // Trigger print
     window.print();
     
+    // Clean up
     setTimeout(() => {
         if (printDiv.parentNode) {
             printDiv.parentNode.removeChild(printDiv);
         }
     }, 100);
     
+    // Save order
+    saveOrderAndClearCart();
     closePrintModal();
 }
 
-// ================= MOBILE HELPER FUNCTIONS =================
-window.downloadAndPrint = function() {
-    const receiptText = document.getElementById('printContent').getAttribute('data-receipt-text');
-    const billNo = generateOrderId();
-    
-    downloadForRawBT(receiptText, billNo);
-    closePrintModal();
-};
+function closePrintModal() {
+    const modal = document.getElementById('printModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+}
 
-window.copyReceiptText = function() {
-    const receiptText = document.getElementById('printContent').getAttribute('data-receipt-text');
-    
-    navigator.clipboard.writeText(receiptText).then(() => {
-        showNotification('Receipt copied to clipboard!', 'success');
-    }).catch(err => {
-        console.error('Copy failed:', err);
-        showNotification('Copy failed. Please select text manually.', 'error');
-    });
-};
-
-// ================= COMMON FUNCTIONS =================
+// Common Functions
 async function saveOrderAndClearCart() {
     const user = auth.currentUser;
     if (!user) return;
@@ -564,7 +420,7 @@ async function saveOrderAndClearCart() {
 
         await db.collection('orders').add(orderData);
         
-        // Clear cart IMMEDIATELY
+        // Clear cart
         cart = [];
         if (typeof renderCart === 'function') renderCart();
         if (typeof updateTotals === 'function') updateTotals();
@@ -582,6 +438,7 @@ async function saveOrderAndClearCart() {
         
     } catch (error) {
         console.error('Error saving order:', error);
+        // Don't show error to user - just log it
     }
 }
 
@@ -594,64 +451,14 @@ function generateOrderId() {
     return `BILL${year}${month}${day}${random}`;
 }
 
-function closePrintModal() {
-    const modal = document.getElementById('printModal');
-    if (modal) {
-        modal.classList.add('hidden');
-        document.body.style.overflow = '';
-    }
+// Utility Functions
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
-
-// ================= INITIALIZATION =================
-window.prepareReceipt = prepareReceipt;
-window.closePrintModal = closePrintModal;
-
-// Update print button
-document.addEventListener('DOMContentLoaded', function() {
-    const printBillBtn = document.getElementById('printBill');
-    if (printBillBtn) {
-        const newPrintBillBtn = printBillBtn.cloneNode(true);
-        printBillBtn.parentNode.replaceChild(newPrintBillBtn, printBillBtn);
-        
-        newPrintBillBtn.addEventListener('click', async function(e) {
-            e.preventDefault();
-            
-            if (cart.length === 0) {
-                showNotification('Cart is empty', 'error');
-                return;
-            }
-            
-            const paymentMode = document.getElementById('paymentMode').value;
-            if (paymentMode === 'cash') {
-                const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
-                const totalText = document.getElementById('totalAmount').textContent;
-                const total = parseFloat(totalText.replace('₹', '')) || 0;
-                
-                if (cashReceived < total) {
-                    showNotification('Insufficient cash received', 'error');
-                    return;
-                }
-            }
-            
-            // Show processing notification
-            const isAndroid = /Android/i.test(navigator.userAgent);
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            if (isAndroid) {
-                showNotification('Printing receipt...', 'info');
-            } else if (isMobile) {
-                showNotification('Preparing print...', 'info');
-            } else {
-                showNotification('Opening print dialog...', 'info');
-            }
-            
-            await prepareReceipt();
-        });
-    }
-});
 
 // Helper for notifications
 function showNotification(message, type) {
+    // Remove any existing notifications
     document.querySelectorAll('.notification-temp').forEach(n => n.remove());
     
     const notification = document.createElement('div');
@@ -665,3 +472,97 @@ function showNotification(message, type) {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Override the printBill button click handler
+    const printBillBtn = document.getElementById('printBill');
+    if (printBillBtn) {
+        // Remove any existing event listeners
+        const newPrintBillBtn = printBillBtn.cloneNode(true);
+        printBillBtn.parentNode.replaceChild(newPrintBillBtn, printBillBtn);
+        
+        // Add new event listener
+        newPrintBillBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            
+            if (cart.length === 0) {
+                showNotification('Cart is empty', 'error');
+                return;
+            }
+            
+            // Validate cash payment if cash mode
+            const paymentMode = document.getElementById('paymentMode').value;
+            if (paymentMode === 'cash') {
+                const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
+                const totalText = document.getElementById('totalAmount').textContent;
+                const total = parseFloat(totalText.replace('₹', '')) || 0;
+                
+                if (cashReceived < total) {
+                    showNotification('Insufficient cash received', 'error');
+                    return;
+                }
+            }
+            
+            // Show printing notification
+            showNotification('Processing receipt...', 'info');
+            
+            // Call prepareReceipt which will:
+            // - On mobile: Trigger RawBT via Web Share API
+            // - On desktop: Show print modal
+            await prepareReceipt();
+        });
+    }
+    
+    // Close print modal when clicking outside or on close button
+    document.getElementById('printModal')?.addEventListener('click', function(e) {
+        if (e.target.id === 'printModal' || e.target.id === 'closePrintModal') {
+            closePrintModal();
+        }
+    });
+    
+    // Add print modal if not exists
+    if (!document.getElementById('printModal')) {
+        addPrintModalToDOM();
+    }
+});
+
+// Add print modal HTML if not already in DOM
+function addPrintModalToDOM() {
+    const modalHTML = `
+        <div id="printModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center">
+            <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-md mx-4">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Receipt Preview</h3>
+                        <button id="closePrintModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="border rounded p-4 bg-gray-50 mb-4">
+                        <pre id="printContent" class="text-xs font-mono whitespace-pre-wrap"></pre>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button onclick="closePrintModal()" class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button onclick="printReceipt()" class="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            Print Receipt
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer.firstElementChild);
+}
+
+// Make functions available globally
+window.prepareReceipt = prepareReceipt;
+window.printReceipt = printReceipt;
+window.closePrintModal = closePrintModal;

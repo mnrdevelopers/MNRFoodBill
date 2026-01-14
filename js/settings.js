@@ -51,9 +51,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 setVal('resAddress', data.address);
                 setVal('resPhone', data.phone);
                 
-                // Tax settings - IMPORTANT: Make sure these are numbers
-                setVal('resGst', settings.gstRate || 18);
-                setVal('resService', settings.serviceCharge || 5);
+                // Tax settings
+                setVal('resGst', settings.gstRate);
+                setVal('resService', settings.serviceCharge);
                 setVal('resGSTIN', settings.gstin);
                 setVal('resFSSAI', settings.fssai);
                 
@@ -99,7 +99,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const ownerPhone = getVal('ownerPhone');
             const logoUrl = getVal('restaurantLogoUrl');
 
-            // IMPORTANT: Ensure GST and Service Charge are stored as numbers
             const updatedData = {
                 name: getVal('resName'),
                 ownerName: ownerName,
@@ -108,8 +107,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 phone: getVal('resPhone'),
                 settings: {
                     currency: '₹',
-                    gstRate: parseFloat(getVal('resGst')) || 0, // Ensure it's a number
-                    serviceCharge: parseFloat(getVal('resService')) || 0, // Ensure it's a number
+                    gstRate: parseFloat(getVal('resGst')) || 0,
+                    serviceCharge: parseFloat(getVal('resService')) || 0,
                     gstin: getVal('resGSTIN'),
                     fssai: getVal('resFSSAI'),
                     logoUrl: logoUrl // Add logo URL to settings
@@ -135,9 +134,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotification('All settings updated successfully', 'success');
                 const navName = document.getElementById('restaurantName');
                 if (navName) navName.textContent = updatedData.name;
-                
-                // Log for debugging
-                console.log('Settings saved:', updatedData);
             } catch (error) {
                 showNotification(error.message, 'error');
             } finally {

@@ -815,52 +815,64 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Generate bill for order
-    async function generateBillForOrder(orderId) {
-        // This function would prepare the bill for printing
-        // You can reuse your existing print.js logic here
-        console.log('Generate bill for order:', orderId);
-        // Implement bill generation logic
+   // Generate bill for order
+async function generateBillForOrder(orderId) {
+    try {
+        const orderDoc = await db.collection('orders').doc(orderId).get();
+        if (!orderDoc.exists) return;
+        
+        const order = orderDoc.data();
+        
+        // Show printing notification
+        showNotification('Preparing bill for printing...', 'info');
+        
+        // Use the new print function
+        await window.prepareReceiptForTableOrder(orderId, order.tableId);
+        
+    } catch (error) {
+        console.error("Error generating bill:", error);
+        showNotification('Error generating bill: ' + error.message, 'error');
     }
-
-    // Close order and generate bill
-    async function closeOrderAndGenerateBill(orderId) {
-        try {
-            const orderDoc = await db.collection('orders').doc(orderId).get();
-            if (!orderDoc.exists) return;
-            
-            const order = orderDoc.data();
-            
-            // Update order status
-            await db.collection('orders').doc(orderId).update({
-                isActive: false,
-                status: 'completed',
-                closedAt: firebase.firestore.FieldValue.serverTimestamp()
+}
+    
+  // Close order and generate bill
+async function closeOrderAndGenerateBill(orderId) {
+    try {
+        const orderDoc = await db.collection('orders').doc(orderId).get();
+        if (!orderDoc.exists) return;
+        
+        const order = orderDoc.data();
+        
+        // Update order status
+        await db.collection('orders').doc(orderId).update({
+            isActive: false,
+            status: 'completed',
+            closedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Update table status
+        if (order.tableId) {
+            await db.collection('tables').doc(order.tableId).update({
+                status: 'available',
+                currentOrderId: null,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            
-            // Update table status
-            if (order.tableId) {
-                await db.collection('tables').doc(order.tableId).update({
-                    status: 'available',
-                    currentOrderId: null,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
-            
-            showNotification('Order closed and bill generated', 'success');
-            
-            // Refresh data
-            loadTables();
-            loadActiveOrders();
-            
-            // Generate bill (you can call your print function here)
-            // await prepareReceiptForOrder(orderId);
-            
-        } catch (error) {
-            console.error("Error closing order:", error);
-            showNotification('Error closing order: ' + error.message, 'error');
         }
+        
+        showNotification('Order closed successfully', 'success');
+        
+        // Generate bill
+        await generateBillForOrder(orderId);
+        
+        // Refresh data
+        loadTables();
+        loadActiveOrders();
+        
+    } catch (error) {
+        console.error("Error closing order:", error);
+        showNotification('Error closing order: ' + error.message, 'error');
     }
+}
 
     // Setup event listeners
     function setupEventListeners() {

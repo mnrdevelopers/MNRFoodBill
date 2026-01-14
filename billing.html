@@ -38,145 +38,41 @@
     <div id="header"></div>
 
     <!-- Table Management Section -->
-    <div id="tableManagement" class="container mx-auto px-4 py-4">
-        <div class="bg-white rounded-xl shadow p-4 mb-4">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Table Management</h2>
-                <div class="flex space-x-2">
-                    <button id="addTableBtn" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600">
-                        <i class="fas fa-plus mr-2"></i>Add Table
-                    </button>
-                    <button id="tableSettingsBtn" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600">
-                        <i class="fas fa-cog mr-2"></i>Settings
-                    </button>
-                </div>
+<div id="tableManagement" class="bg-white shadow-lg border-b">
+    <div class="container mx-auto px-4 py-3">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-chair text-red-500 text-xl"></i>
+                <h2 class="text-lg font-bold text-gray-800">Table Management</h2>
+                <span class="text-sm text-gray-500">Click table to make active</span>
             </div>
-
-            <!-- Active Table Display -->
-            <div id="activeTableInfo" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 hidden">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h3 class="font-bold text-red-700">
-                            <i class="fas fa-chair mr-2"></i>
-                            Active: <span id="currentTableName">Table 1</span>
-                        </h3>
-                        <p class="text-sm text-red-600">Taking orders for this table</p>
+            
+            <div class="flex space-x-2">
+                <div id="activeTableInfo" class="hidden md:flex items-center space-x-3 bg-red-50 px-4 py-2 rounded-lg">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-chair text-red-500"></i>
+                        <span class="font-medium text-red-700">Active:</span>
+                        <span id="currentTableName" class="font-bold"></span>
                     </div>
-                    <button id="clearActiveTable" class="text-red-600 hover:text-red-800">
-                        <i class="fas fa-times-circle"></i>
+                    <button id="clearActiveTable" class="text-red-500 hover:text-red-700 ml-2">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
+                
+                <button id="addTableBtn" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-black">
+                    <i class="fas fa-plus mr-1"></i> Table
+                </button>
             </div>
+        </div>
 
-            <!-- Tables Grid -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="tablesContainer">
+        <!-- Tables Grid -->
+        <div class="mt-4">
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3" id="tablesContainer">
                 <!-- Tables will be loaded here -->
-                <div class="table-card bg-white rounded-xl shadow p-4 available">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h3 class="font-bold text-lg text-gray-800">Table 1</h3>
-                            <div class="flex items-center space-x-2 mt-1">
-                                <span class="table-status status-available">
-                                    Available
-                                </span>
-                                <span class="text-sm text-gray-500">
-                                    <i class="fas fa-users mr-1"></i>4
-                                </span>
-                            </div>
-                        </div>
-                        <div class="table-actions flex space-x-1">
-                            <button class="edit-table-btn p-1 text-gray-600 hover:text-gray-800" title="Edit Table">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <button class="occupy-table-btn w-full bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600">
-                            <i class="fas fa-chair mr-2"></i>Occupy Table
-                        </button>
-                    </div>
-                </div>
-
-                <div class="table-card bg-white rounded-xl shadow p-4 available">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h3 class="font-bold text-lg text-gray-800">Table 2</h3>
-                            <div class="flex items-center space-x-2 mt-1">
-                                <span class="table-status status-available">
-                                    Available
-                                </span>
-                                <span class="text-sm text-gray-500">
-                                    <i class="fas fa-users mr-1"></i>4
-                                </span>
-                            </div>
-                        </div>
-                        <div class="table-actions flex space-x-1">
-                            <button class="edit-table-btn p-1 text-gray-600 hover:text-gray-800" title="Edit Table">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <button class="occupy-table-btn w-full bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600">
-                            <i class="fas fa-chair mr-2"></i>Occupy Table
-                        </button>
-                    </div>
-                </div>
-
-                <div class="table-card bg-white rounded-xl shadow p-4 available">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h3 class="font-bold text-lg text-gray-800">Table 3</h3>
-                            <div class="flex items-center space-x-2 mt-1">
-                                <span class="table-status status-available">
-                                    Available
-                                </span>
-                                <span class="text-sm text-gray-500">
-                                    <i class="fas fa-users mr-1"></i>4
-                                </span>
-                            </div>
-                        </div>
-                        <div class="table-actions flex space-x-1">
-                            <button class="edit-table-btn p-1 text-gray-600 hover:text-gray-800" title="Edit Table">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <button class="occupy-table-btn w-full bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600">
-                            <i class="fas fa-chair mr-2"></i>Occupy Table
-                        </button>
-                    </div>
-                </div>
-
-                <div class="table-card bg-white rounded-xl shadow p-4 available">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h3 class="font-bold text-lg text-gray-800">Table 4</h3>
-                            <div class="flex items-center space-x-2 mt-1">
-                                <span class="table-status status-available">
-                                    Available
-                                </span>
-                                <span class="text-sm text-gray-500">
-                                    <i class="fas fa-users mr-1"></i>4
-                                </span>
-                            </div>
-                        </div>
-                        <div class="table-actions flex space-x-1">
-                            <button class="edit-table-btn p-1 text-gray-600 hover:text-gray-800" title="Edit Table">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <button class="occupy-table-btn w-full bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600">
-                            <i class="fas fa-chair mr-2"></i>Occupy Table
-                        </button>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
+</div>
 
     <div class="container mx-auto px-4 py-4">
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6"> 
@@ -261,6 +157,21 @@
                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg"
                                            placeholder="Phone Number (Optional)">
                                 </div>
+
+<div id="tableCartInfo" class="mb-4 p-3 bg-blue-50 rounded-lg hidden">
+    <div class="flex justify-between items-center">
+        <div>
+            <span class="font-bold text-blue-700">
+                <i class="fas fa-chair mr-2"></i>
+                <span id="cartTableName">Table 1</span>
+            </span>
+            <p class="text-xs text-blue-600" id="cartTableStatus">Taking orders</p>
+        </div>
+        <button id="viewTableOrdersBtn" class="text-blue-600 hover:text-blue-800 text-sm">
+            <i class="fas fa-eye mr-1"></i> View Orders
+        </button>
+    </div>
+</div>
 
                                 <!-- Cart Items -->
                                 <div class="mb-6">
@@ -569,3 +480,4 @@
     </script>
 </body>
 </html>
+

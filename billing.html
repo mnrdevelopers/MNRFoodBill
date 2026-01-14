@@ -219,5 +219,39 @@
             </div>
         </div>
     </div>
+
+        <script>
+            // In your main.js or layout.js
+if ('serviceWorker' in navigator) {
+  // Register service worker
+  navigator.serviceWorker.register('/MNRFoodBill/sw.js')
+    .then(registration => {
+      console.log('Service Worker registered');
+      
+      // Check if iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      
+      if (isIOS) {
+        console.log('iOS detected - using minimal caching strategy');
+        // Tell service worker about iOS (optional - via message)
+        registration.active?.postMessage({
+          type: 'SET_STRATEGY',
+          strategy: 'network-first'
+        });
+        
+        // Clear cache more frequently on iOS
+        setInterval(() => {
+          registration.active?.postMessage({
+            type: 'CLEAR_CACHE'
+          });
+        }, 60 * 60 * 1000); // Every hour
+      }
+    })
+    .catch(error => {
+      console.error('Service Worker registration failed:', error);
+    });
+}
+        </script>
 </body>
 </html>
+

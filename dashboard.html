@@ -4,24 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - MNRFoodBill</title>
+    <!-- Favicon -->
+    <link rel="icon" href="icons/icon-192x192.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    
+    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ef4444">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MNRFoodBill">
-<link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <meta name="theme-color" content="#ef4444">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MNRFoodBill">
+    
+    <!-- External CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="firebase-config.js"></script>
-    <script src="js/layout.js" defer></script>
-    <script src="js/dashboard.js" defer></script>
-    <script src="js/table-responsive.js" defer></script>
-    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-gray-600">Loading Dashboard...</p>
+    </div>
+
     <!-- Header (loaded via layout.js) -->
     <div id="header"></div>
 
@@ -82,29 +92,34 @@
                     </div>
                 </div>
                 
-<!-- Recent Orders -->
-<div class="bg-white rounded-xl shadow p-4"> <!-- Changed p-6 to p-4 -->
-    <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Orders</h2>
-    <div class="table-container">
-        <div class="table-wrapper">
-            <div class="scroll-indicator">→</div>
-            <table class="w-full">
-                <thead>
-                    <tr class="border-b">
-                        <th class="text-left py-3 px-4">Order ID</th>
-                        <th class="text-left py-3 px-4">Time</th>
-                        <th class="text-left py-3 px-4">Items</th>
-                        <th class="text-left py-3 px-4">Amount</th>
-                        <th class="text-left py-3 px-4">Status</th>
-                    </tr>
-                </thead>
-                <tbody id="recentOrders">
-                    <!-- Orders will be loaded here -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+                <!-- Recent Orders -->
+                <div class="bg-white rounded-xl shadow p-4">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Orders</h2>
+                    <div class="table-container">
+                        <div class="table-wrapper">
+                            <div class="scroll-indicator">→</div>
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b">
+                                        <th class="text-left py-3 px-4">Order ID</th>
+                                        <th class="text-left py-3 px-4">Time</th>
+                                        <th class="text-left py-3 px-4">Items</th>
+                                        <th class="text-left py-3 px-4">Amount</th>
+                                        <th class="text-left py-3 px-4">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentOrders">
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-gray-500">
+                                            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-red-500 mr-2"></div>
+                                            Loading orders...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Quick Actions -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -150,38 +165,35 @@
         </div>
     </div>
 
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="js/layout.js" defer></script>
+    <script src="js/dashboard.js" defer></script>
+    <script src="js/table-responsive.js" defer></script>
+    
+    <!-- Service Worker and Initialization -->
     <script>
-        // In your main.js or layout.js
-if ('serviceWorker' in navigator) {
-  // Register service worker
-  navigator.serviceWorker.register('/MNRFoodBill/sw.js')
-    .then(registration => {
-      console.log('Service Worker registered');
-      
-      // Check if iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      
-      if (isIOS) {
-        console.log('iOS detected - using minimal caching strategy');
-        // Tell service worker about iOS (optional - via message)
-        registration.active?.postMessage({
-          type: 'SET_STRATEGY',
-          strategy: 'network-first'
+        // Hide loading overlay when page is loaded
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }, 1000);
         });
-        
-        // Clear cache more frequently on iOS
-        setInterval(() => {
-          registration.active?.postMessage({
-            type: 'CLEAR_CACHE'
-          });
-        }, 60 * 60 * 1000); // Every hour
-      }
-    })
-    .catch(error => {
-      console.error('Service Worker registration failed:', error);
-    });
-}
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/MNRFoodBill/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+        }
     </script>
 </body>
 </html>
-

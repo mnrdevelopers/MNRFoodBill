@@ -1,4 +1,4 @@
-// js/billing-tables.js - Unified Billing and Tables System
+// js/billing.js - Unified Billing and Tables System
 let cart = [];
 let currentView = 'grid';
 let products = [];
@@ -109,7 +109,7 @@ function setActiveTab(tabName) {
     }
 }
 
-// Load restaurant settings
+// Load restaurant settings - FIXED VERSION
 async function loadRestaurantSettings() {
     const user = auth.currentUser;
     try {
@@ -135,7 +135,7 @@ async function loadRestaurantSettings() {
             const navName = document.getElementById('restaurantName');
             if (navName) navName.textContent = data.name;
             
-            console.log('Loaded settings:', restaurantSettings); // Debug log
+            console.log('Loaded restaurant settings:', restaurantSettings);
         }
     } catch (error) {
         console.error("Error loading settings:", error);
@@ -306,7 +306,10 @@ function setupTableCardListeners() {
             e.stopPropagation();
             const tableId = this.closest('.table-card').dataset.tableId;
             startOrderForTable(tableId);
-            showBillingSectionForTable(tableId);
+            // Show billing section
+            document.getElementById('billingView').classList.remove('hidden');
+            document.getElementById('tablesView').classList.add('hidden');
+            setActiveTab('billing');
         });
     });
     
@@ -323,7 +326,10 @@ function setupTableCardListeners() {
             e.stopPropagation();
             const tableId = this.closest('.table-card').dataset.tableId;
             addMoreToTableOrder(tableId);
-            showBillingSectionForTable(tableId);
+            // Show billing section
+            document.getElementById('billingView').classList.remove('hidden');
+            document.getElementById('tablesView').classList.add('hidden');
+            setActiveTab('billing');
         });
     });
     
@@ -354,7 +360,6 @@ async function startOrderForTable(tableId) {
         currentTableId = tableId;
         document.getElementById('tableSelect').value = tableId;
         showCurrentTableBadge(table.tableNumber);
-        setActiveTab('billing');
         
         // Clear any existing cart items
         cart = [];
@@ -419,7 +424,6 @@ function addMoreToTableOrder(tableId) {
         currentTableId = tableId;
         document.getElementById('tableSelect').value = tableId;
         showCurrentTableBadge(table.tableNumber);
-        setActiveTab('billing');
         showNotification(`Add more items to Table ${table.tableNumber}`, 'info');
     }
 }
@@ -1052,10 +1056,11 @@ function removeFromCart(index) {
     showNotification(`${item.name} removed from cart`, 'info');
 }
 
+// FIXED: Update totals using restaurant settings
 function updateTotals() {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const gstRate = restaurantSettings.gstRate || 18; // Use loaded settings
-    const serviceRate = restaurantSettings.serviceCharge || 5; // Use loaded settings
+    const gstRate = restaurantSettings.gstRate || 18;
+    const serviceRate = restaurantSettings.serviceCharge || 5;
     const currency = restaurantSettings.currency || '₹';
     
     const gstAmount = subtotal * (gstRate / 100);
@@ -1067,12 +1072,17 @@ function updateTotals() {
     document.getElementById('serviceCharge').textContent = `${currency}${serviceCharge.toFixed(2)}`;
     document.getElementById('totalAmount').textContent = `${currency}${total.toFixed(2)}`;
     
-    // Update labels to show correct percentages
-    const gstLabel = document.querySelector('span:contains("GST")');
-    const serviceLabel = document.querySelector('span:contains("Service Charge")');
+    // Update labels
+    const gstElement = document.querySelector('span[id="gstLabel"], span:contains("GST")');
+    const serviceElement = document.querySelector('span[id="serviceLabel"], span:contains("Service Charge")');
     
-    if (gstLabel) gstLabel.textContent = `GST (${gstRate}%)`;
-    if (serviceLabel) serviceLabel.textContent = `Service Charge (${serviceRate}%)`;
+    if (gstElement) {
+        gstElement.textContent = `GST (${gstRate}%)`;
+    }
+    
+    if (serviceElement) {
+        serviceElement.textContent = `Service Charge (${serviceRate}%)`;
+    }
     
     // Calculate change if cash payment
     if (document.getElementById('paymentMode')?.value === 'cash') {
@@ -1294,7 +1304,7 @@ async function saveOrder(shouldPrint = false) {
         // Generate order ID
         const orderId = await window.OrderCounter?.getNextOrderId() || `ORD${Date.now()}`;
         
-        // Calculate amounts
+        // Calculate amounts using restaurant settings
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const gstRate = restaurantSettings.gstRate || 18;
         const serviceRate = restaurantSettings.serviceCharge || 5;
@@ -1412,27 +1422,3 @@ function showNotification(message, type) {
 window.closeTableModal = closeTableModal;
 window.closeOrderDetailsModal = closeOrderDetailsModal;
 window.generateBillForOrder = generateBillForOrder;
-
-
-function showBillingSectionForTable(tableId) {
-    const billingSection = document.getElementById('billingSection');
-    const table = tables.find(t => t.id === tableId);
-    
-    if (billingSection && table) {
-        billingSection.classList.remove('hidden');
-        
-        // Pre-select the table in billing section
-        const tableSelect = document.getElementById('tableSelect');
-        if (tableSelect) {
-            tableSelect.value = tableId;
-            showCurrentTableBadge(table.tableNumber);
-        }
-        
-        // Clear any existing cart
-        cart = [];
-        renderCart();
-        updateTotals();
-    }
-}
-
-

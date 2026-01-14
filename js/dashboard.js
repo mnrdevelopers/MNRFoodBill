@@ -119,7 +119,7 @@ async function loadDashboardData(user) {
         const loadPromises = [
             loadRestaurantAndUserInfo(user),
             loadDashboardStats(user, {}),
-            loadRecentOrders(user)
+            loadRecentOrders(user),
             loadMostOrderedProducts(user, {})
         ];
         
@@ -672,5 +672,6 @@ function loadMostOrderedProducts(user, filters = {}) {
             });
     });
 }
+
 
 

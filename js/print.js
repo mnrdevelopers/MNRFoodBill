@@ -1,4 +1,4 @@
-// Thermal printing functions - Professional Restaurant Bill Style with Table Support
+// Thermal printing functions - Professional Restaurant Bill Style
 // Mobile: Uses RawBT | Desktop: Uses print dialog
 
 async function prepareReceipt() {
@@ -41,37 +41,17 @@ async function prepareReceipt() {
         const cashReceived = parseFloat(document.getElementById('cashReceived')?.value || 0);
         const changeAmount = parseFloat(document.getElementById('changeAmount')?.textContent.replace(currency, '') || 0);
         
-        // Get table information
-        const tableSelect = document.getElementById('tableSelect');
-        let tableNumber = '';
-        let tableId = '';
-        
-        if (tableSelect && tableSelect.value) {
-            // Get selected table
-            try {
-                const tableDoc = await db.collection('tables').doc(tableSelect.value).get();
-                if (tableDoc.exists) {
-                    const tableData = tableDoc.data();
-                    tableNumber = tableData.tableNumber || '';
-                    tableId = tableSelect.value;
-                }
-            } catch (error) {
-                console.error("Error loading table info:", error);
-            }
-        }
-        
         const cgstAmount = gstRate > 0 ? gstAmount / 2 : 0;
         const sgstAmount = gstRate > 0 ? gstAmount / 2 : 0;
         
         const now = new Date();
         const billNo = generateOrderId();
         
-        // Build receipt with table info
-        let receipt = buildReceiptWithTable(
+        // Build receipt
+        let receipt = buildReceipt(
             restaurant, 
             customerName, 
             customerPhone,
-            tableNumber,
             subtotal, gstRate, gstAmount, serviceRate, serviceCharge, total,
             paymentMode, cashReceived, changeAmount,
             billNo, now, currency,
@@ -81,10 +61,10 @@ async function prepareReceipt() {
         // Check if mobile or desktop
         if (isMobileDevice()) {
             // MOBILE: Send to RawBT
-            await shareToRawBT(receipt, billNo, restaurant.name, tableNumber);
+            await shareToRawBT(receipt, billNo, restaurant.name);
         } else {
             // DESKTOP: Show print modal
-            showDesktopPrintModal(receipt, restaurant.name, billNo, tableNumber);
+            showDesktopPrintModal(receipt, restaurant.name, billNo);
         }
         
     } catch (error) {
@@ -93,108 +73,11 @@ async function prepareReceipt() {
     }
 }
 
-// New function for table orders
-async function prepareReceiptForTableOrder(orderId, tableId) {
-    const user = auth.currentUser;
-    if (!user) return;
+function buildReceipt(restaurant, customerName, customerPhone, 
+                     subtotal, gstRate, gstAmount, serviceRate, serviceCharge, total,
+                     paymentMode, cashReceived, changeAmount,
+                     billNo, now, currency, cgstAmount, sgstAmount) {
     
-    try {
-        // Fetch restaurant details
-        const resDoc = await db.collection('restaurants').doc(user.uid).get();
-        if (!resDoc.exists) {
-            throw new Error('Restaurant settings not found');
-        }
-        
-        const restaurantData = resDoc.data();
-        const settings = restaurantData.settings || {};
-        
-        const restaurant = {
-            name: restaurantData.name || 'Restaurant Name',
-            ownerName: restaurantData.ownerName || '',
-            ownerPhone: restaurantData.ownerPhone || '',
-            address: settings.address || restaurantData.address || '',
-            phone: settings.phone || restaurantData.phone || '',
-            gstin: settings.gstin || '',
-            fssai: settings.fssai || ''
-        };
-        
-        // Fetch order details
-        const orderDoc = await db.collection('orders').doc(orderId).get();
-        if (!orderDoc.exists) {
-            throw new Error('Order not found');
-        }
-        
-        const order = orderDoc.data();
-        
-        // Fetch table details
-        let tableNumber = '';
-        if (tableId) {
-            const tableDoc = await db.collection('tables').doc(tableId).get();
-            if (tableDoc.exists) {
-                tableNumber = tableDoc.data().tableNumber || '';
-            }
-        }
-        
-        const MAX_WIDTH = 42;
-        const currency = settings.currency || '₹';
-        const gstRate = parseFloat(settings.gstRate) || 0;
-        const serviceRate = parseFloat(settings.serviceCharge) || 0;
-        
-        const subtotal = order.subtotal || 0;
-        const gstAmount = order.gstAmount || 0;
-        const serviceCharge = order.serviceCharge || 0;
-        const total = order.total || 0;
-        
-        const customerName = order.customerName || 'Walk-in Customer';
-        const customerPhone = order.customerPhone || '';
-        const customerCount = order.customerCount || 1;
-        const paymentMode = order.paymentMode || 'cash';
-        const cashReceived = order.cashReceived || 0;
-        const changeAmount = order.changeAmount || 0;
-        
-        const cgstAmount = gstRate > 0 ? gstAmount / 2 : 0;
-        const sgstAmount = gstRate > 0 ? gstAmount / 2 : 0;
-        
-        const orderDate = order.createdAt?.toDate() || new Date();
-        const billNo = order.orderId || orderId;
-        
-        // Build receipt
-        let receipt = buildReceiptWithTable(
-            restaurant, 
-            customerName, 
-            customerPhone,
-            tableNumber,
-            subtotal, gstRate, gstAmount, serviceRate, serviceCharge, total,
-            paymentMode, cashReceived, changeAmount,
-            billNo, orderDate, currency,
-            cgstAmount, sgstAmount,
-            order.items || [],
-            customerCount
-        );
-        
-        if (isMobileDevice()) {
-            await shareToRawBT(receipt, billNo, restaurant.name, tableNumber);
-        } else {
-            showDesktopPrintModal(receipt, restaurant.name, billNo, tableNumber);
-        }
-        
-        return receipt;
-        
-    } catch (error) {
-        console.error("Error preparing table receipt:", error);
-        showNotification('Error: ' + error.message, 'error');
-        throw error;
-    }
-}
-
-function buildReceiptWithTable(
-    restaurant, customerName, customerPhone, tableNumber,
-    subtotal, gstRate, gstAmount, serviceRate, serviceCharge, total,
-    paymentMode, cashReceived, changeAmount,
-    billNo, orderDate, currency,
-    cgstAmount, sgstAmount,
-    items = null, customerCount = 1
-) {
     const MAX_WIDTH = 42;
     
     function centerText(text) {
@@ -207,9 +90,6 @@ function buildReceiptWithTable(
         const dots = '.'.repeat(Math.max(3, availableSpace));
         return label + dots + value;
     }
-    
-    // Use provided items or cart items
-    const itemsToPrint = items || cart;
     
     // Build receipt text
     let receipt = '';
@@ -234,18 +114,9 @@ function buildReceiptWithTable(
     
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     
-    // TABLE INFORMATION
-    if (tableNumber) {
-        receipt += centerText('TABLE: ' + tableNumber) + '\n';
-        if (customerCount > 1) {
-            receipt += centerText('Guests: ' + customerCount + ' persons') + '\n';
-        }
-        receipt += '-'.repeat(MAX_WIDTH) + '\n';
-    }
-    
     // BILL DETAILS
-    receipt += `Date    : ${orderDate.toLocaleDateString('en-IN')}\n`;
-    receipt += `Time    : ${orderDate.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})}\n`;
+    receipt += `Date    : ${now.toLocaleDateString('en-IN')}\n`;
+    receipt += `Time    : ${now.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})}\n`;
     receipt += `Bill No : ${billNo}\n`;
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     
@@ -262,7 +133,7 @@ function buildReceiptWithTable(
     
     // ITEMS LIST
     let slNo = 1;
-    itemsToPrint.forEach(item => {
+    cart.forEach(item => {
         const itemName = item.name;
         const qty = item.quantity;
         const rate = item.price.toFixed(2);
@@ -304,9 +175,7 @@ function buildReceiptWithTable(
     
     if (paymentMode === 'cash') {
         receipt += `Cash Received: ${currency}${cashReceived.toFixed(2)}\n`;
-        if (changeAmount > 0) {
-            receipt += `Change       : ${currency}${changeAmount.toFixed(2)}\n`;
-        }
+        receipt += `Change       : ${currency}${changeAmount.toFixed(2)}\n`;
     } else {
         receipt += `Paid Amount  : ${currency}${total.toFixed(2)}\n`;
     }
@@ -315,9 +184,6 @@ function buildReceiptWithTable(
     
     // FOOTER
     receipt += centerText('Thank you for dining with us!') + '\n';
-    if (tableNumber) {
-        receipt += centerText(`Table ${tableNumber}`) + '\n';
-    }
     receipt += centerText('Please visit again.') + '\n';
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     receipt += centerText('** Computer Generated Bill **') + '\n';
@@ -338,18 +204,21 @@ function buildReceiptWithTable(
 }
 
 // MOBILE: RawBT Functions
-async function shareToRawBT(receiptText, billNo, restaurantName, tableNumber = '') {
+async function shareToRawBT(receiptText, billNo, restaurantName) {
     try {
+        // First, save the order (do this BEFORE sharing)
+        await saveOrderAndClearCart();
+        
         // Create file for sharing
-        const fileName = `receipt_${tableNumber ? 'table_' + tableNumber + '_' : ''}${billNo}.txt`;
+        const fileName = `receipt_${billNo}.txt`;
         const file = new File([receiptText], fileName, { type: 'text/plain' });
         
         // Check if Web Share API is available
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             // Share with Web Share API (this will open RawBT)
             await navigator.share({
-                title: `${restaurantName} - ${tableNumber ? 'Table ' + tableNumber + ' - ' : ''}Bill ${billNo}`,
-                text: `Receipt ${billNo}\nTable: ${tableNumber || 'No Table'}\nTotal: ₹${getTotalAmount()}`,
+                title: `${restaurantName} - Bill ${billNo}`,
+                text: `Receipt ${billNo}\nTotal: ₹${getTotalAmount()}`,
                 files: [file]
             });
             
@@ -391,32 +260,14 @@ function getTotalAmount() {
     return parseFloat(totalText.replace(currency, '')).toFixed(2);
 }
 
-// DESKTOP: Print Functions - FIXED VERSION
-function showDesktopPrintModal(receipt, restaurantName, billNo, tableNumber = '') {
+// DESKTOP: Print Functions
+function showDesktopPrintModal(receipt, restaurantName, billNo) {
     const printContent = document.getElementById('printContent');
     const modal = document.getElementById('printModal');
     
-    if (!modal) {
-        addPrintModalToDOM();
-        setTimeout(() => showDesktopPrintModal(receipt, restaurantName, billNo, tableNumber), 100);
-        return;
-    }
-    
     // Store receipt
     printContent.setAttribute('data-receipt-text', receipt);
-    
-    // FIXED: Display plain text without HTML tags
-    printContent.innerHTML = `
-        <div class="font-mono text-xs leading-tight whitespace-pre-wrap bg-gray-50 p-4 rounded border">
-            ${receipt.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-        </div>
-    `;
-    
-    // Update modal title with table info
-    const title = modal.querySelector('h3');
-    if (title && tableNumber) {
-        title.textContent = `Print Receipt - Table ${tableNumber}`;
-    }
+    printContent.textContent = receipt;
     
     // Show modal
     modal.classList.remove('hidden');
@@ -426,14 +277,13 @@ function showDesktopPrintModal(receipt, restaurantName, billNo, tableNumber = ''
 }
 
 function printReceipt() {
-    const printContent = document.getElementById('printContent');
-    const receiptText = printContent.getAttribute('data-receipt-text') || printContent.textContent;
+    const printContent = document.getElementById('printContent').textContent;
     
     // Create a print-friendly window
     const printWindow = window.open('', '_blank', 'width=240,height=600');
     if (!printWindow) {
         // Fallback to browser print
-        printViaBrowser(receiptText);
+        printViaBrowser(printContent);
         return;
     }
     
@@ -471,7 +321,7 @@ function printReceipt() {
             </style>
         </head>
         <body>
-            <pre>${receiptText}</pre>
+            <pre>${printContent}</pre>
             <script>
                 window.onload = function() {
                     setTimeout(() => {
@@ -487,13 +337,11 @@ function printReceipt() {
     `);
     printWindow.document.close();
     
-    // Save order if from billing page
-    if (document.getElementById('printBill')) {
-        saveOrderAndClearCart();
-    }
+    // Save order
+    saveOrderAndClearCart();
 }
 
-function printViaBrowser(receiptText) {
+function printViaBrowser(printContent) {
     // Create hidden div for printing
     const printDiv = document.createElement('div');
     printDiv.id = 'printableReceipt';
@@ -509,7 +357,7 @@ function printViaBrowser(receiptText) {
         padding: 2mm;
         background: white;
     `;
-    printDiv.textContent = receiptText;
+    printDiv.textContent = printContent;
     document.body.appendChild(printDiv);
     
     // Trigger print
@@ -522,10 +370,8 @@ function printViaBrowser(receiptText) {
         }
     }, 100);
     
-    // Save order if from billing page
-    if (document.getElementById('printBill')) {
-        saveOrderAndClearCart();
-    }
+    // Save order
+    saveOrderAndClearCart();
     closePrintModal();
 }
 
@@ -551,31 +397,8 @@ async function saveOrderAndClearCart() {
         const cashReceived = parseFloat(document.getElementById('cashReceived')?.value || 0);
         const changeAmount = parseFloat(document.getElementById('changeAmount')?.textContent.replace(currency, '') || 0);
         
-        // Get table information
-        const tableSelect = document.getElementById('tableSelect');
-        let tableId = null;
-        let tableNumber = '';
-        
-        if (tableSelect && tableSelect.value) {
-            tableId = tableSelect.value;
-            const tableDoc = await db.collection('tables').doc(tableId).get();
-            if (tableDoc.exists) {
-                tableNumber = tableDoc.data().tableNumber || '';
-                
-                // Update table status to occupied if it's not already
-                if (tableDoc.data().status === 'available') {
-                    await db.collection('tables').doc(tableId).update({
-                        status: 'occupied',
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-            }
-        }
-        
         const orderData = {
             restaurantId: user.uid,
-            tableId: tableId,
-            tableNumber: tableNumber,
             items: [...cart],
             customerName: document.getElementById('customerName')?.value || 'Walk-in Customer',
             customerPhone: document.getElementById('customerPhone')?.value || '',
@@ -591,7 +414,6 @@ async function saveOrderAndClearCart() {
             status: 'completed',
             orderId: generateOrderId(),
             billNo: generateOrderId(),
-            isActive: false,
             printedAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
@@ -610,16 +432,13 @@ async function saveOrderAndClearCart() {
         document.getElementById('cashReceived').value = '';
         document.getElementById('changeAmount').textContent = `${currency}0.00`;
         
-        // Reset table selection
-        if (tableSelect) tableSelect.value = '';
-        
         // Reset UI
         document.getElementById('cashPaymentFields').classList.remove('hidden');
         document.getElementById('nonCashPaymentFields').classList.add('hidden');
         
     } catch (error) {
         console.error('Error saving order:', error);
-        showNotification('Error saving order: ' + error.message, 'error');
+        // Don't show error to user - just log it
     }
 }
 
@@ -722,7 +541,7 @@ function addPrintModalToDOM() {
                             </svg>
                         </button>
                     </div>
-                    <div class="border rounded p-4 bg-gray-50 mb-4 max-h-96 overflow-y-auto">
+                    <div class="border rounded p-4 bg-gray-50 mb-4">
                         <pre id="printContent" class="text-xs font-mono whitespace-pre-wrap"></pre>
                     </div>
                     <div class="flex space-x-3">
@@ -744,7 +563,6 @@ function addPrintModalToDOM() {
 }
 
 // Make functions available globally
-window.prepareReceiptForTableOrder = prepareReceiptForTableOrder;
+window.prepareReceipt = prepareReceipt;
 window.printReceipt = printReceipt;
 window.closePrintModal = closePrintModal;
-window.prepareReceipt = prepareReceipt;

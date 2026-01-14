@@ -306,6 +306,7 @@ function setupTableCardListeners() {
             e.stopPropagation();
             const tableId = this.closest('.table-card').dataset.tableId;
             startOrderForTable(tableId);
+            showBillingSectionForTable(tableId);
         });
     });
     
@@ -322,6 +323,7 @@ function setupTableCardListeners() {
             e.stopPropagation();
             const tableId = this.closest('.table-card').dataset.tableId;
             addMoreToTableOrder(tableId);
+            showBillingSectionForTable(tableId);
         });
     });
     
@@ -1410,4 +1412,27 @@ function showNotification(message, type) {
 window.closeTableModal = closeTableModal;
 window.closeOrderDetailsModal = closeOrderDetailsModal;
 window.generateBillForOrder = generateBillForOrder;
+
+
+function showBillingSectionForTable(tableId) {
+    const billingSection = document.getElementById('billingSection');
+    const table = tables.find(t => t.id === tableId);
+    
+    if (billingSection && table) {
+        billingSection.classList.remove('hidden');
+        
+        // Pre-select the table in billing section
+        const tableSelect = document.getElementById('tableSelect');
+        if (tableSelect) {
+            tableSelect.value = tableId;
+            showCurrentTableBadge(table.tableNumber);
+        }
+        
+        // Clear any existing cart
+        cart = [];
+        renderCart();
+        updateTotals();
+    }
+}
+
 

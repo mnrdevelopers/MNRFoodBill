@@ -118,8 +118,9 @@ async function loadDashboardData(user) {
         // Load data in parallel with timeout
         const loadPromises = [
             loadRestaurantAndUserInfo(user),
-            loadDashboardStats(user),
+            loadDashboardStats(user, {}),
             loadRecentOrders(user)
+            loadMostOrderedProducts(user, {})
         ];
         
         // Set timeout for data loading
@@ -328,6 +329,7 @@ function addDashboardFilters() {
         const user = auth.currentUser;
         loadDashboardStats(user, filters);
         loadRecentOrders(user); // You might want to filter recent orders too
+        loadMostOrderedProducts(user, filters);
     });
 
     document.getElementById('resetDashboardFilter')?.addEventListener('click', () => {
@@ -557,6 +559,118 @@ function unregisterSW() {
 // Initialize debug in development
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     document.addEventListener('DOMContentLoaded', addDebugButtons);
+}
+
+// Function to load most ordered products
+function loadMostOrderedProducts(user, filters = {}) {
+    return new Promise((resolve, reject) => {
+        if (!user) {
+            reject(new Error('No user'));
+            return;
+        }
+
+        // First, get all completed orders
+        let query = db.collection('orders')
+            .where('restaurantId', '==', user.uid)
+            .where('status', '==', 'completed');
+
+        // Apply date filters if provided
+        if (filters.startDate && filters.endDate) {
+            const start = new Date(filters.startDate);
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            
+            query = query.where('createdAt', '>=', start)
+                        .where('createdAt', '<=', end);
+        }
+
+        query.get()
+            .then(snapshot => {
+                const productStats = {};
+                
+                // Process all orders
+                snapshot.forEach(doc => {
+                    const order = doc.data();
+                    if (order.items && Array.isArray(order.items)) {
+                        order.items.forEach(item => {
+                            const productId = item.id || item.name;
+                            if (!productStats[productId]) {
+                                productStats[productId] = {
+                                    name: item.name,
+                                    category: item.category || 'Uncategorized',
+                                    totalQuantity: 0,
+                                    totalRevenue: 0,
+                                    orderCount: 0
+                                };
+                            }
+                            
+                            productStats[productId].totalQuantity += item.quantity || 0;
+                            productStats[productId].totalRevenue += (item.price || 0) * (item.quantity || 0);
+                            productStats[productId].orderCount += 1;
+                        });
+                    }
+                });
+
+                // Convert to array and sort by quantity
+                const sortedProducts = Object.values(productStats)
+                    .sort((a, b) => b.totalQuantity - a.totalQuantity)
+                    .slice(0, 10); // Top 10
+
+                // Render in table
+                const tbody = document.getElementById('mostOrderedProducts');
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    
+                    if (sortedProducts.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="5" class="py-4 text-center text-gray-500">
+                                    No product data available
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        sortedProducts.forEach((product, index) => {
+                            const row = document.createElement('tr');
+                            row.className = 'border-b hover:bg-gray-50';
+                            row.innerHTML = `
+                                <td class="py-3 px-4">
+                                    <div class="w-6 h-6 bg-red-100 text-red-700 rounded-full flex items-center justify-center text-sm font-bold">
+                                        ${index + 1}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 font-medium">${product.name}</td>
+                                <td class="py-3 px-4 text-gray-600">
+                                    <span class="px-2 py-1 bg-gray-100 rounded text-xs">${product.category}</span>
+                                </td>
+                                <td class="py-3 px-4 font-bold">${product.totalQuantity}</td>
+                                <td class="py-3 px-4 font-bold text-green-600">₹${product.totalRevenue.toFixed(2)}</td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    }
+                    
+                    // Refresh responsive tables
+                    refreshResponsiveTables();
+                }
+                
+                resolve(sortedProducts);
+            })
+            .catch(err => {
+                console.error('Error loading product analytics:', err);
+                const tbody = document.getElementById('mostOrderedProducts');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="py-4 text-center text-gray-500">
+                                Error loading product analytics
+                            </td>
+                        </tr>
+                    `;
+                }
+                reject(err);
+            });
+    });
 }
 
 

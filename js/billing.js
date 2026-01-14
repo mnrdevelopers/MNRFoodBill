@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
             await loadTables();
             await loadActiveOrders();
             
-            // Setup UI
+            // Setup UI - WITH NULL CHECKS
             setupTabNavigation();
             setupViewToggle();
             setupPaymentHandlers();
@@ -47,28 +47,31 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Tab Navigation
+// Tab Navigation - FIXED WITH NULL CHECKS
 function setupTabNavigation() {
     const tablesTab = document.getElementById('tablesTab');
     const billingTab = document.getElementById('billingTab');
     const takeawayTab = document.getElementById('takeawayTab');
     const switchToBilling = document.getElementById('switchToBilling');
     
-    const tablesView = document.getElementById('tablesView');
-    const billingView = document.getElementById('billingView');
-    const takeawayView = document.getElementById('takeawayView');
+    // Only add event listeners if elements exist
+    if (tablesTab) {
+        tablesTab.addEventListener('click', () => {
+            setActiveTab('tables');
+        });
+    }
     
-    tablesTab.addEventListener('click', () => {
-        setActiveTab('tables');
-    });
+    if (billingTab) {
+        billingTab.addEventListener('click', () => {
+            setActiveTab('billing');
+        });
+    }
     
-    billingTab.addEventListener('click', () => {
-        setActiveTab('billing');
-    });
-    
-    takeawayTab.addEventListener('click', () => {
-        setActiveTab('takeaway');
-    });
+    if (takeawayTab) {
+        takeawayTab.addEventListener('click', () => {
+            setActiveTab('takeaway');
+        });
+    }
     
     if (switchToBilling) {
         switchToBilling.addEventListener('click', () => {
@@ -85,26 +88,36 @@ function setActiveTab(tabName) {
     });
     
     // Hide all views
-    document.getElementById('tablesView').classList.add('hidden');
-    document.getElementById('billingView').classList.add('hidden');
-    document.getElementById('takeawayView').classList.add('hidden');
+    const tablesView = document.getElementById('tablesView');
+    const billingView = document.getElementById('billingView');
+    const takeawayView = document.getElementById('takeawayView');
+    
+    if (tablesView) tablesView.classList.add('hidden');
+    if (billingView) billingView.classList.add('hidden');
+    if (takeawayView) takeawayView.classList.add('hidden');
     
     // Show selected view and update tab
     switch(tabName) {
         case 'tables':
-            document.getElementById('tablesTab').classList.add('active', 'border-red-500', 'text-gray-700');
-            document.getElementById('tablesTab').classList.remove('text-gray-500');
-            document.getElementById('tablesView').classList.remove('hidden');
+            if (tablesTab) {
+                tablesTab.classList.add('active', 'border-red-500', 'text-gray-700');
+                tablesTab.classList.remove('text-gray-500');
+            }
+            if (tablesView) tablesView.classList.remove('hidden');
             break;
         case 'billing':
-            document.getElementById('billingTab').classList.add('active', 'border-red-500', 'text-gray-700');
-            document.getElementById('billingTab').classList.remove('text-gray-500');
-            document.getElementById('billingView').classList.remove('hidden');
+            if (billingTab) {
+                billingTab.classList.add('active', 'border-red-500', 'text-gray-700');
+                billingTab.classList.remove('text-gray-500');
+            }
+            if (billingView) billingView.classList.remove('hidden');
             break;
         case 'takeaway':
-            document.getElementById('takeawayTab').classList.add('active', 'border-red-500', 'text-gray-700');
-            document.getElementById('takeawayTab').classList.remove('text-gray-500');
-            document.getElementById('takeawayView').classList.remove('hidden');
+            if (takeawayTab) {
+                takeawayTab.classList.add('active', 'border-red-500', 'text-gray-700');
+                takeawayTab.classList.remove('text-gray-500');
+            }
+            if (takeawayView) takeawayView.classList.remove('hidden');
             break;
     }
 }
@@ -307,8 +320,10 @@ function setupTableCardListeners() {
             const tableId = this.closest('.table-card').dataset.tableId;
             startOrderForTable(tableId);
             // Show billing section
-            document.getElementById('billingView').classList.remove('hidden');
-            document.getElementById('tablesView').classList.add('hidden');
+            const billingView = document.getElementById('billingView');
+            const tablesView = document.getElementById('tablesView');
+            if (billingView) billingView.classList.remove('hidden');
+            if (tablesView) tablesView.classList.add('hidden');
             setActiveTab('billing');
         });
     });
@@ -327,8 +342,10 @@ function setupTableCardListeners() {
             const tableId = this.closest('.table-card').dataset.tableId;
             addMoreToTableOrder(tableId);
             // Show billing section
-            document.getElementById('billingView').classList.remove('hidden');
-            document.getElementById('tablesView').classList.add('hidden');
+            const billingView = document.getElementById('billingView');
+            const tablesView = document.getElementById('tablesView');
+            if (billingView) billingView.classList.remove('hidden');
+            if (tablesView) tablesView.classList.add('hidden');
             setActiveTab('billing');
         });
     });
@@ -358,7 +375,8 @@ async function startOrderForTable(tableId) {
         
         // Switch to billing tab and pre-select table
         currentTableId = tableId;
-        document.getElementById('tableSelect').value = tableId;
+        const tableSelect = document.getElementById('tableSelect');
+        if (tableSelect) tableSelect.value = tableId;
         showCurrentTableBadge(table.tableNumber);
         
         // Clear any existing cart items
@@ -422,7 +440,8 @@ function addMoreToTableOrder(tableId) {
     const table = tables.find(t => t.id === tableId);
     if (table) {
         currentTableId = tableId;
-        document.getElementById('tableSelect').value = tableId;
+        const tableSelect = document.getElementById('tableSelect');
+        if (tableSelect) tableSelect.value = tableId;
         showCurrentTableBadge(table.tableNumber);
         showNotification(`Add more items to Table ${table.tableNumber}`, 'info');
     }
@@ -693,19 +712,22 @@ function openTableDetails(table) {
     document.getElementById('tableLocation').value = table.location || 'main_hall';
     
     // Set status
-    document.querySelector(`input[name="status"][value="${table.status || 'available'}"]`).checked = true;
+    const statusRadio = document.querySelector(`input[name="status"][value="${table.status || 'available'}"]`);
+    if (statusRadio) statusRadio.checked = true;
     
     modal.classList.remove('hidden');
 }
 
 // Close table modal
 window.closeTableModal = function() {
-    document.getElementById('tableModal').classList.add('hidden');
+    const modal = document.getElementById('tableModal');
+    if (modal) modal.classList.add('hidden');
 };
 
 // Close order details modal
 window.closeOrderDetailsModal = function() {
-    document.getElementById('orderDetailsModal').classList.add('hidden');
+    const modal = document.getElementById('orderDetailsModal');
+    if (modal) modal.classList.add('hidden');
 };
 
 // Billing functionality (from billing.js)
@@ -715,7 +737,7 @@ function setupViewToggle() {
     const productsGrid = document.getElementById('productsGrid');
     const productsList = document.getElementById('productsList');
     
-    if (!gridViewBtn || !listViewBtn) return;
+    if (!gridViewBtn || !listViewBtn || !productsGrid || !productsList) return;
     
     gridViewBtn.addEventListener('click', () => {
         if (currentView === 'list') {
@@ -1067,21 +1089,26 @@ function updateTotals() {
     const serviceCharge = subtotal * (serviceRate / 100);
     const total = subtotal + gstAmount + serviceCharge;
     
-    document.getElementById('subtotal').textContent = `${currency}${subtotal.toFixed(2)}`;
-    document.getElementById('gstAmount').textContent = `${currency}${gstAmount.toFixed(2)}`;
-    document.getElementById('serviceCharge').textContent = `${currency}${serviceCharge.toFixed(2)}`;
-    document.getElementById('totalAmount').textContent = `${currency}${total.toFixed(2)}`;
+    const subtotalEl = document.getElementById('subtotal');
+    const gstAmountEl = document.getElementById('gstAmount');
+    const serviceChargeEl = document.getElementById('serviceCharge');
+    const totalAmountEl = document.getElementById('totalAmount');
+    
+    if (subtotalEl) subtotalEl.textContent = `${currency}${subtotal.toFixed(2)}`;
+    if (gstAmountEl) gstAmountEl.textContent = `${currency}${gstAmount.toFixed(2)}`;
+    if (serviceChargeEl) serviceChargeEl.textContent = `${currency}${serviceCharge.toFixed(2)}`;
+    if (totalAmountEl) totalAmountEl.textContent = `${currency}${total.toFixed(2)}`;
     
     // Update labels
-    const gstElement = document.querySelector('span[id="gstLabel"], span:contains("GST")');
-    const serviceElement = document.querySelector('span[id="serviceLabel"], span:contains("Service Charge")');
+    const gstLabel = document.querySelector('span[id="gstLabel"], span:contains("GST")');
+    const serviceLabel = document.querySelector('span[id="serviceLabel"], span:contains("Service Charge")');
     
-    if (gstElement) {
-        gstElement.textContent = `GST (${gstRate}%)`;
+    if (gstLabel) {
+        gstLabel.textContent = `GST (${gstRate}%)`;
     }
     
-    if (serviceElement) {
-        serviceElement.textContent = `Service Charge (${serviceRate}%)`;
+    if (serviceLabel) {
+        serviceLabel.textContent = `Service Charge (${serviceRate}%)`;
     }
     
     // Calculate change if cash payment
@@ -1101,16 +1128,17 @@ function setupPaymentHandlers() {
             const nonCashFields = document.getElementById('nonCashPaymentFields');
             
             if (mode === 'cash') {
-                cashFields.classList.remove('hidden');
-                nonCashFields.classList.add('hidden');
-                cashReceived.required = true;
+                if (cashFields) cashFields.classList.remove('hidden');
+                if (nonCashFields) nonCashFields.classList.add('hidden');
+                if (cashReceived) cashReceived.required = true;
             } else {
-                cashFields.classList.add('hidden');
-                nonCashFields.classList.remove('hidden');
-                cashReceived.required = false;
-                document.getElementById('changeAmount').textContent = `${restaurantSettings.currency || '₹'}0.00`;
+                if (cashFields) cashFields.classList.add('hidden');
+                if (nonCashFields) nonCashFields.classList.remove('hidden');
+                if (cashReceived) cashReceived.required = false;
+                const changeAmount = document.getElementById('changeAmount');
+                if (changeAmount) changeAmount.textContent = `${restaurantSettings.currency || '₹'}0.00`;
             }
-            cashReceived.value = '';
+            if (cashReceived) cashReceived.value = '';
         });
     }
     
@@ -1120,10 +1148,10 @@ function setupPaymentHandlers() {
 }
 
 function calculateChange() {
-    const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
-    const totalText = document.getElementById('totalAmount').textContent;
+    const cashReceived = parseFloat(document.getElementById('cashReceived')?.value) || 0;
+    const totalText = document.getElementById('totalAmount')?.textContent;
     const currency = restaurantSettings.currency || '₹';
-    const total = parseFloat(totalText.replace(currency, '')) || 0;
+    const total = totalText ? parseFloat(totalText.replace(currency, '')) : 0;
     
     let change = 0;
     if (cashReceived >= total) {
@@ -1131,6 +1159,8 @@ function calculateChange() {
     }
     
     const changeEl = document.getElementById('changeAmount');
+    if (!changeEl) return;
+    
     changeEl.textContent = `${currency}${change.toFixed(2)}`;
     
     if (cashReceived < total) {
@@ -1143,7 +1173,7 @@ function calculateChange() {
     }
 }
 
-// Setup event listeners
+// Setup event listeners - WITH NULL CHECKS
 function setupEventListeners() {
     // Table selection change
     const tableSelect = document.getElementById('tableSelect');
@@ -1201,10 +1231,15 @@ function setupEventListeners() {
     const addTableBtn = document.getElementById('addTableBtn');
     if (addTableBtn) {
         addTableBtn.addEventListener('click', () => {
-            document.getElementById('tableId').value = '';
-            document.getElementById('tableModalTitle').textContent = 'Add New Table';
-            document.getElementById('tableForm').reset();
-            document.getElementById('tableModal').classList.remove('hidden');
+            const tableIdInput = document.getElementById('tableId');
+            const tableModalTitle = document.getElementById('tableModalTitle');
+            const tableForm = document.getElementById('tableForm');
+            const tableModal = document.getElementById('tableModal');
+            
+            if (tableIdInput) tableIdInput.value = '';
+            if (tableModalTitle) tableModalTitle.textContent = 'Add New Table';
+            if (tableForm) tableForm.reset();
+            if (tableModal) tableModal.classList.remove('hidden');
         });
     }
     
@@ -1234,11 +1269,12 @@ function setupEventListeners() {
 // Save table
 async function saveTable() {
     const user = auth.currentUser;
-    const tableId = document.getElementById('tableId').value;
-    const tableNumber = document.getElementById('tableNumber').value.trim();
-    const capacity = parseInt(document.getElementById('tableCapacity').value);
-    const location = document.getElementById('tableLocation').value;
-    const status = document.querySelector('input[name="status"]:checked').value;
+    const tableId = document.getElementById('tableId')?.value;
+    const tableNumber = document.getElementById('tableNumber')?.value.trim();
+    const capacity = parseInt(document.getElementById('tableCapacity')?.value || 0);
+    const location = document.getElementById('tableLocation')?.value;
+    const statusRadio = document.querySelector('input[name="status"]:checked');
+    const status = statusRadio ? statusRadio.value : 'available';
     
     if (!tableNumber) {
         showNotification('Table number is required', 'error');
@@ -1285,14 +1321,15 @@ async function saveOrder(shouldPrint = false) {
     }
     
     const user = auth.currentUser;
-    const tableId = document.getElementById('tableSelect').value;
-    const paymentMode = document.getElementById('paymentMode').value;
+    const tableSelect = document.getElementById('tableSelect');
+    const tableId = tableSelect ? tableSelect.value : null;
+    const paymentMode = document.getElementById('paymentMode')?.value;
     
     // Validate cash payment
     if (paymentMode === 'cash') {
-        const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
-        const totalText = document.getElementById('totalAmount').textContent;
-        const total = parseFloat(totalText.replace('₹', '')) || 0;
+        const cashReceived = parseFloat(document.getElementById('cashReceived')?.value) || 0;
+        const totalText = document.getElementById('totalAmount')?.textContent;
+        const total = totalText ? parseFloat(totalText.replace('₹', '')) : 0;
         
         if (cashReceived < total) {
             showNotification('Insufficient cash received', 'error');
@@ -1326,8 +1363,8 @@ async function saveOrder(shouldPrint = false) {
             tableId: tableId || null,
             tableNumber: tableNumber,
             items: [...cart],
-            customerName: document.getElementById('customerName').value || 'Walk-in Customer',
-            customerPhone: document.getElementById('customerPhone').value || '',
+            customerName: document.getElementById('customerName')?.value || 'Walk-in Customer',
+            customerPhone: document.getElementById('customerPhone')?.value || '',
             customerCount: tableId ? 1 : null,
             subtotal: subtotal,
             gstRate: gstRate,
@@ -1336,8 +1373,8 @@ async function saveOrder(shouldPrint = false) {
             serviceCharge: serviceCharge,
             total: total,
             paymentMode: paymentMode,
-            cashReceived: paymentMode === 'cash' ? parseFloat(document.getElementById('cashReceived').value) || 0 : 0,
-            changeAmount: paymentMode === 'cash' ? parseFloat(document.getElementById('changeAmount').textContent.replace('₹', '')) || 0 : 0,
+            cashReceived: paymentMode === 'cash' ? parseFloat(document.getElementById('cashReceived')?.value) || 0 : 0,
+            changeAmount: paymentMode === 'cash' ? parseFloat(document.getElementById('changeAmount')?.textContent.replace('₹', '')) || 0 : 0,
             orderId: orderId,
             billNo: orderId,
             isActive: !shouldPrint, // If printing, mark as completed
@@ -1390,18 +1427,27 @@ async function saveOrder(shouldPrint = false) {
 }
 
 function resetForm() {
-    document.getElementById('customerName').value = '';
-    document.getElementById('customerPhone').value = '';
-    document.getElementById('tableSelect').value = '';
-    document.getElementById('paymentMode').value = 'cash';
-    document.getElementById('cashReceived').value = '';
-    document.getElementById('changeAmount').textContent = `${restaurantSettings.currency || '₹'}0.00`;
+    const customerName = document.getElementById('customerName');
+    const customerPhone = document.getElementById('customerPhone');
+    const tableSelect = document.getElementById('tableSelect');
+    const paymentMode = document.getElementById('paymentMode');
+    const cashReceived = document.getElementById('cashReceived');
+    const changeAmount = document.getElementById('changeAmount');
+    const cashPaymentFields = document.getElementById('cashPaymentFields');
+    const nonCashPaymentFields = document.getElementById('nonCashPaymentFields');
+    
+    if (customerName) customerName.value = '';
+    if (customerPhone) customerPhone.value = '';
+    if (tableSelect) tableSelect.value = '';
+    if (paymentMode) paymentMode.value = 'cash';
+    if (cashReceived) cashReceived.value = '';
+    if (changeAmount) changeAmount.textContent = `${restaurantSettings.currency || '₹'}0.00`;
     hideCurrentTableBadge();
     currentTableId = null;
     
     // Reset payment fields
-    document.getElementById('cashPaymentFields').classList.remove('hidden');
-    document.getElementById('nonCashPaymentFields').classList.add('hidden');
+    if (cashPaymentFields) cashPaymentFields.classList.remove('hidden');
+    if (nonCashPaymentFields) nonCashPaymentFields.classList.add('hidden');
 }
 
 // Notification function

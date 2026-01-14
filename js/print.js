@@ -754,7 +754,7 @@ function addPrintModalToDOM() {
 }
 
 // Make functions available globally
-window.prepareReceipt = prepareReceipt;
 window.prepareReceiptForTableOrder = prepareReceiptForTableOrder;
 window.printReceipt = printReceipt;
 window.closePrintModal = closePrintModal;
+window.prepareReceipt = prepareReceipt;

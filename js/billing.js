@@ -392,17 +392,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function saveOrderToFirebase(orderData) {
-        try {
-            const docRef = await db.collection('orders').add(orderData);
-            return { success: true, id: docRef.id };
-        } catch (error) {
-            if (!isOnline()) {
-                const localId = storageManager.saveOrder(orderData);
-                return { success: true, id: localId, offline: true };
-            }
-            throw error;
-        }
+    try {
+        // Generate sequential order ID
+        const orderId = await window.OrderCounter.getNextOrderId();
+        orderData.orderId = orderId;
+        orderData.billNo = orderId;
+        
+        const docRef = await db.collection('orders').add(orderData);
+        return { success: true, id: docRef.id, orderId: orderId };
+    } catch (error) {
+        console.error('Error saving order:', error);
+        throw error;
     }
+}
 
     function loadProducts() {
         const user = auth.currentUser;
@@ -640,56 +642,61 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const saveOrderBtn = document.getElementById('saveOrder');
     if (saveOrderBtn) {
-        saveOrderBtn.addEventListener('click', async function() {
-            if (cart.length === 0) {
-                showNotification('Cart is empty', 'error');
+    saveOrderBtn.addEventListener('click', async function() {
+        if (cart.length === 0) {
+            showNotification('Cart is empty', 'error');
+            return;
+        }
+
+        const user = auth.currentUser;
+        const currency = restaurantSettings.currency || '₹';
+        const totalText = document.getElementById('totalAmount').textContent;
+        const total = parseFloat(totalText.replace(currency, '')) || 0;
+        const paymentMode = document.getElementById('paymentMode').value;
+        
+        if (paymentMode === 'cash') {
+            const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
+            if (cashReceived < total) {
+                showNotification('Insufficient cash received', 'error');
                 return;
             }
+        }
+        
+        // Generate order ID
+        const orderId = await window.OrderCounter.getNextOrderId();
+        
+        const orderData = {
+            restaurantId: user.uid,
+            items: JSON.parse(JSON.stringify(cart)), 
+            customerName: document.getElementById('customerName').value || 'Walk-in Customer',
+            customerPhone: document.getElementById('customerPhone').value || '',
+            subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+            gstRate: restaurantSettings.gstRate,
+            gstAmount: parseFloat(document.getElementById('gstAmount').textContent.replace(currency, '')),
+            serviceChargeRate: restaurantSettings.serviceCharge,
+            serviceCharge: parseFloat(document.getElementById('serviceCharge').textContent.replace(currency, '')),
+            total: total,
+            paymentMode: paymentMode,
+            orderId: orderId,
+            billNo: orderId,
+            status: 'saved',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
 
-            const user = auth.currentUser;
-            const currency = restaurantSettings.currency || '₹';
-            const totalText = document.getElementById('totalAmount').textContent;
-            const total = parseFloat(totalText.replace(currency, '')) || 0;
-            const paymentMode = document.getElementById('paymentMode').value;
-            
-            if (paymentMode === 'cash') {
-                const cashReceived = parseFloat(document.getElementById('cashReceived').value) || 0;
-                if (cashReceived < total) {
-                    showNotification('Insufficient cash received', 'error');
-                    return;
-                }
-            }
-            
-            const orderData = {
-                restaurantId: user.uid,
-                items: JSON.parse(JSON.stringify(cart)), 
-                customerName: document.getElementById('customerName').value || 'Walk-in Customer',
-                customerPhone: document.getElementById('customerPhone').value || '',
-                subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                gstRate: restaurantSettings.gstRate,
-                gstAmount: parseFloat(document.getElementById('gstAmount').textContent.replace(currency, '')),
-                serviceChargeRate: restaurantSettings.serviceCharge,
-                serviceCharge: parseFloat(document.getElementById('serviceCharge').textContent.replace(currency, '')),
-                total: total,
-                paymentMode: paymentMode,
-                status: 'saved',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            try {
-                await db.collection('orders').add(orderData);
-                showNotification('Order saved!', 'success');
-                cart = [];
-                renderCart();
-                updateTotals();
-                document.getElementById('customerName').value = '';
-                document.getElementById('customerPhone').value = '';
-            } catch (error) {
-                showNotification('Failed to save order', 'error');
-            }
-        });
-    }
-
+        try {
+            const result = await saveOrderToFirebase(orderData);
+            showNotification(`Order ${orderId} saved!`, 'success');
+            cart = [];
+            renderCart();
+            updateTotals();
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerPhone').value = '';
+        } catch (error) {
+            showNotification('Failed to save order', 'error');
+        }
+    });
+}
+    
     const printBillBtn = document.getElementById('printBill');
     if (printBillBtn) {
         printBillBtn.addEventListener('click', function() {
@@ -714,3 +721,4 @@ document.addEventListener('DOMContentLoaded', function() {
     window.renderCart = renderCart;
     window.updateTotals = updateTotals;
 });
+

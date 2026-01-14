@@ -4,29 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - MNRFoodBill</title>
-
+    <!-- Favicon -->
+    <link rel="icon" href="icons/icon-192x192.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    
+    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ef4444">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MNRFoodBill">
-<link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    <!-- Favicon to fix 404 error -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍴</text></svg>">
+    <meta name="theme-color" content="#ef4444">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MNRFoodBill">
+    
+    <!-- External CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-remote-config.js"></script>
-    <script src="firebase-config.js"></script>
-    <script src="js/layout.js" defer></script>
-    <script src="js/settings.js" defer></script>
-    <script src="js/logo-upload.js" defer></script>
-    <script src="js/table-responsive.js" defer></script>
-    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-gray-600">Loading Settings...</p>
+    </div>
+
     <div id="header"></div>
 
     <div class="container mx-auto px-4 py-6">
@@ -73,54 +79,56 @@
                                     <input type="text" id="resName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none">
                                 </div>
                     
-<!-- Logo Upload Section -->
-<div class="space-y-2">
-    <label class="block text-sm font-semibold text-gray-700">Restaurant Logo</label>
-    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-red-300 transition-colors cursor-pointer" id="logoUploadArea">
-        <input type="file" id="logoImageInput" accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp" class="hidden">
-        
-        <!-- Upload Content (shown when no logo) -->
-      <div class="space-y-3" id="logoUploadContent">
-    <div class="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
-        <i class="fas fa-image text-red-500 text-xl"></i>
-    </div>
-    <div>
-        <p class="font-medium text-gray-700">Click to upload restaurant logo</p>
-        <p class="text-xs text-gray-500 mt-1">
-            PNG, JPG, WebP up to 5MB<br>
-            <span class="text-red-500">Optimal size: 150x100px</span><br>
-            <span class="text-gray-400">Will appear small & centered on receipts</span>
-        </p>
-    </div>
-    <button type="button" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">
-        Browse Files
-    </button>
-</div>
-        
-       <!-- Logo Preview (shown when logo is selected) -->
-<div id="logoPreviewContainer" class="hidden">
-    <div class="logo-preview">
-        <div class="relative inline-block bg-white p-2 rounded-lg border">
-            <img id="logoPreview" class="w-24 h-16 object-contain" src="" alt="Logo Preview">
-            <button type="button" id="removeLogo" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600">
-                <i class="fas fa-times text-xs"></i>
-            </button>
-        </div>
-        <p class="text-xs text-gray-500 mt-2 text-center">Small logo for receipts (max 150x100px)</p>
-    </div>
-</div>
-    
-    <!-- Progress Bar Section for Logo -->
-    <div class="mt-3 hidden" id="logoProgressSection">
-        <div class="progress-bar">
-            <div id="logoUploadProgress" class="bg-green-500 h-2 rounded-full w-0 transition-all duration-300"></div>
-        </div>
-        <p id="logoUploadStatus" class="progress-text">0%</p>
-    </div>
-    
-    <!-- Hidden input to store logo URL -->
-    <input type="hidden" id="restaurantLogoUrl" name="logoUrl">
-</div>
+                                <!-- Logo Upload Section -->
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-semibold text-gray-700">Restaurant Logo</label>
+                                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-red-300 transition-colors cursor-pointer" id="logoUploadArea">
+                                        <input type="file" id="logoImageInput" accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp" class="hidden">
+                                        
+                                        <!-- Upload Content (shown when no logo) -->
+                                        <div class="space-y-3" id="logoUploadContent">
+                                            <div class="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
+                                                <i class="fas fa-image text-red-500 text-xl"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-700">Click to upload restaurant logo</p>
+                                                <p class="text-xs text-gray-500 mt-1">
+                                                    PNG, JPG, WebP up to 5MB<br>
+                                                    <span class="text-red-500">Optimal size: 150x100px</span><br>
+                                                    <span class="text-gray-400">Will appear small & centered on receipts</span>
+                                                </p>
+                                            </div>
+                                            <button type="button" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">
+                                                Browse Files
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Logo Preview (shown when logo is selected) -->
+                                        <div id="logoPreviewContainer" class="hidden">
+                                            <div class="logo-preview">
+                                                <div class="relative inline-block bg-white p-2 rounded-lg border">
+                                                    <img id="logoPreview" class="w-24 h-16 object-contain" src="" alt="Logo Preview">
+                                                    <button type="button" id="removeLogo" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600">
+                                                        <i class="fas fa-times text-xs"></i>
+                                                    </button>
+                                                </div>
+                                                <p class="text-xs text-gray-500 mt-2 text-center">Small logo for receipts (max 150x100px)</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Progress Bar Section for Logo -->
+                                        <div class="mt-3 hidden" id="logoProgressSection">
+                                            <div class="progress-bar">
+                                                <div id="logoUploadProgress" class="bg-green-500 h-2 rounded-full w-0 transition-all duration-300"></div>
+                                            </div>
+                                            <p id="logoUploadStatus" class="progress-text">0%</p>
+                                        </div>
+                                        
+                                        <!-- Hidden input to store logo URL -->
+                                        <input type="hidden" id="restaurantLogoUrl" name="logoUrl">
+                                    </div>
+                                </div>
+                                
                                 <div class="space-y-2">
                                     <label class="block text-sm font-semibold text-gray-700">Restaurant Address (for Bill)</label>
                                     <textarea id="resAddress" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"></textarea>
@@ -208,37 +216,36 @@
         </div>
     </div>
 
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="js/layout.js" defer></script>
+    <script src="js/settings.js" defer></script>
+    <script src="js/logo-upload.js" defer></script>
+    <script src="js/table-responsive.js" defer></script>
+    
+    <!-- Service Worker and Initialization -->
     <script>
-        // In your main.js or layout.js
-if ('serviceWorker' in navigator) {
-  // Register service worker
-  navigator.serviceWorker.register('/MNRFoodBill/sw.js')
-    .then(registration => {
-      console.log('Service Worker registered');
-      
-      // Check if iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      
-      if (isIOS) {
-        console.log('iOS detected - using minimal caching strategy');
-        // Tell service worker about iOS (optional - via message)
-        registration.active?.postMessage({
-          type: 'SET_STRATEGY',
-          strategy: 'network-first'
+        // Hide loading overlay when page is loaded
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }, 1000);
         });
-        
-        // Clear cache more frequently on iOS
-        setInterval(() => {
-          registration.active?.postMessage({
-            type: 'CLEAR_CACHE'
-          });
-        }, 60 * 60 * 1000); // Every hour
-      }
-    })
-    .catch(error => {
-      console.error('Service Worker registration failed:', error);
-    });
-}
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/MNRFoodBill/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+        }
     </script>
 </body>
 </html>

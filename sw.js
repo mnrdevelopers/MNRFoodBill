@@ -2,7 +2,10 @@ const CACHE_NAME = 'mnrfoodbill-v3.0.6'; // Change version to force update
 const BASE_PATH = '/MNRFoodBill/';
 const AUTH_CHECK_URL = '/MNRFoodBill/auth-check.html';
 
-// Assets to cache - Updated
+// Detect iOS
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+// Assets to cache - Updated (Only for non-iOS devices)
 const ASSETS_TO_CACHE = [
   BASE_PATH,
   BASE_PATH + 'index.html',
@@ -39,36 +42,37 @@ const ASSETS_TO_CACHE = [
   // Config
   BASE_PATH + 'manifest.json',
   BASE_PATH + 'firebase-config.js',
-  
-  // External resources
-  'https://cdn.tailwindcss.com',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
-// Assets to NEVER cache (Firebase)
+// Assets to NEVER cache (Firebase and external resources)
 const NO_CACHE_URLS = [
   'firestore.googleapis.com',
   'firebaseapp.com',
   'googleapis.com',
-  'imgbb.com'  // Image upload API
+  'imgbb.com',  // Image upload API
+  'cdn.tailwindcss.com',
+  'cdnjs.cloudflare.com/ajax/libs/font-awesome'
 ];
 
-// Install Event
+// Install Event - Simplified for iOS compatibility
 self.addEventListener('install', event => {
     console.log('[Service Worker] Installing...');
     
     // Skip waiting immediately
     self.skipWaiting();
     
+    // Don't cache anything during install for iOS
+    if (isIOS) {
+        console.log('[Service Worker] iOS detected - skipping cache during install');
+        return;
+    }
+    
+    // For non-iOS devices, cache app shell
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
                 console.log('[Service Worker] Caching app shell');
-                // Don't cache index.html in install - cache it on first access
-                const assetsToCache = ASSETS_TO_CACHE.filter(
-                    asset => !asset.includes('index.html')
-                );
-                return cache.addAll(assetsToCache);
+                return cache.addAll(ASSETS_TO_CACHE);
             })
             .catch(err => {
                 console.warn('[Service Worker] Cache addAll failed:', err);
@@ -79,6 +83,13 @@ self.addEventListener('install', event => {
 // Activate Event - Clean old caches
 self.addEventListener('activate', event => {
   console.log('[Service Worker] Activating...');
+  
+  // For iOS, just claim clients without cache cleanup
+  if (isIOS) {
+    console.log('[Service Worker] iOS detected - skipping cache cleanup');
+    event.waitUntil(self.clients.claim());
+    return;
+  }
   
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -98,65 +109,30 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch Event
+// Fetch Event - Network only for iOS, with fallback for non-iOS
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   
   // Special handling for root URL when user might be logged in
   if (url.pathname === BASE_PATH || url.pathname === BASE_PATH + 'index.html') {
-    event.respondWith(
-      // Try to get auth status first
-      fetch('/MNRFoodBill/api/auth-status', { 
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      })
-      .then(response => {
-        if (response.ok) {
-          return response.json();
-        }
-        throw new Error('Auth check failed');
-      })
-      .then(data => {
-        if (data.isAuthenticated && data.user) {
-          // User is logged in, serve dashboard directly
-          return caches.match(BASE_PATH + 'dashboard.html')
-            .then(cachedResponse => {
-              if (cachedResponse) {
-                return cachedResponse;
-              }
-              return fetch(BASE_PATH + 'dashboard.html');
-            });
-        }
-        // User not logged in, serve index.html
-        return fetch(event.request)
-          .then(response => {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseClone);
-            });
-            return response;
-          })
-          .catch(() => {
-            return caches.match(event.request);
-          });
-      })
-      .catch(() => {
-        // Auth check failed, serve normal index.html
-        return fetch(event.request)
-          .catch(() => caches.match(event.request));
-      })
-    );
+    event.respondWith(handleRootRequest(event.request));
     return;
   }
-
+  
+  // For iOS: Always go to network, no caching
+  if (isIOS) {
+    event.respondWith(networkOnly(event.request));
+    return;
+  }
+  
+  // For non-iOS devices: Use normal caching strategy
+  
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
     return;
   }
   
-  // Skip Firebase/Google APIs and image uploads
+  // Skip Firebase/Google APIs and external resources
   if (NO_CACHE_URLS.some(noCache => url.href.includes(noCache))) {
     return;
   }
@@ -166,85 +142,171 @@ self.addEventListener('fetch', event => {
     return;
   }
   
-  // For HTML pages, always try network first
+  // For HTML pages: Network first, then cache
   if (event.request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          // Cache the fresh version
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseClone);
-          });
-          return response;
-        })
-        .catch(() => {
-          // Network failed, try cache
-          return caches.match(event.request)
-            .then(cachedResponse => {
-              if (cachedResponse) {
-                return cachedResponse;
-              }
-              // Fallback to dashboard.html for navigation requests
-              if (event.request.mode === 'navigate') {
-                return caches.match(BASE_PATH + 'dashboard.html');
-              }
-              return new Response('Offline', { 
-                status: 503, 
-                statusText: 'Service Unavailable' 
-              });
-            });
-        })
-    );
+    event.respondWith(networkFirstThenCache(event.request));
     return;
   }
   
-  // For CSS, JS, images: Cache First, Network Fallback
-  event.respondWith(
-    caches.match(event.request)
-      .then(cachedResponse => {
-        // Return cached response if found
-        if (cachedResponse) {
-          // Update cache in background
-          fetch(event.request)
-            .then(response => {
-              const responseClone = response.clone();
-              caches.open(CACHE_NAME).then(cache => {
-                cache.put(event.request, responseClone);
-              });
-            })
-            .catch(() => {
-              // Network failed, keep cached version
-            });
-          return cachedResponse;
-        }
-        
-        // Not in cache, fetch from network
-        return fetch(event.request)
-          .then(response => {
-            // Don't cache if not successful
-            if (!response.ok) {
-              return response;
-            }
-            
-            // Cache the response
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseClone);
-            });
-            
-            return response;
-          })
-          .catch(() => {
-            // Network failed and not in cache
-            return new Response('', { 
-              status: 503, 
-              statusText: 'Offline' 
-            });
-          });
-      })
-  );
+  // For CSS, JS, images: Cache first, then network
+  event.respondWith(cacheFirstThenNetwork(event.request));
 });
+
+// Request handlers
+async function handleRootRequest(request) {
+  try {
+    // Try to get auth status first
+    const authResponse = await fetch('/MNRFoodBill/api/auth-status', { 
+      method: 'GET',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (authResponse.ok) {
+      const data = await authResponse.json();
+      if (data.isAuthenticated && data.user) {
+        // User is logged in, serve dashboard directly
+        if (isIOS) {
+          return fetch(BASE_PATH + 'dashboard.html');
+        }
+        return serveFromCacheOrNetwork(BASE_PATH + 'dashboard.html');
+      }
+    }
+    
+    // User not logged in or auth failed
+    return networkOnly(request);
+  } catch (error) {
+    console.log('[Service Worker] Auth check failed:', error);
+    return networkOnly(request);
+  }
+}
+
+async function networkOnly(request) {
+  try {
+    return await fetch(request);
+  } catch (error) {
+    console.log('[Service Worker] Network request failed:', error);
+    // For iOS, we don't want offline fallback
+    return new Response('Network connection required', { 
+      status: 503, 
+      statusText: 'Service Unavailable',
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+}
+
+async function networkFirstThenCache(request) {
+  try {
+    // Try network first
+    const networkResponse = await fetch(request);
+    
+    // Cache the fresh version (for non-iOS only)
+    if (!isIOS && networkResponse.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, networkResponse.clone());
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    console.log('[Service Worker] Network failed:', error);
+    
+    // For iOS, no cache fallback
+    if (isIOS) {
+      return new Response('Network connection required', { 
+        status: 503, 
+        statusText: 'Service Unavailable',
+        headers: { 'Content-Type': 'text/plain' }
+      });
+    }
+    
+    // For non-iOS, try cache
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    // Fallback to dashboard.html for navigation requests
+    if (request.mode === 'navigate') {
+      const dashboardResponse = await caches.match(BASE_PATH + 'dashboard.html');
+      if (dashboardResponse) {
+        return dashboardResponse;
+      }
+    }
+    
+    return new Response('Offline', { 
+      status: 503, 
+      statusText: 'Service Unavailable' 
+    });
+  }
+}
+
+async function cacheFirstThenNetwork(request) {
+  // For iOS, always go to network
+  if (isIOS) {
+    return networkOnly(request);
+  }
+  
+  // Try cache first for non-iOS
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    // Update cache in background
+    fetch(request)
+      .then(response => {
+        if (response.ok) {
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(request, response);
+          });
+        }
+      })
+      .catch(() => {
+        // Network failed, keep cached version
+      });
+    return cachedResponse;
+  }
+  
+  // Not in cache, fetch from network
+  try {
+    const networkResponse = await fetch(request);
+    
+    // Cache the response if successful
+    if (networkResponse.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, networkResponse.clone());
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    console.log('[Service Worker] Network request failed:', error);
+    return new Response('', { 
+      status: 503, 
+      statusText: 'Offline' 
+    });
+  }
+}
+
+async function serveFromCacheOrNetwork(url) {
+  if (isIOS) {
+    return fetch(url);
+  }
+  
+  try {
+    // Try cache first
+    const cachedResponse = await caches.match(url);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    // If not in cache, fetch from network
+    return await fetch(url);
+  } catch (error) {
+    console.log('[Service Worker] Failed to serve:', url, error);
+    return new Response('Resource not available', { 
+      status: 404, 
+      statusText: 'Not Found' 
+    });
+  }
+}
 
 // Handle messages from clients
 self.addEventListener('message', event => {
@@ -256,7 +318,25 @@ self.addEventListener('message', event => {
     event.source.postMessage({
       type: 'VERSION_INFO',
       version: CACHE_NAME,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isIOS: isIOS
     });
+  }
+  
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    caches.delete(CACHE_NAME)
+      .then(() => {
+        event.source.postMessage({
+          type: 'CACHE_CLEARED',
+          success: true
+        });
+      })
+      .catch(error => {
+        event.source.postMessage({
+          type: 'CACHE_CLEARED',
+          success: false,
+          error: error.message
+        });
+      });
   }
 });

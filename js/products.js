@@ -335,3 +335,15 @@ window.showDeleteModal = function(productId) {
     document.getElementById('deleteModal').classList.remove('hidden');
 };
 
+    // Make functions globally accessible
+    window.editProduct = editProduct;
+    window.showDeleteModal = showDeleteModal;
+    
+    // Also expose the functions
+    if (!window.ProductsManager) {
+        window.ProductsManager = {};
+    }
+    window.ProductsManager.editProduct = editProduct;
+    window.ProductsManager.showDeleteModal = showDeleteModal;
+
+

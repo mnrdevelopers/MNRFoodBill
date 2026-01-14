@@ -657,15 +657,9 @@ function showNotification(message, type) {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Override the printBill button click handler
     const printBillBtn = document.getElementById('printBill');
     if (printBillBtn) {
-        // Remove any existing event listeners
-        const newPrintBillBtn = printBillBtn.cloneNode(true);
-        printBillBtn.parentNode.replaceChild(newPrintBillBtn, printBillBtn);
-        
-        // Add new event listener
-        newPrintBillBtn.addEventListener('click', async function(e) {
+        printBillBtn.addEventListener('click', async function(e) {
             e.preventDefault();
             
             if (cart.length === 0) {
@@ -686,15 +680,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Show printing notification
-            showNotification('Processing receipt...', 'info');
-            
-            // Call prepareReceipt which will:
-            // - On mobile: Trigger RawBT via Web Share API
-            // - On desktop: Show print modal
+            // Call prepareReceipt which handles both desktop and mobile
             await prepareReceipt();
         });
     }
+});
     
     // Close print modal when clicking outside or on close button
     document.getElementById('printModal')?.addEventListener('click', function(e) {
@@ -749,4 +739,5 @@ window.prepareReceiptForTableOrder = prepareReceiptForTableOrder;
 window.printReceipt = printReceipt;
 window.closePrintModal = closePrintModal;
 window.prepareReceipt = prepareReceipt;
+
 

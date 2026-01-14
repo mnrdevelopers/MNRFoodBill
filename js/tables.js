@@ -479,162 +479,250 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Render quick cart
-    function renderQuickCart() {
-        const container = document.getElementById('quickCartItems');
-        const subtotalEl = document.getElementById('quickSubtotal');
-        
-        if (!container) return;
-        
-        if (quickOrderCart.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-gray-500 py-4">
-                    <i class="fas fa-shopping-cart"></i>
-                    <p class="text-sm">No items selected</p>
-                </div>
-            `;
-            if (subtotalEl) subtotalEl.textContent = '₹0.00';
-            return;
-        }
-        
-        let subtotal = 0;
-        container.innerHTML = '';
-        
-        quickOrderCart.forEach((item, index) => {
-            const itemTotal = item.price * item.quantity;
-            subtotal += itemTotal;
-            
-            const itemEl = document.createElement('div');
-            itemEl.className = 'flex justify-between items-center bg-gray-50 p-2 rounded';
-            itemEl.innerHTML = `
-                <div>
-                    <div class="text-sm font-medium">${item.name}</div>
-                    <div class="text-xs text-gray-500">₹${item.price.toFixed(2)} × ${item.quantity}</div>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <span class="font-bold">₹${itemTotal.toFixed(2)}</span>
-                    <button class="remove-quick-item text-red-400 hover:text-red-600" data-index="${index}">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-            container.appendChild(itemEl);
-        });
-        
-        if (subtotalEl) subtotalEl.textContent = `₹${subtotal.toFixed(2)}`;
-        
-        // Add remove event listeners
-        document.querySelectorAll('.remove-quick-item').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const index = parseInt(this.dataset.index);
-                quickOrderCart.splice(index, 1);
-                renderQuickCart();
-                renderQuickProducts(document.getElementById('quickProductSearch')?.value || '');
-            });
-        });
+   function renderQuickCart() {
+    const container = document.getElementById('quickCartItems');
+    const subtotalEl = document.getElementById('quickSubtotal');
+    
+    if (!container) return;
+    
+    if (quickOrderCart.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 py-4">
+                <i class="fas fa-shopping-cart"></i>
+                <p class="text-sm">No items selected</p>
+            </div>
+        `;
+        if (subtotalEl) subtotalEl.textContent = '₹0.00';
+        return;
     }
-
+    
+    let subtotal = 0;
+    container.innerHTML = '';
+    
+    quickOrderCart.forEach((item, index) => {
+        const itemPrice = parseFloat(item.price) || 0;
+        const itemQuantity = parseInt(item.quantity) || 1;
+        const itemTotal = itemPrice * itemQuantity;
+        subtotal += itemTotal;
+        
+        const itemEl = document.createElement('div');
+        itemEl.className = 'flex justify-between items-center bg-gray-50 p-2 rounded mb-2';
+        itemEl.innerHTML = `
+            <div class="flex-1">
+                <div class="text-sm font-medium">${item.name}</div>
+                <div class="text-xs text-gray-500">${item.category || ''}</div>
+            </div>
+            <div class="flex items-center space-x-3 ml-4">
+                <button class="decrease-qty text-gray-500 hover:text-gray-700" data-index="${index}">
+                    <i class="fas fa-minus-circle"></i>
+                </button>
+                <span class="font-medium w-8 text-center">${itemQuantity}</span>
+                <button class="increase-qty text-gray-500 hover:text-gray-700" data-index="${index}">
+                    <i class="fas fa-plus-circle"></i>
+                </button>
+                <span class="font-bold w-20 text-right">₹${itemTotal.toFixed(2)}</span>
+                <button class="remove-quick-item text-red-400 hover:text-red-600" data-index="${index}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(itemEl);
+    });
+    
+    if (subtotalEl) subtotalEl.textContent = `₹${subtotal.toFixed(2)}`;
+    
+    // Add event listeners
+    document.querySelectorAll('.remove-quick-item').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const index = parseInt(this.dataset.index);
+            quickOrderCart.splice(index, 1);
+            renderQuickCart();
+            renderQuickProducts(document.getElementById('quickProductSearch')?.value || '');
+        });
+    });
+    
+    document.querySelectorAll('.increase-qty').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const index = parseInt(this.dataset.index);
+            if (quickOrderCart[index]) {
+                quickOrderCart[index].quantity = (parseInt(quickOrderCart[index].quantity) || 1) + 1;
+                renderQuickCart();
+            }
+        });
+    });
+    
+    document.querySelectorAll('.decrease-qty').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const index = parseInt(this.dataset.index);
+            if (quickOrderCart[index] && quickOrderCart[index].quantity > 1) {
+                quickOrderCart[index].quantity = (parseInt(quickOrderCart[index].quantity) || 1) - 1;
+                renderQuickCart();
+            }
+        });
+    });
+}
+    
     // Save quick order
     async function saveQuickOrder() {
-        if (!selectedTableId) {
-            showNotification('Please select a table', 'error');
-            return;
-        }
-        
-        if (quickOrderCart.length === 0) {
-            showNotification('Please add at least one item', 'error');
-            return;
-        }
-        
-        const user = auth.currentUser;
-        const table = tables.find(t => t.id === selectedTableId);
-        if (!table) return;
-        
-        const customerName = document.getElementById('quickCustomerName').value.trim() || 'Walk-in Customer';
-        const customerCount = parseInt(document.getElementById('quickCustomerCount').value) || 2;
-        
-        // Check if table already has an active order
-        let existingOrder = null;
-        const activeOrder = activeOrders.find(o => o.tableId === selectedTableId && o.isActive);
-        
-        try {
-            let orderId;
-            let sessionId;
-            
-            if (activeOrder) {
-                // Add to existing order
-                orderId = activeOrder.id;
-                sessionId = activeOrder.sessionId;
-                
-                // Merge items
-                const existingItems = activeOrder.items || [];
-                const updatedItems = [...existingItems];
-                
-                quickOrderCart.forEach(newItem => {
-                    const existingItemIndex = updatedItems.findIndex(item => item.id === newItem.id);
-                    if (existingItemIndex > -1) {
-                        // Update quantity
-                        updatedItems[existingItemIndex].quantity += newItem.quantity;
-                    } else {
-                        // Add new item
-                        updatedItems.push(newItem);
-                    }
-                });
-                
-                // Update order
-                await db.collection('orders').doc(orderId).update({
-                    items: updatedItems,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                showNotification(`Added items to order at ${table.tableNumber}`, 'success');
-                
-            } else {
-                // Create new order
-                sessionId = 'session_' + Date.now();
-                orderId = await generateOrderId();
-                
-                const orderData = {
-                    restaurantId: user.uid,
-                    tableId: selectedTableId,
-                    tableNumber: table.tableNumber,
-                    items: [...quickOrderCart],
-                    customerName: customerName,
-                    customerCount: customerCount,
-                    subtotal: quickOrderCart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                    total: quickOrderCart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                    orderId: orderId,
-                    sessionId: sessionId,
-                    isActive: true,
-                    status: 'active',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                
-                // Update table status
-                await db.collection('tables').doc(selectedTableId).update({
-                    status: 'occupied',
-                    customerCount: customerCount,
-                    currentOrderId: orderId,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                // Save order
-                await db.collection('orders').add(orderData);
-                
-                showNotification(`Order created for ${table.tableNumber}`, 'success');
-            }
-            
-            // Close modal and refresh
-            closeQuickOrderModal();
-            loadTables();
-            loadActiveOrders();
-            
-        } catch (error) {
-            console.error("Error saving order:", error);
-            showNotification('Error saving order: ' + error.message, 'error');
-        }
+    if (!selectedTableId) {
+        showNotification('Please select a table', 'error');
+        return;
     }
+    
+    if (quickOrderCart.length === 0) {
+        showNotification('Please add at least one item', 'error');
+        return;
+    }
+    
+    const user = auth.currentUser;
+    const table = tables.find(t => t.id === selectedTableId);
+    if (!table) return;
+    
+    const customerName = document.getElementById('quickCustomerName').value.trim() || 'Walk-in Customer';
+    const customerCount = parseInt(document.getElementById('quickCustomerCount').value) || 2;
+    
+    // Calculate amounts
+    const subtotal = quickOrderCart.reduce((sum, item) => {
+        const price = parseFloat(item.price) || 0;
+        const quantity = parseInt(item.quantity) || 1;
+        return sum + (price * quantity);
+    }, 0);
+    
+    // Get restaurant settings for tax calculation
+    let gstRate = 18;
+    let serviceRate = 5;
+    
+    try {
+        const resDoc = await db.collection('restaurants').doc(user.uid).get();
+        if (resDoc.exists) {
+            const settings = resDoc.data().settings || {};
+            gstRate = parseFloat(settings.gstRate) || 18;
+            serviceRate = parseFloat(settings.serviceCharge) || 5;
+        }
+    } catch (error) {
+        console.error("Error loading restaurant settings:", error);
+    }
+    
+    const gstAmount = subtotal * (gstRate / 100);
+    const serviceCharge = subtotal * (serviceRate / 100);
+    const total = subtotal + gstAmount + serviceCharge;
+    
+    // Check if table already has an active order
+    let existingOrder = null;
+    const activeOrder = activeOrders.find(o => o.tableId === selectedTableId && o.isActive);
+    
+    try {
+        let orderId;
+        let sessionId;
+        
+        if (activeOrder) {
+            // Add to existing order
+            orderId = activeOrder.id;
+            sessionId = activeOrder.sessionId;
+            
+            // Merge items
+            const existingItems = activeOrder.items || [];
+            const updatedItems = [...existingItems];
+            
+            quickOrderCart.forEach(newItem => {
+                const existingItemIndex = updatedItems.findIndex(item => item.id === newItem.id);
+                if (existingItemIndex > -1) {
+                    // Update quantity
+                    updatedItems[existingItemIndex].quantity = 
+                        (parseInt(updatedItems[existingItemIndex].quantity) || 0) + 
+                        (parseInt(newItem.quantity) || 1);
+                } else {
+                    // Add new item
+                    updatedItems.push({
+                        ...newItem,
+                        quantity: parseInt(newItem.quantity) || 1
+                    });
+                }
+            });
+            
+            // Recalculate totals
+            const updatedSubtotal = updatedItems.reduce((sum, item) => {
+                const price = parseFloat(item.price) || 0;
+                const quantity = parseInt(item.quantity) || 1;
+                return sum + (price * quantity);
+            }, 0);
+            
+            const updatedGstAmount = updatedSubtotal * (gstRate / 100);
+            const updatedServiceCharge = updatedSubtotal * (serviceRate / 100);
+            const updatedTotal = updatedSubtotal + updatedGstAmount + updatedServiceCharge;
+            
+            // Update order
+            await db.collection('orders').doc(orderId).update({
+                items: updatedItems,
+                subtotal: updatedSubtotal,
+                gstRate: gstRate,
+                gstAmount: updatedGstAmount,
+                serviceChargeRate: serviceRate,
+                serviceCharge: updatedServiceCharge,
+                total: updatedTotal,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            showNotification(`Added items to order at ${table.tableNumber}`, 'success');
+            
+        } else {
+            // Create new order
+            sessionId = 'session_' + Date.now();
+            orderId = await generateOrderId();
+            
+            const orderData = {
+                restaurantId: user.uid,
+                tableId: selectedTableId,
+                tableNumber: table.tableNumber,
+                items: quickOrderCart.map(item => ({
+                    ...item,
+                    quantity: parseInt(item.quantity) || 1
+                })),
+                customerName: customerName,
+                customerCount: customerCount,
+                subtotal: subtotal,
+                gstRate: gstRate,
+                gstAmount: gstAmount,
+                serviceChargeRate: serviceRate,
+                serviceCharge: serviceCharge,
+                total: total,
+                orderId: orderId,
+                billNo: orderId,
+                sessionId: sessionId,
+                isActive: true,
+                status: 'active',
+                paymentMode: 'cash', // Default
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            // Update table status
+            await db.collection('tables').doc(selectedTableId).update({
+                status: 'occupied',
+                customerCount: customerCount,
+                currentOrderId: orderId,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // Save order
+            await db.collection('orders').add(orderData);
+            
+            showNotification(`Order created for ${table.tableNumber}`, 'success');
+        }
+        
+        // Close modal and refresh
+        closeQuickOrderModal();
+        loadTables();
+        loadActiveOrders();
+        
+    } catch (error) {
+        console.error("Error saving order:", error);
+        showNotification('Error saving order: ' + error.message, 'error');
+    }
+}
 
     // Generate order ID
     async function generateOrderId() {
@@ -843,34 +931,43 @@ async function closeOrderAndGenerateBill(orderId) {
         
         const order = orderDoc.data();
         
-        // Update order status
-        await db.collection('orders').doc(orderId).update({
-            isActive: false,
-            status: 'completed',
-            closedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        // Generate bill first
+        showNotification('Generating bill...', 'info');
         
-        // Update table status
-        if (order.tableId) {
-            await db.collection('tables').doc(order.tableId).update({
-                status: 'available',
-                currentOrderId: null,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+        // Use the print function
+        if (window.prepareReceiptForTableOrder) {
+            await window.prepareReceiptForTableOrder(orderId, order.tableId);
+            
+            // Then update order and table status
+            setTimeout(async () => {
+                await db.collection('orders').doc(orderId).update({
+                    isActive: false,
+                    status: 'completed',
+                    printedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    closedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // Update table status
+                if (order.tableId) {
+                    await db.collection('tables').doc(order.tableId).update({
+                        status: 'available',
+                        currentOrderId: null,
+                        customerCount: null,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                
+                showNotification('Order completed and bill generated!', 'success');
+                
+                // Refresh data
+                loadTables();
+                loadActiveOrders();
+            }, 2000); // Give time for printing
         }
-        
-        showNotification('Order closed successfully', 'success');
-        
-        // Generate bill
-        await generateBillForOrder(orderId);
-        
-        // Refresh data
-        loadTables();
-        loadActiveOrders();
         
     } catch (error) {
         console.error("Error closing order:", error);
-        showNotification('Error closing order: ' + error.message, 'error');
+        showNotification('Error: ' + error.message, 'error');
     }
 }
 

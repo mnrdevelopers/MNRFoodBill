@@ -18,7 +18,7 @@ const ASSETS_TO_CACHE = [
   // JS - Core only
   BASE_PATH + 'js/auth.js',
   BASE_PATH + 'js/layout.js',
-  BASE_PATH + 'js/firebase-config.js',
+  BASE_PATH + 'firebase-config.js',
 ];
 
 // Assets to NEVER cache (Firebase and external resources)

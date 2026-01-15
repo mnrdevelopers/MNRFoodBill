@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 setVal('resService', settings.serviceCharge);
                 setVal('resGSTIN', settings.gstin);
                 setVal('resFSSAI', settings.fssai);
+                setVal('resUpiId', settings.upiId);
                 
                 // Owner info
                 setVal('ownerName', data.ownerName);
@@ -114,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     serviceCharge: parseFloat(getVal('resService')) || 0,
                     gstin: getVal('resGSTIN'),
                     fssai: getVal('resFSSAI'),
+                    upiId: getVal('resUpiId'),
                     logoUrl: logoUrl // Add logo URL to settings
                 },
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()

@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     loadHeader();
     loadSidebar();
+    loadFooter();
     setupMobileSidebar();
     setupDesktopSidebarToggle();
     setupLogout();
@@ -187,6 +188,22 @@ function loadSidebar() {
             console.error('Error loading sidebar:', err);
             document.getElementById('sidebar').innerHTML = '<p>Error loading sidebar</p>';
         });
+}
+
+function loadFooter() {
+    fetch('components/footer.html')
+        .then(response => response.text())
+        .then(html => {
+            // Create footer container if it doesn't exist
+            let footer = document.getElementById('appFooter');
+            if (!footer) {
+                footer = document.createElement('div');
+                footer.id = 'appFooter';
+                document.body.appendChild(footer);
+            }
+            footer.innerHTML = html;
+        })
+        .catch(err => console.error('Error loading footer:', err));
 }
 
 function updateMainContentGrid() {

@@ -315,6 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
             ownerPhone2: restaurantData.ownerPhone2 || '',
             address: settings.address || restaurantData.address || '',
             phone: settings.phone || restaurantData.phone || '',
+            upiId: settings.upiId || '',
             gstin: settings.gstin || '',
             fssai: settings.fssai || ''
         };
@@ -365,13 +366,29 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
 *** DUPLICATE COPY ***
 `;
         
-        // Set print content and show modal
-        document.getElementById('printContent').textContent = receipt;
-        closeOrderModal();
-        document.getElementById('printModal').classList.remove('hidden');
+        const printContentEl = document.getElementById('printContent');
         
         // Store receipt text for printing
-        document.getElementById('printContent').setAttribute('data-receipt-text', receipt);
+        printContentEl.setAttribute('data-receipt-text', receipt);
+        if (restaurant.upiId) printContentEl.setAttribute('data-upi-id', restaurant.upiId);
+        if (selectedOrder.total) printContentEl.setAttribute('data-total-amount', selectedOrder.total);
+        
+        // Prepare display content with QR for preview
+        let displayContent = receipt;
+        if (restaurant.upiId && selectedOrder.total) {
+            const upiUrl = `upi://pay?pa=${restaurant.upiId}&pn=Restaurant&am=${selectedOrder.total}&cu=INR`;
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUrl)}`;
+            
+            displayContent += `\n\n<div style="text-align:center; margin-top:10px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                <img src="${qrApiUrl}" style="width:100px; height:100px; margin: 0 auto;" alt="QR Code">
+                <div style="font-weight:bold; margin-top:5px;">Scan to Pay: ₹${parseFloat(selectedOrder.total).toFixed(2)}</div>
+            </div>`;
+        }
+        
+        printContentEl.innerHTML = displayContent;
+        
+        closeOrderModal();
+        document.getElementById('printModal').classList.remove('hidden');
         
     } catch (error) {
         console.error("Error printing receipt:", error);
@@ -504,10 +521,12 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
     window.refreshOrdersTable = refreshOrdersTable;
 });
 
-// Global print function for orders page
-window.printReceipt = function() {
-    const receiptText = document.getElementById('printContent').getAttribute('data-receipt-text') || 
-                       document.getElementById('printContent').textContent;
+// Global print function for orders page (renamed to avoid conflict)
+window.printHistoryOrder = function() {
+    const contentEl = document.getElementById('printContent');
+    const receiptText = contentEl.getAttribute('data-receipt-text') || contentEl.textContent;
+    const upiId = contentEl.getAttribute('data-upi-id');
+    const totalAmount = contentEl.getAttribute('data-total-amount');
     
     if (!receiptText) {
         showNotification('No receipt to print', 'error');
@@ -516,6 +535,13 @@ window.printReceipt = function() {
     
     // Create a print window with thermal printer styling
     const printWindow = window.open('', '_blank');
+
+    let qrCodeHtml = '';
+    if (upiId && totalAmount) {
+        const upiUrl = `upi://pay?pa=${upiId}&pn=Restaurant&am=${totalAmount}&cu=INR`;
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUrl)}`;
+        qrCodeHtml = `<div style="text-align:center; margin-top:10px;"><img src="${qrApiUrl}" style="width:100px;height:100px;"/><br>Scan to Pay</div>`;
+    }
     
     const htmlContent = `
         <!DOCTYPE html>
@@ -559,7 +585,7 @@ window.printReceipt = function() {
         </head>
         <body>
             <div class="receipt-content">
-                ${receiptText.replace(/\n/g, '<br>')}
+                ${receiptText.replace(/\n/g, '<br>')}${qrCodeHtml}
             </div>
             <script>
                 // Auto-print

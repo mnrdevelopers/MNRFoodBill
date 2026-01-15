@@ -57,6 +57,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 setVal('resGSTIN', settings.gstin);
                 setVal('resFSSAI', settings.fssai);
                 setVal('resUpiId', settings.upiId);
+
+                // Inject Printer Settings if not exists
+                if (!document.getElementById('printerSize')) {
+                    const upiInput = document.getElementById('resUpiId');
+                    if (upiInput) {
+                        const printerDiv = document.createElement('div');
+                        printerDiv.className = 'mb-4';
+                        printerDiv.innerHTML = `
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Printer Paper Size</label>
+                            <select id="printerSize" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"><option value="58mm">58mm (Standard)</option><option value="80mm">80mm (Wide)</option></select>
+                        `;
+                        upiInput.parentElement.insertAdjacentElement('afterend', printerDiv);
+                    }
+                }
+                setVal('printerSize', settings.printerSize || '58mm');
                 
                 // Owner info
                 setVal('ownerName', data.ownerName);
@@ -116,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     gstin: getVal('resGSTIN'),
                     fssai: getVal('resFSSAI'),
                     upiId: getVal('resUpiId'),
+                    printerSize: getVal('printerSize') || '58mm',
                     logoUrl: logoUrl // Add logo URL to settings
                 },
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()

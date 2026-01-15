@@ -19,6 +19,7 @@ async function prepareReceipt() {
             name: restaurantData.name || 'Restaurant Name',
             ownerName: restaurantData.ownerName || '',
             ownerPhone: restaurantData.ownerPhone || '',
+            ownerPhone2: restaurantData.ownerPhone2 || '',
             address: settings.address || restaurantData.address || '',
             phone: settings.phone || restaurantData.phone || '',
             gstin: settings.gstin || '',
@@ -189,10 +190,11 @@ function buildReceipt(restaurant, customerName, customerPhone,
     receipt += centerText('** Computer Generated Bill **') + '\n';
     receipt += centerText('** No Signature Required **') + '\n';
     
-    if (restaurant.ownerPhone) {
+    if (restaurant.ownerPhone || restaurant.ownerPhone2) {
         receipt += '-'.repeat(MAX_WIDTH) + '\n';
         receipt += centerText('For feedback/complaints:') + '\n';
-        receipt += centerText(restaurant.ownerPhone) + '\n';
+        if (restaurant.ownerPhone) receipt += centerText(restaurant.ownerPhone) + '\n';
+        if (restaurant.ownerPhone2) receipt += centerText(restaurant.ownerPhone2) + '\n';
     }
     
     receipt += '='.repeat(MAX_WIDTH) + '\n';

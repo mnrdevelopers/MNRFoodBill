@@ -285,38 +285,43 @@ function addDashboardFilters() {
     const welcomeSection = document.querySelector('.bg-white.rounded-xl.shadow.p-6.mb-6');
     if (!welcomeSection) return;
 
+    // Check if filters already exist to prevent duplicates
+    if (document.getElementById('dashboardFiltersCard')) return;
+
     const filtersHTML = `
-        <div class="mt-4 bg-gray-50 p-4 rounded-lg">
-            <div class="flex flex-wrap gap-4 items-center">
+        <div id="dashboardFiltersCard" class="bg-white rounded-xl shadow p-4 mb-6">
+            <div class="flex flex-wrap gap-4 items-end">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
-                    <div class="flex items-center">
-                        <input type="date" id="dashboardStartDate" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
-                        <span class="mx-2 text-gray-500">to</span>
-                        <input type="date" id="dashboardEndDate" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Date Range</label>
+                    <div class="flex items-center bg-gray-50 rounded-lg border border-gray-200 p-1">
+                        <input type="date" id="dashboardStartDate" class="bg-transparent border-none text-sm focus:ring-0 px-2 py-1 outline-none">
+                        <span class="text-gray-400 mx-1">-</span>
+                        <input type="date" id="dashboardEndDate" class="bg-transparent border-none text-sm focus:ring-0 px-2 py-1 outline-none">
                     </div>
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Order Status</label>
-                    <select id="dashboardStatusFilter" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                    <select id="dashboardStatusFilter" class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2 outline-none">
                         <option value="all">All Orders</option>
                         <option value="completed">Completed Only</option>
                     </select>
                 </div>
                 
-                <button id="applyDashboardFilter" class="bg-red-500 text-white px-4 py-1.5 rounded-lg hover:bg-red-600 text-sm">
-                    <i class="fas fa-filter mr-1"></i> Apply Filter
-                </button>
-                
-                <button id="resetDashboardFilter" class="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-lg hover:bg-gray-50 text-sm">
-                    Reset
-                </button>
+                <div class="flex gap-2">
+                    <button id="applyDashboardFilter" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 text-sm font-medium transition-colors shadow-sm">
+                        <i class="fas fa-filter mr-1"></i> Apply
+                    </button>
+                    
+                    <button id="resetDashboardFilter" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors">
+                        Reset
+                    </button>
+                </div>
             </div>
         </div>
     `;
 
-    welcomeSection.insertAdjacentHTML('beforeend', filtersHTML);
+    welcomeSection.insertAdjacentHTML('afterend', filtersHTML);
 
     // Add event listeners
     document.getElementById('applyDashboardFilter')?.addEventListener('click', () => {
@@ -340,6 +345,7 @@ function addDashboardFilters() {
         const user = auth.currentUser;
         loadDashboardStats(user, {});
         loadRecentOrders(user);
+        loadMostOrderedProducts(user, {});
     });
 }
 

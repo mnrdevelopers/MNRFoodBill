@@ -312,6 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
             name: restaurantData.name || 'Restaurant Name',
             ownerName: restaurantData.ownerName || '',
             ownerPhone: restaurantData.ownerPhone || '',
+            ownerPhone2: restaurantData.ownerPhone2 || '',
             address: settings.address || restaurantData.address || '',
             phone: settings.phone || restaurantData.phone || '',
             gstin: settings.gstin || '',
@@ -360,7 +361,7 @@ TOTAL:          ₹${selectedOrder.total ? selectedOrder.total.toFixed(2).padSta
 ${'='.repeat(32)}
 Status: ${selectedOrder.status}
 ${'='.repeat(32)}
-${restaurant.ownerPhone ? `\nContact Owner: ${restaurant.ownerPhone}\n` : ''}
+${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${restaurant.ownerPhone ? restaurant.ownerPhone + '\n' : ''}${restaurant.ownerPhone2 ? restaurant.ownerPhone2 + '\n' : ''}` : ''}
 *** DUPLICATE COPY ***
 `;
         

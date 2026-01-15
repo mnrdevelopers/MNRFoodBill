@@ -366,6 +366,43 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
 *** DUPLICATE COPY ***
 `;
         
+        // Mobile Printing Logic (RawBT)
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            const billNo = selectedOrder.orderId || selectedOrder.id;
+            const fileName = `receipt_${billNo}.txt`;
+            const file = new File([receipt], fileName, { type: 'text/plain' });
+            
+            try {
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: `${restaurant.name} - Bill ${billNo}`,
+                        text: `Receipt ${billNo}`,
+                        files: [file]
+                    });
+                    closeOrderModal();
+                    return;
+                }
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                console.error('Share failed:', error);
+            }
+
+            // Fallback: Download file
+            const blob = new Blob([receipt], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            closeOrderModal();
+            return;
+        }
+
         const printContentEl = document.getElementById('printContent');
         
         // Store receipt text for printing

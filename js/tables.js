@@ -192,7 +192,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         gstin: settings.gstin || '',
                         fssai: settings.fssai || '',
                         ownerPhone: data.ownerPhone || data.phone || '',
-                        ownerPhone2: data.ownerPhone2 || ''
+                        ownerPhone2: data.ownerPhone2 || '',
+                        upiId: settings.upiId || ''
                     };
                     
                     console.log("Loaded restaurant settings:", tableRestaurantSettings);
@@ -1111,7 +1112,7 @@ document.addEventListener('DOMContentLoaded', function() {
             shareToRawBT(receipt, billNo, tableRestaurantSettings.restaurantName);
         } else {
             // Show print modal
-            showPrintModal(receipt);
+            showPrintModal(receipt, tableRestaurantSettings.upiId, result.grandTotal || tableOrder.totalAmount);
         }
     }
 
@@ -1300,7 +1301,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return receipt;
     }
 
-    function showPrintModal(receiptText) {
+    function showPrintModal(receiptText, upiId = null, totalAmount = 0) {
         // Create or update print modal
         let printModal = document.getElementById('tablePrintModal');
         
@@ -1334,8 +1335,18 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Add global print function
             window.printTableReceiptNow = function() {
-                const printContent = document.getElementById('tablePrintContent').textContent;
+                const printContentEl = document.getElementById('tablePrintContent');
+                const printContent = printContentEl.getAttribute('data-receipt-text') || printContentEl.textContent;
+                const upiId = printContentEl.getAttribute('data-upi-id');
+                const totalAmount = printContentEl.getAttribute('data-total-amount');
                 const printWindow = window.open('', '_blank');
+
+                let qrCodeHtml = '';
+                if (upiId && totalAmount) {
+                    const upiUrl = `upi://pay?pa=${upiId}&pn=Restaurant&am=${totalAmount}&cu=INR`;
+                    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUrl)}`;
+                    qrCodeHtml = `<div style="text-align:center; margin-top:10px;"><img src="${qrApiUrl}" style="width:100px;height:100px;"/><br>Scan to Pay</div>`;
+                }
                 
                 const htmlContent = `
                     <!DOCTYPE html>
@@ -1374,7 +1385,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </style>
                     </head>
                     <body>
-                        ${printContent.replace(/\n/g, '<br>')}
+                        ${printContent.replace(/\n/g, '<br>')}${qrCodeHtml}
                         <script>
                             setTimeout(function() {
                                 window.print();
@@ -1400,7 +1411,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Set receipt content
-        document.getElementById('tablePrintContent').textContent = receiptText;
+        const contentEl = document.getElementById('tablePrintContent');
+        contentEl.setAttribute('data-receipt-text', receiptText);
+        if (upiId) contentEl.setAttribute('data-upi-id', upiId);
+        if (totalAmount) contentEl.setAttribute('data-total-amount', totalAmount);
+        
+        // Prepare display content with QR for preview
+        let displayContent = receiptText;
+        if (upiId && totalAmount) {
+            const upiUrl = `upi://pay?pa=${upiId}&pn=Restaurant&am=${totalAmount}&cu=INR`;
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUrl)}`;
+            
+            displayContent += `\n\n<div style="text-align:center; margin-top:10px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                <img src="${qrApiUrl}" style="width:100px; height:100px; margin: 0 auto;" alt="QR Code">
+                <div style="font-weight:bold; margin-top:5px;">Scan to Pay: ₹${parseFloat(totalAmount).toFixed(2)}</div>
+            </div>`;
+        }
+        
+        contentEl.innerHTML = displayContent;
         
         // Show modal
         printModal.classList.remove('hidden');

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - MNRFoodBill</title>
+    <link rel="icon" href="icons/icon-192x192.png" type="image/png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-remote-config.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <div id="header"></div>
+
+    <div class="container mx-auto px-4 py-6 flex-grow">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div id="sidebar"></div>
+
+            <div class="lg:col-span-3">
+                <div class="bg-white rounded-xl shadow-sm p-8">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-6">Privacy Policy</h1>
+                    
+                    <div class="prose max-w-none text-gray-600 space-y-6">
+                        <p>Last updated: January 15, 2026</p>
+
+                        <h2 class="text-xl font-bold text-gray-800">1. Information We Collect</h2>
+                        <p>We collect information that you provide directly to us, such as when you create an account, update your profile, or use our billing services. This includes:</p>
+                        <ul class="list-disc pl-5 space-y-2">
+                            <li>Business information (Restaurant name, address, phone number)</li>
+                            <li>Account information (Name, email address, password)</li>
+                            <li>Transaction data (Order history, product details, sales data)</li>
+                        </ul>
+
+                        <h2 class="text-xl font-bold text-gray-800">2. How We Use Your Information</h2>
+                        <p>We use the information we collect to:</p>
+                        <ul class="list-disc pl-5 space-y-2">
+                            <li>Provide, maintain, and improve our services</li>
+                            <li>Process transactions and send related information</li>
+                            <li>Send you technical notices, updates, and support messages</li>
+                            <li>Respond to your comments and questions</li>
+                        </ul>
+
+                        <h2 class="text-xl font-bold text-gray-800">3. Data Security</h2>
+                        <p>We take reasonable measures to help protect information about you from loss, theft, misuse and unauthorized access, disclosure, alteration and destruction.</p>
+
+                        <h2 class="text-xl font-bold text-gray-800">4. Contact Us</h2>
+                        <p>If you have any questions about this Privacy Policy, please contact us at support@mnrfoodbill.com.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="js/layout.js" defer></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/table-responsive.js" defer></script>
+    
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/MNRFoodBill/sw.js');
+            });
+        }
+    </script>
+</body>
+</html>

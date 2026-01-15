@@ -19,6 +19,10 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Make auth and db globally available
+window.auth = auth;
+window.db = db;
+
 // IMPORTANT: Set settings BEFORE calling any other Firestore methods (like enablePersistence)
 db.settings({
   cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
@@ -38,18 +42,22 @@ db.enablePersistence()
   });
 
 // Initialize Firebase Remote Config
-const remoteConfig = firebase.remoteConfig();
+let remoteConfig = null;
 
-// Set minimum fetch interval (in seconds) for development/production
-remoteConfig.settings = {
-    minimumFetchIntervalMillis: 3600000, // 1 hour for production
-    fetchTimeoutMillis: 60000 // 60 seconds timeout
-};
+if (firebase.remoteConfig) {
+    remoteConfig = firebase.remoteConfig();
 
-// Set default values
-remoteConfig.defaultConfig = {
-    'imgbb_api_key': '' // Empty by default, will be fetched from server
-};
+    // Set minimum fetch interval (in seconds) for development/production
+    remoteConfig.settings = {
+        minimumFetchIntervalMillis: 3600000, // 1 hour for production
+        fetchTimeoutMillis: 60000 // 60 seconds timeout
+    };
+
+    // Set default values
+    remoteConfig.defaultConfig = {
+        'imgbb_api_key': '' // Empty by default, will be fetched from server
+    };
+}
 
 // Export remoteConfig
 window.remoteConfig = remoteConfig;

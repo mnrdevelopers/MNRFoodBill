@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Owner info
                 setVal('ownerName', data.ownerName);
                 setVal('ownerPhone', data.ownerPhone || data.phone);
+                setVal('ownerPhone2', data.ownerPhone2);
                 
                 // Logo (load from settings or root level)
                 const logoUrl = settings.logoUrl || data.logoUrl;
@@ -97,12 +98,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const ownerName = getVal('ownerName');
             const ownerPhone = getVal('ownerPhone');
+            const ownerPhone2 = getVal('ownerPhone2');
             const logoUrl = getVal('restaurantLogoUrl');
 
             const updatedData = {
                 name: getVal('resName'),
                 ownerName: ownerName,
                 ownerPhone: ownerPhone,
+                ownerPhone2: ownerPhone2,
                 address: getVal('resAddress'),
                 phone: getVal('resPhone'),
                 settings: {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mnrfoodbill-v3.0.8'; // Change version to force update
+const CACHE_NAME = 'mnrfoodbill-v3.0.9'; // Change version to force update
 const BASE_PATH = '/MNRFoodBill/';
 
 // Assets to cache - Minimal set for iOS compatibility
@@ -29,6 +29,7 @@ const NO_CACHE_URLS = [
   'imgbb.com',
   'cdn.tailwindcss.com',
   'cdnjs.cloudflare.com',
+  'gstatic.com',
   '/MNRFoodBill/api/'
 ];
 
@@ -97,7 +98,7 @@ self.addEventListener('fetch', event => {
   
   // Special handling for root/index
   if (url.pathname === BASE_PATH || url.pathname === BASE_PATH + 'index.html') {
-    event.respondWith(handleRootRequest(event));
+    event.respondWith(htmlStrategy(event));
     return;
   }
   
@@ -128,42 +129,6 @@ self.addEventListener('fetch', event => {
 });
 
 // Strategy handlers
-async function handleRootRequest(event) {
-  try {
-    // Check auth status without caching
-    const authResponse = await fetch('/MNRFoodBill/api/auth-status', {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      },
-      cache: 'no-store'
-    });
-    
-    if (authResponse.ok) {
-      const data = await authResponse.json();
-      if (data.isAuthenticated && data.user) {
-        // User is logged in, redirect to dashboard
-        return Response.redirect(BASE_PATH + 'dashboard.html', 302);
-      }
-    }
-    
-    // Serve index.html fresh from network
-    return networkOnly(event.request);
-  } catch (error) {
-    console.log('[Service Worker] Auth check failed:', error);
-    // Fall back to cache if network fails
-    const cached = await caches.match(event.request);
-    if (cached) return cached;
-    
-    // Ultimate fallback
-    return new Response('<h1>Please check your connection</h1>', {
-      status: 503,
-      headers: { 'Content-Type': 'text/html' }
-    });
-  }
-}
-
 async function htmlStrategy(event) {
   const request = event.request;
   

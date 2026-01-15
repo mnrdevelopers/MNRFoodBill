@@ -193,7 +193,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         fssai: settings.fssai || '',
                         ownerPhone: data.ownerPhone || data.phone || '',
                         ownerPhone2: data.ownerPhone2 || '',
-                        upiId: settings.upiId || ''
+                        upiId: settings.upiId || '',
+                        printerSize: settings.printerSize || '58mm'
                     };
                     
                     console.log("Loaded restaurant settings:", tableRestaurantSettings);
@@ -1112,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', function() {
             shareToRawBT(receipt, billNo, tableRestaurantSettings.restaurantName);
         } else {
             // Show print modal
-            showPrintModal(receipt, tableRestaurantSettings.upiId, result.grandTotal || tableOrder.totalAmount);
+            showPrintModal(receipt, tableRestaurantSettings.upiId, result.grandTotal || tableOrder.totalAmount, tableRestaurantSettings.printerSize);
         }
     }
 
@@ -1153,7 +1154,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function generateProfessionalReceipt(tableOrder, result, paymentMethod, cashReceived, billNo) {
-        const MAX_WIDTH = 42;
+        const MAX_WIDTH = tableRestaurantSettings.printerSize === '80mm' ? 64 : 42;
         const currency = tableRestaurantSettings.currency;
         const now = new Date();
         
@@ -1205,7 +1206,11 @@ document.addEventListener('DOMContentLoaded', function() {
         receipt += '-'.repeat(MAX_WIDTH) + '\n';
         
         // ITEMS HEADER
-        receipt += 'Sl  Item'.padEnd(18) + 'Qty  Price'.padStart(10) + 'Amount'.padStart(10) + '\n';
+        if (MAX_WIDTH > 42) {
+            receipt += 'Sl  Item'.padEnd(30) + 'Qty  Price'.padStart(16) + 'Amount'.padStart(16) + '\n';
+        } else {
+            receipt += 'Sl  Item'.padEnd(18) + 'Qty  Price'.padStart(10) + 'Amount'.padStart(10) + '\n';
+        }
         receipt += '-'.repeat(MAX_WIDTH) + '\n';
         
         // ITEMS LIST
@@ -1221,15 +1226,16 @@ document.addEventListener('DOMContentLoaded', function() {
             order.items.forEach(item => {
                 const foodTypeIcon = item.foodType === 'veg' ? '🥬' : '🍗';
                 let displayName = foodTypeIcon + ' ' + item.name;
-                if (displayName.length > 15) {
-                    displayName = displayName.substring(0, 13) + '..';
+                const nameWidth = MAX_WIDTH > 42 ? 28 : 13;
+                if (displayName.length > nameWidth + 2) {
+                    displayName = displayName.substring(0, nameWidth) + '..';
                 }
                 
                 const qty = item.quantity;
                 const rate = item.price.toFixed(2);
                 const amount = (item.price * item.quantity).toFixed(2);
                 
-                const line = `${slNo.toString().padStart(2)}. ${displayName.padEnd(15)} ${qty.toString().padStart(3)} ${currency}${rate.padStart(6)} ${currency}${amount.padStart(7)}`;
+                const line = `${slNo.toString().padStart(2)}. ${displayName.padEnd(MAX_WIDTH > 42 ? 30 : 15)} ${qty.toString().padStart(3)} ${currency}${rate.padStart(MAX_WIDTH > 42 ? 10 : 6)} ${currency}${amount.padStart(MAX_WIDTH > 42 ? 12 : 7)}`;
                 receipt += line + '\n';
                 slNo++;
                 itemCount += qty;
@@ -1301,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return receipt;
     }
 
-    function showPrintModal(receiptText, upiId = null, totalAmount = 0) {
+    function showPrintModal(receiptText, upiId = null, totalAmount = 0, printerSize = '58mm') {
         // Create or update print modal
         let printModal = document.getElementById('tablePrintModal');
         
@@ -1339,6 +1345,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const printContent = printContentEl.getAttribute('data-receipt-text') || printContentEl.textContent;
                 const upiId = printContentEl.getAttribute('data-upi-id');
                 const totalAmount = printContentEl.getAttribute('data-total-amount');
+                const printerSize = printContentEl.getAttribute('data-printer-size') || '58mm';
                 const printWindow = window.open('', '_blank');
 
                 let qrCodeHtml = '';
@@ -1358,14 +1365,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 body, html {
                                     margin: 0 !important;
                                     padding: 0 !important;
-                                    width: 58mm !important;
+                                    width: ${printerSize} !important;
                                     font-family: 'Courier New', monospace !important;
                                     font-size: 12px !important;
                                     line-height: 1.1 !important;
                                 }
                                 @page {
                                     margin: 0 !important;
-                                    size: 58mm auto !important;
+                                    size: ${printerSize} auto !important;
                                 }
                                 * {
                                     -webkit-print-color-adjust: exact !important;
@@ -1376,7 +1383,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 font-family: 'Courier New', monospace;
                                 font-size: 12px;
                                 line-height: 1.1;
-                                width: 58mm;
+                                width: ${printerSize};
                                 margin: 0 auto;
                                 padding: 2mm;
                                 white-space: pre;
@@ -1415,6 +1422,7 @@ document.addEventListener('DOMContentLoaded', function() {
         contentEl.setAttribute('data-receipt-text', receiptText);
         if (upiId) contentEl.setAttribute('data-upi-id', upiId);
         if (totalAmount) contentEl.setAttribute('data-total-amount', totalAmount);
+        contentEl.setAttribute('data-printer-size', printerSize);
         
         // Prepare display content with QR for preview
         let displayContent = receiptText;

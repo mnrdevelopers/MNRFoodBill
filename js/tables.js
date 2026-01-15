@@ -191,7 +191,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         phone: data.phone || '',
                         gstin: settings.gstin || '',
                         fssai: settings.fssai || '',
-                        ownerPhone: data.ownerPhone || data.phone || ''
+                        ownerPhone: data.ownerPhone || data.phone || '',
+                        ownerPhone2: data.ownerPhone2 || ''
                     };
                     
                     console.log("Loaded restaurant settings:", tableRestaurantSettings);
@@ -1284,10 +1285,11 @@ document.addEventListener('DOMContentLoaded', function() {
         receipt += centerText('** Computer Generated Bill **') + '\n';
         receipt += centerText('** No Signature Required **') + '\n';
         
-        if (tableRestaurantSettings.ownerPhone) {
+        if (tableRestaurantSettings.ownerPhone || tableRestaurantSettings.ownerPhone2) {
             receipt += '-'.repeat(MAX_WIDTH) + '\n';
             receipt += centerText('For feedback/complaints:') + '\n';
-            receipt += centerText(tableRestaurantSettings.ownerPhone) + '\n';
+            if (tableRestaurantSettings.ownerPhone) receipt += centerText(tableRestaurantSettings.ownerPhone) + '\n';
+            if (tableRestaurantSettings.ownerPhone2) receipt += centerText(tableRestaurantSettings.ownerPhone2) + '\n';
         }
         
         receipt += '='.repeat(MAX_WIDTH) + '\n';

@@ -1141,8 +1141,48 @@ document.addEventListener('DOMContentLoaded', function() {
         // Generate professional receipt
         const receipt = generateProfessionalReceipt(tableOrder, result, paymentMethod, cashReceived, billNo);
         
-        // Show print modal
-        showPrintModal(receipt);
+        if (isMobileDevice()) {
+            shareToRawBT(receipt, billNo, tableRestaurantSettings.restaurantName);
+        } else {
+            // Show print modal
+            showPrintModal(receipt);
+        }
+    }
+
+    function isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    async function shareToRawBT(receiptText, billNo, restaurantName) {
+        try {
+            const fileName = `receipt_${billNo}.txt`;
+            const file = new File([receiptText], fileName, { type: 'text/plain' });
+            
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: `${restaurantName} - Bill ${billNo}`,
+                    text: `Receipt ${billNo}`,
+                    files: [file]
+                });
+                showNotification('Receipt sent to printer!', 'success');
+            } else {
+                const blob = new Blob([receiptText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('Downloading receipt... Opening RawBT', 'info');
+            }
+        } catch (error) {
+            console.error('Share failed:', error);
+            if (error.name !== 'AbortError') {
+                showNotification('Error sharing receipt', 'error');
+            }
+        }
     }
 
     function generateProfessionalReceipt(tableOrder, result, paymentMethod, cashReceived, billNo) {

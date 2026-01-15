@@ -1,24 +1,11 @@
-const CACHE_NAME = 'mnrfoodbill-v3.1.0'; // Change version to force update
+const CACHE_NAME = 'mnrfoodbill-v3.1.1'; // Change version to force update
 const BASE_PATH = '/MNRFoodBill/';
 
 // Assets to cache - Minimal set for iOS compatibility
 const ASSETS_TO_CACHE = [
-  BASE_PATH,
-  BASE_PATH + 'index.html',
-  BASE_PATH + 'dashboard.html',
-  BASE_PATH + 'billing.html',
-  BASE_PATH + 'products.html',
-  BASE_PATH + 'orders.html',
-  BASE_PATH + 'settings.html',
-  BASE_PATH + 'staff.html',
-  
   // CSS - Only critical
   BASE_PATH + 'css/styles.css',
-  
-  // JS - Core only
-  BASE_PATH + 'js/auth.js',
-  BASE_PATH + 'js/layout.js',
-  BASE_PATH + 'firebase-config.js',
+  BASE_PATH + 'icons/icon-192x192.png'
 ];
 
 // Assets to NEVER cache (Firebase and external resources)
@@ -30,7 +17,9 @@ const NO_CACHE_URLS = [
   'cdn.tailwindcss.com',
   'cdnjs.cloudflare.com',
   'gstatic.com',
-  '/MNRFoodBill/api/'
+  '/MNRFoodBill/api/',
+  'firebase-config.js',
+  'manifest.json'
 ];
 
 // Client ID to strategy mapping
@@ -98,7 +87,7 @@ self.addEventListener('fetch', event => {
   
   // Special handling for root/index
   if (url.pathname === BASE_PATH || url.pathname === BASE_PATH + 'index.html') {
-    event.respondWith(htmlStrategy(event));
+    event.respondWith(networkOnly(event.request));
     return;
   }
   
@@ -112,7 +101,7 @@ self.addEventListener('fetch', event => {
   
   // For HTML pages - Network first, VERY minimal caching
   if (event.request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(htmlStrategy(event));
+    event.respondWith(networkOnly(event.request));
     return;
   }
   
@@ -120,7 +109,7 @@ self.addEventListener('fetch', event => {
   if (url.pathname.includes('.css') || 
       url.pathname.includes('.js') || 
       url.pathname.includes('.json')) {
-    event.respondWith(staticAssetStrategy(event));
+    event.respondWith(networkOnly(event.request));
     return;
   }
   
@@ -129,119 +118,6 @@ self.addEventListener('fetch', event => {
 });
 
 // Strategy handlers
-async function htmlStrategy(event) {
-  const request = event.request;
-  
-  // Always try network first for HTML
-  try {
-    const networkResponse = await fetch(request);
-    
-    // If it's a 200 OK response from our domain, cache it briefly
-    if (networkResponse.ok && networkResponse.url.includes(self.location.origin)) {
-      // Clone the response to cache it
-      const responseToCache = networkResponse.clone();
-      
-      // Open cache and store response
-      caches.open(CACHE_NAME).then(cache => {
-        // Only cache HTML for 5 minutes maximum
-        setTimeout(() => {
-          cache.delete(request);
-        }, 5 * 60 * 1000); // 5 minutes
-        cache.put(request, responseToCache);
-      });
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    console.log('[Service Worker] Network failed for HTML:', error);
-    
-    // Try cache as fallback
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      // Check if cached response is stale (more than 5 minutes old)
-      const cacheDate = cachedResponse.headers.get('date');
-      if (cacheDate) {
-        const cacheTime = new Date(cacheDate).getTime();
-        const now = Date.now();
-        if (now - cacheTime < 5 * 60 * 1000) { // 5 minutes
-          return cachedResponse;
-        }
-      } else {
-        return cachedResponse;
-      }
-    }
-    
-    // If navigating to a page and we have dashboard cached, use it
-    if (request.mode === 'navigate') {
-      const dashboardCached = await caches.match(BASE_PATH + 'dashboard.html');
-      if (dashboardCached) return dashboardCached;
-    }
-    
-    return new Response(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Offline</title>
-          <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-            h1 { color: #666; }
-          </style>
-        </head>
-        <body>
-          <h1>Network Connection Required</h1>
-          <p>Please check your internet connection and try again.</p>
-          <button onclick="location.reload()">Retry</button>
-        </body>
-      </html>
-    `, {
-      status: 503,
-      headers: { 'Content-Type': 'text/html' }
-    });
-  }
-}
-
-async function staticAssetStrategy(event) {
-  const request = event.request;
-  
-  // Try cache first
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    // Update cache in background (stale-while-revalidate)
-    fetch(request)
-      .then(response => {
-        if (response.ok) {
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(request, response);
-          });
-        }
-      })
-      .catch(() => {
-        // Keep existing cache if network fails
-      });
-    
-    return cachedResponse;
-  }
-  
-  // Not in cache, fetch from network
-  try {
-    const networkResponse = await fetch(request);
-    
-    // Cache static assets if successful
-    if (networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    console.log('[Service Worker] Network failed for static asset:', error);
-    return new Response('', { 
-      status: 503, 
-      statusText: 'Offline' 
-    });
-  }
-}
-
 async function networkOnly(request) {
   // Add cache busting headers for API calls
   const newHeaders = new Headers(request.headers);

@@ -662,7 +662,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const orderData = doc.data();
                 
                 // Reconstruct TableOrder object
-                const tableOrder = new TableOrder(tableId, activeTable.tableNumber);
+                let tableName = 'Unknown Table';
+                if (activeTable && activeTable.id === tableId) {
+                    tableName = activeTable.tableNumber;
+                } else {
+                    const table = tables.find(t => t.id === tableId);
+                    if (table) tableName = table.tableNumber;
+                    else if (orderData.tableName) tableName = orderData.tableName;
+                }
+
+                const tableOrder = new TableOrder(tableId, tableName);
                 tableOrder.orders = orderData.orders || [];
                 tableOrder.currentOrder = orderData.currentOrder || {
                     id: tableOrder.generateOrderId(),
@@ -707,7 +716,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Save to Firebase
         await saveTableOrderToFirebase(currentTableOrder);
         
-        showNotification(`Order saved! You can add more items for ${activeTable.tableNumber}`, 'success');
+        const tableName = activeTable ? activeTable.tableNumber : currentTableOrder.tableName;
+        showNotification(`Order saved! You can add more items for ${tableName}`, 'success');
         
         // Update UI
         renderTableOrderItems();
@@ -883,6 +893,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 renderTables();
                 updateStats();
+
+                // Refresh responsive tables to ensure mobile cards work
+                if (window.ResponsiveTables && window.ResponsiveTables.refresh) {
+                    setTimeout(() => {
+                        window.ResponsiveTables.refresh();
+                    }, 100);
+                }
             })
             .catch(err => {
                 console.error("Error loading active orders:", err);
@@ -946,10 +963,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const totals = currentTableOrder.getOrderSummary();
         const pendingAmount = totals.balance;
         
+        const tableName = activeTable ? activeTable.tableNumber : (currentTableOrder ? currentTableOrder.tableName : 'Table');
+
         paymentModal.innerHTML = `
             <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-4">
                 <div class="p-6">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">Finalize Bill - ${activeTable.tableNumber}</h3>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Finalize Bill - ${tableName}</h3>
                     
                     <div class="space-y-4 mb-6">
                         <div class="bg-gray-50 p-4 rounded-lg">
@@ -1041,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 await finalizeTableOrderInFirebase(currentTableOrder, result, billNo);
                 
                 // Update table status
-                await updateTableStatus(activeTable.id, 'available');
+                await updateTableStatus(currentTableOrder.tableId, 'available');
                 
                 // Print receipt using the professional format
                 printTableReceipt(currentTableOrder, result, paymentMethod, cashReceived, billNo);
@@ -1054,7 +1073,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadTables();
                 loadActiveOrders();
                 
-                showNotification(`Bill finalized for ${activeTable.tableNumber}!`, 'success');
+                showNotification(`Bill finalized for ${tableName}!`, 'success');
             } catch (error) {
                 showNotification('Error: ' + error.message, 'error');
             }
@@ -1088,6 +1107,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Flatten all items from all orders
         const allItems = tableOrder.orders.flatMap(order => order.items);
         
+        // Use the provided billNo for both orderId and billNo to ensure consistency
+        const finalOrderId = billNo || `TBL${Date.now().toString().substr(-8)}`;
+
         const orderData = {
             restaurantId: user.uid,
             tableId: tableOrder.tableId,
@@ -1106,8 +1128,8 @@ document.addEventListener('DOMContentLoaded', function() {
             cashReceived: result.cashReceived || 0,
             changeAmount: result.changeAmount || 0,
             orderType: 'dine-in',
-            orderId: `TBL${Date.now().toString().substr(-8)}`,
-            billNo: billNo || `TBL${Date.now().toString().substr(-8)}`,
+            orderId: finalOrderId,
+            billNo: finalOrderId,
             status: 'completed',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };

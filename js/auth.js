@@ -198,6 +198,59 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Forgot Password Logic
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+    const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+    const closeForgotModal = document.getElementById('closeForgotModal');
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+
+    if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (forgotPasswordModal) forgotPasswordModal.classList.remove('hidden');
+        });
+    }
+
+    if (closeForgotModal) {
+        closeForgotModal.addEventListener('click', () => {
+            if (forgotPasswordModal) forgotPasswordModal.classList.add('hidden');
+        });
+    }
+    
+    // Close on outside click
+    if (forgotPasswordModal) {
+        forgotPasswordModal.addEventListener('click', (e) => {
+            if (e.target === forgotPasswordModal) {
+                forgotPasswordModal.classList.add('hidden');
+            }
+        });
+    }
+
+    if (forgotPasswordForm) {
+        forgotPasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value;
+            const btn = forgotPasswordForm.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sending...';
+            
+            try {
+                await auth.sendPasswordResetEmail(email);
+                showMessage('Password reset email sent! Check your inbox.', 'success');
+                forgotPasswordModal.classList.add('hidden');
+                forgotPasswordForm.reset();
+            } catch (error) {
+                console.error("Reset password error:", error);
+                showMessage(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+    }
+
     function generateJoinCode() {
         return Math.random().toString(36).substring(2, 8).toUpperCase();
     }

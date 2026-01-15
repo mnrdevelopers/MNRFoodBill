@@ -320,6 +320,9 @@ document.addEventListener('DOMContentLoaded', function() {
             fssai: settings.fssai || ''
         };
 
+        const printerSize = settings.printerSize || '58mm';
+        const MAX_WIDTH = printerSize === '80mm' ? 64 : 32;
+
         // Prepare receipt for printing
         let receipt = `
 ${'='.repeat(32)}
@@ -409,6 +412,7 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
         printContentEl.setAttribute('data-receipt-text', receipt);
         if (restaurant.upiId) printContentEl.setAttribute('data-upi-id', restaurant.upiId);
         if (selectedOrder.total) printContentEl.setAttribute('data-total-amount', selectedOrder.total);
+        printContentEl.setAttribute('data-printer-size', printerSize);
         
         // Prepare display content with QR for preview
         let displayContent = receipt;
@@ -564,6 +568,7 @@ window.printHistoryOrder = function() {
     const receiptText = contentEl.getAttribute('data-receipt-text') || contentEl.textContent;
     const upiId = contentEl.getAttribute('data-upi-id');
     const totalAmount = contentEl.getAttribute('data-total-amount');
+    const printerSize = contentEl.getAttribute('data-printer-size') || '58mm';
     
     if (!receiptText) {
         showNotification('No receipt to print', 'error');
@@ -590,14 +595,14 @@ window.printHistoryOrder = function() {
                     body, html {
                         margin: 0 !important;
                         padding: 0 !important;
-                        width: 58mm !important;
+                        width: ${printerSize} !important;
                         font-family: 'Courier New', monospace !important;
                         font-size: 12px !important;
                         line-height: 1.1 !important;
                     }
                     @page {
                         margin: 0 !important;
-                        size: 58mm auto !important;
+                        size: ${printerSize} auto !important;
                     }
                     * {
                         -webkit-print-color-adjust: exact !important;
@@ -608,7 +613,7 @@ window.printHistoryOrder = function() {
                     font-family: 'Courier New', monospace;
                     font-size: 12px;
                     line-height: 1.1;
-                    width: 58mm;
+                    width: ${printerSize};
                     margin: 0 auto;
                     padding: 2mm;
                     white-space: pre;

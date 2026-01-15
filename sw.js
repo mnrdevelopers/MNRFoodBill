@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mnrfoodbill-v3.0.9'; // Change version to force update
+const CACHE_NAME = 'mnrfoodbill-v3.1.0'; // Change version to force update
 const BASE_PATH = '/MNRFoodBill/';
 
 // Assets to cache - Minimal set for iOS compatibility

@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let authTimeout = setTimeout(() => {
         console.warn('Auth check timeout, showing login');
         window.location.href = 'index.html';
-    }, 5000);
+    }, 15000);
     
     auth.onAuthStateChanged(user => {
         clearTimeout(authTimeout);
@@ -125,7 +125,7 @@ async function loadDashboardData(user) {
         
         // Set timeout for data loading
         const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Data loading timeout')), 10000);
+            setTimeout(() => reject(new Error('Data loading timeout')), 20000);
         });
         
         await Promise.race([
@@ -672,6 +672,3 @@ function loadMostOrderedProducts(user, filters = {}) {
             });
     });
 }
-
-
-

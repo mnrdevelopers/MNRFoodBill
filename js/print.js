@@ -27,7 +27,8 @@ async function prepareReceipt() {
             fssai: settings.fssai || ''
         };
         
-        const MAX_WIDTH = 42;
+        const printerSize = settings.printerSize || '58mm';
+        const MAX_WIDTH = printerSize === '80mm' ? 64 : 42;
         const currency = settings.currency || '₹';
         const gstRate = parseFloat(settings.gstRate) || 0;
         const serviceRate = parseFloat(settings.serviceCharge) || 0;
@@ -57,7 +58,7 @@ async function prepareReceipt() {
             subtotal, gstRate, gstAmount, serviceRate, serviceCharge, total,
             paymentMode, cashReceived, changeAmount,
             billNo, now, currency,
-            cgstAmount, sgstAmount
+            cgstAmount, sgstAmount, MAX_WIDTH
         );
         
         // Check if mobile or desktop
@@ -66,7 +67,7 @@ async function prepareReceipt() {
             await shareToRawBT(receipt, billNo, restaurant.name);
         } else {
             // DESKTOP: Show print modal
-            showDesktopPrintModal(receipt, restaurant.name, billNo, restaurant.upiId, total);
+            showDesktopPrintModal(receipt, restaurant.name, billNo, restaurant.upiId, total, printerSize);
         }
         
     } catch (error) {
@@ -78,9 +79,7 @@ async function prepareReceipt() {
 function buildReceipt(restaurant, customerName, customerPhone, 
                      subtotal, gstRate, gstAmount, serviceRate, serviceCharge, total,
                      paymentMode, cashReceived, changeAmount,
-                     billNo, now, currency, cgstAmount, sgstAmount) {
-    
-    const MAX_WIDTH = 42;
+                     billNo, now, currency, cgstAmount, sgstAmount, MAX_WIDTH = 42) {
     
     function centerText(text) {
         const padding = Math.max(0, Math.floor((MAX_WIDTH - text.length) / 2));
@@ -130,7 +129,11 @@ function buildReceipt(restaurant, customerName, customerPhone,
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     
     // ITEMS HEADER
-    receipt += 'Sl  Item'.padEnd(18) + 'Qty  Price'.padStart(10) + 'Amount'.padStart(10) + '\n';
+    if (MAX_WIDTH > 42) {
+        receipt += 'Sl  Item'.padEnd(30) + 'Qty  Price'.padStart(16) + 'Amount'.padStart(16) + '\n';
+    } else {
+        receipt += 'Sl  Item'.padEnd(18) + 'Qty  Price'.padStart(10) + 'Amount'.padStart(10) + '\n';
+    }
     receipt += '-'.repeat(MAX_WIDTH) + '\n';
     
     // ITEMS LIST
@@ -141,12 +144,13 @@ function buildReceipt(restaurant, customerName, customerPhone,
         const rate = item.price.toFixed(2);
         const amount = (item.price * item.quantity).toFixed(2);
         
+        const nameWidth = MAX_WIDTH > 42 ? 28 : 13;
         let displayName = itemName;
-        if (itemName.length > 15) {
-            displayName = itemName.substring(0, 13) + '..';
+        if (itemName.length > nameWidth + 2) {
+            displayName = itemName.substring(0, nameWidth) + '..';
         }
         
-        const line = `${slNo.toString().padStart(2)}. ${displayName.padEnd(15)} ${qty.toString().padStart(3)} ${currency}${rate.padStart(6)} ${currency}${amount.padStart(7)}`;
+        const line = `${slNo.toString().padStart(2)}. ${displayName.padEnd(MAX_WIDTH > 42 ? 30 : 15)} ${qty.toString().padStart(3)} ${currency}${rate.padStart(MAX_WIDTH > 42 ? 10 : 6)} ${currency}${amount.padStart(MAX_WIDTH > 42 ? 12 : 7)}`;
         receipt += line + '\n';
         slNo++;
     });
@@ -264,7 +268,7 @@ function getTotalAmount() {
 }
 
 // DESKTOP: Print Functions
-function showDesktopPrintModal(receipt, restaurantName, billNo, upiId = null, totalAmount = 0) {
+function showDesktopPrintModal(receipt, restaurantName, billNo, upiId = null, totalAmount = 0, printerSize = '58mm') {
     const printContent = document.getElementById('printContent');
     const modal = document.getElementById('printModal');
     
@@ -273,6 +277,7 @@ function showDesktopPrintModal(receipt, restaurantName, billNo, upiId = null, to
     printContent.setAttribute('data-bill-no', billNo);
     if (upiId) printContent.setAttribute('data-upi-id', upiId);
     if (totalAmount) printContent.setAttribute('data-total-amount', totalAmount);
+    printContent.setAttribute('data-printer-size', printerSize);
     
     // Prepare display content with QR for preview
     let displayContent = receipt;
@@ -301,6 +306,7 @@ function printReceipt() {
     const billNo = printContentEl.getAttribute('data-bill-no');
     const upiId = printContentEl.getAttribute('data-upi-id');
     const totalAmount = printContentEl.getAttribute('data-total-amount');
+    const printerSize = printContentEl.getAttribute('data-printer-size') || '58mm';
     
     // Create a print-friendly window
     const printWindow = window.open('', '_blank', 'width=240,height=600');
@@ -327,12 +333,12 @@ function printReceipt() {
                     body { 
                         margin: 0 !important;
                         padding: 0 !important;
-                        width: 58mm !important;
+                        width: ${printerSize} !important;
                         font-size: 9pt !important;
                     }
                     @page {
                         margin: 0 !important;
-                        size: 58mm auto !important;
+                        size: ${printerSize} auto !important;
                     }
                     * {
                         -webkit-print-color-adjust: exact !important;
@@ -342,7 +348,7 @@ function printReceipt() {
                 body {
                     font-family: 'Courier New', monospace;
                     font-size: 9pt;
-                    width: 58mm;
+                    width: ${printerSize};
                     margin: 0 auto;
                     padding: 2mm;
                     line-height: 1;

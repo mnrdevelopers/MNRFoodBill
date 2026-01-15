@@ -45,7 +45,7 @@ async function prepareReceipt() {
         const sgstAmount = gstRate > 0 ? gstAmount / 2 : 0;
         
         const now = new Date();
-        const billNo = generateOrderId();
+        const billNo = await window.OrderCounter?.getNextOrderId() || generateOrderId();
         
         // Build receipt
         let receipt = buildReceipt(
@@ -207,7 +207,7 @@ function buildReceipt(restaurant, customerName, customerPhone,
 async function shareToRawBT(receiptText, billNo, restaurantName) {
     try {
         // First, save the order (do this BEFORE sharing)
-        await saveOrderAndClearCart();
+        await saveOrderAndClearCart(billNo);
         
         // Create file for sharing
         const fileName = `receipt_${billNo}.txt`;
@@ -267,6 +267,7 @@ function showDesktopPrintModal(receipt, restaurantName, billNo) {
     
     // Store receipt
     printContent.setAttribute('data-receipt-text', receipt);
+    printContent.setAttribute('data-bill-no', billNo);
     printContent.textContent = receipt;
     
     // Show modal
@@ -277,13 +278,15 @@ function showDesktopPrintModal(receipt, restaurantName, billNo) {
 }
 
 function printReceipt() {
-    const printContent = document.getElementById('printContent').textContent;
+    const printContentEl = document.getElementById('printContent');
+    const printContent = printContentEl.textContent;
+    const billNo = printContentEl.getAttribute('data-bill-no');
     
     // Create a print-friendly window
     const printWindow = window.open('', '_blank', 'width=240,height=600');
     if (!printWindow) {
         // Fallback to browser print
-        printViaBrowser(printContent);
+        printViaBrowser(printContent, billNo);
         return;
     }
     
@@ -338,10 +341,10 @@ function printReceipt() {
     printWindow.document.close();
     
     // Save order
-    saveOrderAndClearCart();
+    saveOrderAndClearCart(billNo);
 }
 
-function printViaBrowser(printContent) {
+function printViaBrowser(printContent, billNo) {
     // Create hidden div for printing
     const printDiv = document.createElement('div');
     printDiv.id = 'printableReceipt';
@@ -371,7 +374,7 @@ function printViaBrowser(printContent) {
     }, 100);
     
     // Save order
-    saveOrderAndClearCart();
+    saveOrderAndClearCart(billNo);
     closePrintModal();
 }
 
@@ -384,7 +387,7 @@ function closePrintModal() {
 }
 
 // Common Functions
-async function saveOrderAndClearCart() {
+async function saveOrderAndClearCart(billNo = null) {
     const user = auth.currentUser;
     if (!user) return;
     
@@ -397,6 +400,8 @@ async function saveOrderAndClearCart() {
         const cashReceived = parseFloat(document.getElementById('cashReceived')?.value || 0);
         const changeAmount = parseFloat(document.getElementById('changeAmount')?.textContent.replace(currency, '') || 0);
         
+        const finalBillNo = billNo || await window.OrderCounter?.getNextOrderId() || generateOrderId();
+
         const orderData = {
             restaurantId: user.uid,
             items: [...cart],
@@ -412,8 +417,8 @@ async function saveOrderAndClearCart() {
             cashReceived: paymentMode === 'cash' ? cashReceived : 0,
             changeAmount: paymentMode === 'cash' ? changeAmount : 0,
             status: 'completed',
-            orderId: generateOrderId(),
-            billNo: generateOrderId(),
+            orderId: finalBillNo,
+            billNo: finalBillNo,
             printedAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };

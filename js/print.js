@@ -22,6 +22,7 @@ async function prepareReceipt() {
             ownerPhone2: restaurantData.ownerPhone2 || '',
             address: settings.address || restaurantData.address || '',
             phone: settings.phone || restaurantData.phone || '',
+            upiId: settings.upiId || '',
             gstin: settings.gstin || '',
             fssai: settings.fssai || ''
         };
@@ -65,7 +66,7 @@ async function prepareReceipt() {
             await shareToRawBT(receipt, billNo, restaurant.name);
         } else {
             // DESKTOP: Show print modal
-            showDesktopPrintModal(receipt, restaurant.name, billNo);
+            showDesktopPrintModal(receipt, restaurant.name, billNo, restaurant.upiId, total);
         }
         
     } catch (error) {
@@ -263,14 +264,29 @@ function getTotalAmount() {
 }
 
 // DESKTOP: Print Functions
-function showDesktopPrintModal(receipt, restaurantName, billNo) {
+function showDesktopPrintModal(receipt, restaurantName, billNo, upiId = null, totalAmount = 0) {
     const printContent = document.getElementById('printContent');
     const modal = document.getElementById('printModal');
     
     // Store receipt
     printContent.setAttribute('data-receipt-text', receipt);
     printContent.setAttribute('data-bill-no', billNo);
-    printContent.textContent = receipt;
+    if (upiId) printContent.setAttribute('data-upi-id', upiId);
+    if (totalAmount) printContent.setAttribute('data-total-amount', totalAmount);
+    
+    // Prepare display content with QR for preview
+    let displayContent = receipt;
+    if (upiId && totalAmount) {
+        const upiUrl = `upi://pay?pa=${upiId}&pn=Restaurant&am=${totalAmount}&cu=INR`;
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUrl)}`;
+        
+        displayContent += `\n\n<div style="text-align:center; margin-top:10px; border-top: 1px dashed #ccc; padding-top: 10px;">
+            <img src="${qrApiUrl}" style="width:100px; height:100px; margin: 0 auto;" alt="QR Code">
+            <div style="font-weight:bold; margin-top:5px;">Scan to Pay: ₹${parseFloat(totalAmount).toFixed(2)}</div>
+        </div>`;
+    }
+    
+    printContent.innerHTML = displayContent;
     
     // Show modal
     modal.classList.remove('hidden');
@@ -281,8 +297,10 @@ function showDesktopPrintModal(receipt, restaurantName, billNo) {
 
 function printReceipt() {
     const printContentEl = document.getElementById('printContent');
-    const printContent = printContentEl.textContent;
+    const printContent = printContentEl.getAttribute('data-receipt-text') || printContentEl.textContent;
     const billNo = printContentEl.getAttribute('data-bill-no');
+    const upiId = printContentEl.getAttribute('data-upi-id');
+    const totalAmount = printContentEl.getAttribute('data-total-amount');
     
     // Create a print-friendly window
     const printWindow = window.open('', '_blank', 'width=240,height=600');
@@ -290,6 +308,13 @@ function printReceipt() {
         // Fallback to browser print
         printViaBrowser(printContent, billNo);
         return;
+    }
+
+    let qrCodeHtml = '';
+    if (upiId && totalAmount) {
+        const upiUrl = `upi://pay?pa=${upiId}&pn=Restaurant&am=${totalAmount}&cu=INR`;
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUrl)}`;
+        qrCodeHtml = `<div style="text-align:center; margin-top:10px;"><img src="${qrApiUrl}" style="width:100px;height:100px;"/><br>Scan to Pay</div>`;
     }
     
     printWindow.document.write(`
@@ -326,7 +351,7 @@ function printReceipt() {
             </style>
         </head>
         <body>
-            <pre>${printContent}</pre>
+            <pre>${printContent}</pre>${qrCodeHtml}
             <script>
                 window.onload = function() {
                     setTimeout(() => {

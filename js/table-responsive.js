@@ -96,7 +96,11 @@ function initResponsiveTables() {
                             
                             // Determine button type
                             let buttonType = 'action';
-                            if (buttonClass.includes('view-order') || button.textContent.includes('View')) {
+                            if (buttonClass.includes('view-table-order')) {
+                                buttonType = 'view-table';
+                            } else if (buttonClass.includes('add-to-table-order')) {
+                                buttonType = 'add-table-item';
+                            } else if (buttonClass.includes('view-order') || button.textContent.includes('View')) {
                                 buttonType = 'view';
                             } else if (buttonClass.includes('print-order') || button.textContent.includes('Print')) {
                                 buttonType = 'print';
@@ -216,6 +220,12 @@ function handleCardButtonClick(e) {
         case 'view':
             handleViewAction(actionId, rowIndex);
             break;
+        case 'view-table':
+            handleViewTableAction(actionId, rowIndex);
+            break;
+        case 'add-table-item':
+            handleAddTableItemAction(actionId, rowIndex);
+            break;
         case 'print':
             handlePrintAction(actionId, rowIndex);
             break;
@@ -248,6 +258,20 @@ function handleViewAction(orderId, rowIndex) {
         } else {
             alert('View function not available. Order ID: ' + orderId);
         }
+    }
+}
+
+function handleViewTableAction(tableId, rowIndex) {
+    const originalButton = document.querySelector(`button.view-table-order[data-id="${tableId}"]`);
+    if (originalButton) {
+        originalButton.click();
+    }
+}
+
+function handleAddTableItemAction(tableId, rowIndex) {
+    const originalButton = document.querySelector(`button.add-to-table-order[data-id="${tableId}"]`);
+    if (originalButton) {
+        originalButton.click();
     }
 }
 
@@ -376,3 +400,5 @@ window.handlePrintAction = handlePrintAction;
 window.handleDeleteAction = handleDeleteAction;
 window.handleEditAction = handleEditAction;
 window.handleDeleteProductAction = handleDeleteProductAction;
+window.handleViewTableAction = handleViewTableAction;
+window.handleAddTableItemAction = handleAddTableItemAction;

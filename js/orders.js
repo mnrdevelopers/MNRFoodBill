@@ -479,7 +479,7 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
     };
 
     // Apply filters
-    document.getElementById('applyFilter').addEventListener('click', async function() {
+    document.getElementById('applyFilter')?.addEventListener('click', async function() {
         const filters = {
             startDate: document.getElementById('startDate').value,
             endDate: document.getElementById('endDate').value,
@@ -492,7 +492,7 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
     });
 
     // Reset filters
-    document.getElementById('resetFilter').addEventListener('click', async function() {
+    document.getElementById('resetFilter')?.addEventListener('click', async function() {
         document.getElementById('startDate').value = '';
         document.getElementById('endDate').value = '';
         document.getElementById('statusFilter').value = 'all';
@@ -503,7 +503,7 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
     });
 
     // Pagination
-    document.getElementById('prevPage').addEventListener('click', function() {
+    document.getElementById('prevPage')?.addEventListener('click', function() {
         if (currentPage > 1) {
             currentPage--;
             refreshOrdersTable();
@@ -511,7 +511,7 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
         }
     });
 
-    document.getElementById('nextPage').addEventListener('click', function() {
+    document.getElementById('nextPage')?.addEventListener('click', function() {
         const totalPages = Math.ceil(orders.length / ordersPerPage);
         if (currentPage < totalPages) {
             currentPage++;
@@ -522,14 +522,17 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
 
     function updatePagination() {
         const totalPages = Math.max(1, Math.ceil(orders.length / ordersPerPage));
-        document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+        const pageInfo = document.getElementById('pageInfo');
+        if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
         
-        document.getElementById('prevPage').disabled = currentPage === 1;
-        document.getElementById('nextPage').disabled = currentPage === totalPages;
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
+        if (prevBtn) prevBtn.disabled = currentPage === 1;
+        if (nextBtn) nextBtn.disabled = currentPage === totalPages;
     }
 
     // Logout
-    document.getElementById('logoutBtn').addEventListener('click', function() {
+    document.getElementById('logoutBtn')?.addEventListener('click', function() {
         auth.signOut().then(() => {
             window.location.href = 'index.html';
         });
@@ -560,7 +563,6 @@ ${(restaurant.ownerPhone || restaurant.ownerPhone2) ? `\nContact Owner:\n${resta
     // Make functions globally accessible if needed
     window.loadOrders = loadOrders;
     window.refreshOrdersTable = refreshOrdersTable;
-});
 
 // Global print function for orders page (renamed to avoid conflict)
 window.printHistoryOrder = function() {
@@ -569,6 +571,7 @@ window.printHistoryOrder = function() {
     const upiId = contentEl.getAttribute('data-upi-id');
     const totalAmount = contentEl.getAttribute('data-total-amount');
     const printerSize = contentEl.getAttribute('data-printer-size') || '58mm';
+    const fontSize = printerSize === '80mm' ? '11px' : '9px';
     
     if (!receiptText) {
         showNotification('No receipt to print', 'error');
@@ -582,7 +585,7 @@ window.printHistoryOrder = function() {
     if (upiId && totalAmount) {
         const upiUrl = `upi://pay?pa=${upiId}&pn=Restaurant&am=${totalAmount}&cu=INR`;
         const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUrl)}`;
-        qrCodeHtml = `<div style="text-align:center; margin-top:10px;"><img src="${qrApiUrl}" style="width:100px;height:100px;"/><br>Scan to Pay</div>`;
+        qrCodeHtml = `<div style="text-align:center; margin-top:5px;"><img src="${qrApiUrl}" style="width:80px;height:80px;"/><br><span style="font-size: 0.8em">Scan to Pay</span></div>`;
     }
     
     const htmlContent = `
@@ -597,7 +600,7 @@ window.printHistoryOrder = function() {
                         padding: 0 !important;
                         width: ${printerSize} !important;
                         font-family: 'Courier New', monospace !important;
-                        font-size: 12px !important;
+                        font-size: ${fontSize} !important;
                         line-height: 1.1 !important;
                     }
                     @page {
@@ -611,11 +614,11 @@ window.printHistoryOrder = function() {
                 }
                 body {
                     font-family: 'Courier New', monospace;
-                    font-size: 12px;
+                    font-size: ${fontSize};
                     line-height: 1.1;
                     width: ${printerSize};
                     margin: 0 auto;
-                    padding: 2mm;
+                    padding: 0;
                     white-space: pre;
                     word-wrap: break-word;
                 }
@@ -655,29 +658,131 @@ window.closePrintModal = function() {
     }
 };
 
+    function exportOrdersToCSV() {
+        if (!orders || orders.length === 0) {
+            showNotification('No orders to export', 'warning');
+            return;
+        }
+
+        // CSV Headers
+        const headers = [
+            'Order ID',
+            'Date',
+            'Time',
+            'Customer Name',
+            'Phone',
+            'Items',
+            'Total Items',
+            'Subtotal',
+            'GST',
+            'Service Charge',
+            'Grand Total',
+            'Payment Mode',
+            'Status'
+        ];
+
+        // Process data
+        const csvRows = [headers.join(',')];
+
+        orders.forEach(order => {
+            let date = '';
+            let time = '';
+            if (order.createdAt) {
+                const dateObj = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
+                if (!isNaN(dateObj.getTime())) {
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const year = dateObj.getFullYear();
+                    date = `${day}/${month}/${year}`;
+                    time = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                }
+            }
+            
+            // Format items: "Item1 xQty; Item2 xQty"
+            const itemsList = (order.items || []).map(item => {
+                return `${item.name} x${item.quantity}`;
+            }).join('; ');
+            
+            const totalItems = (order.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+            // Escape fields for CSV (handle quotes, commas, newlines)
+            const escapeCsv = (field) => {
+                if (field === null || field === undefined) return '';
+                const stringField = String(field);
+                if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) {
+                    return `"${stringField.replace(/"/g, '""')}"`;
+                }
+                return stringField;
+            };
+
+            const row = [
+                escapeCsv(order.orderId || order.id),
+                `"\t${date}"`, // Force text format to prevent ######## in Excel
+                `"\t${time}"`,
+                escapeCsv(order.customerName),
+                escapeCsv(order.customerPhone),
+                escapeCsv(itemsList),
+                totalItems,
+                (order.subtotal || 0).toFixed(2),
+                (order.gstAmount || 0).toFixed(2),
+                (order.serviceCharge || 0).toFixed(2),
+                (order.total || 0).toFixed(2),
+                escapeCsv(order.paymentMode),
+                escapeCsv(order.status)
+            ];
+
+            csvRows.push(row.join(','));
+        });
+
+        // Create download
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `Orders_Export_${new Date().toISOString().slice(0,10)}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showNotification('Orders exported successfully', 'success');
+    }
+
 function addSearchBarToOrders() {
     const filtersDiv = document.querySelector('.bg-white.rounded-xl.shadow.p-4.mb-6');
     if (!filtersDiv) return;
 
-    const searchHTML = `
-        <div class="mt-4">
-            <label class="block text-gray-700 mb-2">Search Orders</label>
-            <div class="relative">
-                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="orderSearch" 
-                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
-                       placeholder="Search by customer name, phone, order ID...">
+    // Check if search/export already exists to prevent duplicates
+    if (document.getElementById('orderSearch')) return;
+
+    const controlsHTML = `
+        <div class="mt-4 flex flex-col md:flex-row gap-4 items-end">
+            <div class="flex-grow w-full">
+                <label class="block text-gray-700 mb-2">Search Orders</label>
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="orderSearch" 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+                           placeholder="Search by customer name, phone, order ID...">
+                </div>
             </div>
+            <button id="exportOrdersBtn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center whitespace-nowrap h-[42px] shadow-sm">
+                <i class="fas fa-file-csv mr-2"></i> Export CSV
+            </button>
         </div>
     `;
 
-    filtersDiv.insertAdjacentHTML('beforeend', searchHTML);
+    filtersDiv.insertAdjacentHTML('beforeend', controlsHTML);
 
     // Add search functionality
     document.getElementById('orderSearch')?.addEventListener('input', function() {
         const searchTerm = this.value.toLowerCase();
         filterOrdersBySearch(searchTerm);
     });
+
+    // Add export functionality
+    document.getElementById('exportOrdersBtn')?.addEventListener('click', exportOrdersToCSV);
 }
 
 // Add this function to filter orders
@@ -710,3 +815,4 @@ function filterOrdersBySearch(searchTerm) {
     window.OrdersManager.viewOrderDetails = viewOrderDetails;
     window.OrdersManager.printOrder = printOrder;
     window.OrdersManager.showDeleteOrderModal = showDeleteOrderModal;
+});

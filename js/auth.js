@@ -2,7 +2,12 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Check if user is already logged in
     auth.onAuthStateChanged(async user => {
-        if (user) {
+        // Only perform auto-redirect if we are on the login page
+        const path = window.location.pathname;
+        const page = path.split('/').pop();
+        const isLoginPage = page === 'index.html' || page === '' || path.endsWith('/');
+
+        if (user && isLoginPage) {
             try {
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 

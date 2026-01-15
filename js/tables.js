@@ -232,14 +232,9 @@ document.addEventListener('DOMContentLoaded', function() {
             container.innerHTML = `
                 <div class="col-span-full py-8 text-center">
                     <i class="fas fa-chair text-4xl text-gray-400 mb-4"></i>
-                    <p class="text-gray-500">No tables found</p>
-                    <button id="createDefaultTables" class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
-                        <i class="fas fa-plus mr-2"></i> Create Default Tables
-                    </button>
+                    <p class="text-gray-500">No tables found. Please add tables manually.</p>
                 </div>
             `;
-            
-            document.getElementById('createDefaultTables')?.addEventListener('click', createDefaultTables);
             return;
         }
 
@@ -318,36 +313,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         updateStats();
-    }
-
-    function createDefaultTables() {
-        const user = auth.currentUser;
-        const defaultTables = [
-            { tableNumber: 'Table 1', capacity: 4, type: 'indoor', status: 'available' },
-            { tableNumber: 'Table 2', capacity: 4, type: 'indoor', status: 'available' },
-            { tableNumber: 'Table 3', capacity: 6, type: 'indoor', status: 'available' },
-            { tableNumber: 'Table 4', capacity: 6, type: 'indoor', status: 'available' },
-            { tableNumber: 'Table 5', capacity: 2, type: 'indoor', status: 'available' },
-            { tableNumber: 'Table 6', capacity: 2, type: 'indoor', status: 'available' }
-        ];
-
-        const batch = db.batch();
-        defaultTables.forEach(table => {
-            const docRef = db.collection('tables').doc();
-            batch.set(docRef, {
-                ...table,
-                restaurantId: user.uid,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        });
-
-        batch.commit()
-            .then(() => {
-                loadTables();
-            })
-            .catch(err => {
-                console.error("Error creating default tables:", err);
-            });
     }
 
     function getTableStatusClass(status) {

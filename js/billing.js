@@ -286,10 +286,13 @@ function showNotification(message, type) {
 // Main DOMContentLoaded event handler
 document.addEventListener('DOMContentLoaded', function() {
     // Check auth
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async user => {
         if (!user) {
             window.location.href = 'index.html';
         } else {
+            if (window.OrderCounter) {
+                await window.OrderCounter.initialize(user.uid);
+            }
             loadRestaurantSettings();
             loadProducts();
             setupViewToggle();

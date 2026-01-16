@@ -21,9 +21,15 @@
     <link rel="stylesheet" href="css/styles.css">
     
     <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js" defer></script>
+
+    <!-- Application Scripts -->
+    <script src="firebase-config.js" defer></script>
+    <script src="js/layout.js" defer></script>
+    <script src="js/dashboard.js" defer></script>
+    <script src="js/table-responsive.js" defer></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <!-- Loading Overlay -->
@@ -194,14 +200,6 @@
         </div>
     </div>
 
-    <!-- Firebase Configuration -->
-    <script src="firebase-config.js"></script>
-    
-    <!-- Application Scripts -->
-    <script src="js/layout.js" defer></script>
-    <script src="js/dashboard.js" defer></script>
-    <script src="js/table-responsive.js" defer></script>
-    
     <!-- Service Worker and Initialization -->
     <script>
         // Hide loading overlay when page is loaded
@@ -226,4 +224,3 @@
     </script>
 </body>
 </html>
-

@@ -1,201 +1,34 @@
-const CACHE_NAME = 'mnrfoodbill-v3.1.1'; // Change version to force update
-const BASE_PATH = '/MNRFoodBill/';
-
-// Assets to cache - Minimal set for iOS compatibility
-const ASSETS_TO_CACHE = [
-  // CSS - Only critical
-  BASE_PATH + 'css/styles.css',
-  BASE_PATH + 'icons/icon-192x192.png'
+// sw.js - Service Worker
+const CACHE_NAME = 'mnr-foodbill-v1';
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/dashboard.html',
+  '/billing.html',
+  '/tables.html',
+  '/orders.html',
+  '/products.html',
+  '/staff.html',
+  '/settings.html',
+  '/css/styles.css',
+  '/js/layout.js',
+  '/js/auth.js',
+  '/js/billing.js',
+  '/js/print.js',
+  '/components/header.html',
+  '/components/sidebar.html'
 ];
 
-// Assets to NEVER cache (Firebase and external resources)
-const NO_CACHE_URLS = [
-  'firestore.googleapis.com',
-  'firebaseapp.com',
-  'googleapis.com',
-  'imgbb.com',
-  'cdn.tailwindcss.com',
-  'cdnjs.cloudflare.com',
-  'gstatic.com',
-  '/MNRFoodBill/api/',
-  'firebase-config.js',
-  'manifest.json'
-];
-
-// Client ID to strategy mapping
-const clientStrategies = new Map();
-
-// Install Event - Lightweight install
 self.addEventListener('install', event => {
-    console.log('[Service Worker] Installing...');
-    
-    // Skip waiting immediately
-    self.skipWaiting();
-    
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('[Service Worker] Caching critical app shell');
-                return cache.addAll(ASSETS_TO_CACHE);
-            })
-            .catch(err => {
-                console.warn('[Service Worker] Cache addAll failed:', err);
-            })
-    );
-});
-
-// Activate Event - Clean old caches
-self.addEventListener('activate', event => {
-  console.log('[Service Worker] Activating...');
-  
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          // Delete old caches
-          if (cacheName !== CACHE_NAME) {
-            console.log('[Service Worker] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      console.log('[Service Worker] Claiming clients');
-      return self.clients.claim();
-    })
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
   );
 });
 
-// Fetch Event - Simplified with no caching for dynamic content
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-  
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
-  
-  // Skip Firebase/Google APIs and external resources
-  if (NO_CACHE_URLS.some(noCache => url.href.includes(noCache))) {
-    return;
-  }
-  
-  // Skip browser extensions
-  if (url.protocol === 'chrome-extension:') {
-    return;
-  }
-  
-  // Special handling for root/index
-  if (url.pathname === BASE_PATH || url.pathname === BASE_PATH + 'index.html') {
-    event.respondWith(networkOnly(event.request));
-    return;
-  }
-  
-  // For API calls and data - Always network only
-  if (url.pathname.includes('/api/') || 
-      url.pathname.includes('/data/') ||
-      event.request.headers.get('Accept')?.includes('application/json')) {
-    event.respondWith(networkOnly(event.request));
-    return;
-  }
-  
-  // For HTML pages - Network first, VERY minimal caching
-  if (event.request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(networkOnly(event.request));
-    return;
-  }
-  
-  // For static assets - Cache first but with short lifespan
-  if (url.pathname.includes('.css') || 
-      url.pathname.includes('.js') || 
-      url.pathname.includes('.json')) {
-    event.respondWith(networkOnly(event.request));
-    return;
-  }
-  
-  // Default: Network only for everything else (images, fonts, etc.)
-  event.respondWith(networkOnly(event.request));
-});
-
-// Strategy handlers
-async function networkOnly(request) {
-  // Add cache busting headers for API calls
-  const newHeaders = new Headers(request.headers);
-  newHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-  newHeaders.set('Pragma', 'no-cache');
-  newHeaders.set('Expires', '0');
-  
-  const newRequest = new Request(request, {
-    headers: newHeaders,
-    cache: 'no-store'
-  });
-  
-  try {
-    return await fetch(newRequest);
-  } catch (error) {
-    console.log('[Service Worker] Network-only request failed:', error);
-    
-    // For API calls, return a proper error
-    if (request.url.includes('/api/')) {
-      return new Response(JSON.stringify({
-        error: 'Network error',
-        message: 'Please check your internet connection'
-      }), {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    
-    return new Response('Network connection required', { 
-      status: 503, 
-      statusText: 'Service Unavailable'
-    });
-  }
-}
-
-// Handle messages from the client
-self.addEventListener('message', event => {
-  const client = event.source;
-  
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  
-  if (event.data && event.data.type === 'GET_VERSION') {
-    client.postMessage({
-      type: 'VERSION_INFO',
-      version: CACHE_NAME,
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  if (event.data && event.data.type === 'CLEAR_CACHE') {
-    caches.delete(CACHE_NAME)
-      .then(() => {
-        client.postMessage({
-          type: 'CACHE_CLEARED',
-          success: true
-        });
-      })
-      .catch(error => {
-        client.postMessage({
-          type: 'CACHE_CLEAR_ERROR',
-          error: error.message
-        });
-      });
-  }
-  
-  if (event.data && event.data.type === 'SET_STRATEGY') {
-    // Client can request a specific strategy (for debugging)
-    clientStrategies.set(client.id, event.data.strategy);
-  }
-});
-
-// Handle errors
-self.addEventListener('error', event => {
-  console.error('[Service Worker] Error:', event.error);
-});
-
-self.addEventListener('unhandledrejection', event => {
-  console.error('[Service Worker] Unhandled rejection:', event.reason);
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => response || fetch(event.request))
+  );
 });

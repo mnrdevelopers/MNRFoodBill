@@ -10,10 +10,16 @@
     <link rel="stylesheet" href="css/styles.css">
     
     <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-remote-config.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-remote-config.js" defer></script>
+
+    <!-- Application Scripts -->
+    <script src="firebase-config.js" defer></script>
+    <script src="js/layout.js" defer></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/table-responsive.js" defer></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
     <div id="header"></div>
@@ -36,7 +42,7 @@
                                 </div>
                                 <div>
                                     <h3 class="font-bold text-gray-800">Email Support</h3>
-                                    <p class="text-gray-600">mnrdeveloper11@gmail.com</p>
+                                    <p class="text-gray-600">support@mnrfoodbill.com</p>
                                     <p class="text-sm text-gray-500">Response within 24 hours</p>
                                 </div>
                             </div>
@@ -47,7 +53,7 @@
                                 </div>
                                 <div>
                                     <h3 class="font-bold text-gray-800">Phone Support</h3>
-                                    <p class="text-gray-600">+91 74160 06394 (Whatsapp Only)</p>
+                                    <p class="text-gray-600">+91 98765 43210</p>
                                     <p class="text-sm text-gray-500">Mon-Fri, 9am - 6pm IST</p>
                                 </div>
                             </div>
@@ -58,7 +64,7 @@
                                 </div>
                                 <div>
                                     <h3 class="font-bold text-gray-800">Office Address</h3>
-                                    <p class="text-gray-600">Dichpalli<br>Nizamabad, Telangana 503175</p>
+                                    <p class="text-gray-600">123 Tech Park, Sector 5<br>Bangalore, Karnataka 560001</p>
                                 </div>
                             </div>
                         </div>
@@ -76,14 +82,5 @@
         </div>
     </div>
 
-    <!-- Firebase Configuration -->
-    <script src="firebase-config.js"></script>
-    
-    <!-- Application Scripts -->
-    <script src="js/layout.js" defer></script>
-    <script src="js/auth.js" defer></script>
-    <script src="js/table-responsive.js" defer></script>
-    
 </body>
-
 </html>

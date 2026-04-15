@@ -1,13 +1,66 @@
 // auth.js - Authentication with Role-Based Redirection
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if user is already logged in
-    auth.onAuthStateChanged(async user => {
-        // Only perform auto-redirect if we are on the login page
+    function isLoginPage() {
         const path = window.location.pathname;
         const page = path.split('/').pop();
-        const isLoginPage = page === 'index.html' || page === '' || path.endsWith('/');
+        return page === 'index.html' || page === '' || path.endsWith('/');
+    }
 
-        if (user && isLoginPage) {
+    function redirectToTarget(target) {
+        if (isLoginPage() && window.MNRAppShell && typeof window.MNRAppShell.openApp === 'function') {
+            window.MNRAppShell.openApp(target);
+            return;
+        }
+
+        window.location.href = target;
+    }
+
+    function resolvePreferredTarget(fallbackTarget, userData, options = {}) {
+        const requestedTarget = window.MNRAppShell &&
+            typeof window.MNRAppShell.getRequestedPage === 'function'
+            ? window.MNRAppShell.getRequestedPage()
+            : '';
+
+        if (!requestedTarget || requestedTarget === fallbackTarget) {
+            return fallbackTarget;
+        }
+
+        const requestedPage = requestedTarget.split('?')[0];
+
+        if (userData.role === 'owner') {
+            return options.restaurantConfigured ? requestedTarget : fallbackTarget;
+        }
+
+        if (userData.role === 'staff') {
+            const permissions = userData.permissions || [];
+            const staffPagePermissions = {
+                'billing.html': 'billing',
+                'orders.html': 'orders',
+                'products.html': 'products',
+                'settings.html': 'settings',
+                'staff.html': 'staff-admin'
+            };
+
+            const requiredPermission = staffPagePermissions[requestedPage];
+
+            if (!requiredPermission || permissions.includes(requiredPermission)) {
+                return requestedTarget;
+            }
+        }
+
+        return fallbackTarget;
+    }
+
+    // Check if user is already logged in
+    auth.onAuthStateChanged(async user => {
+        if (!user) {
+            if (isLoginPage() && window.MNRAppShell && typeof window.MNRAppShell.showLogin === 'function') {
+                window.MNRAppShell.showLogin();
+            }
+            return;
+        }
+
+        if (isLoginPage()) {
             try {
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 
@@ -18,33 +71,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (userData.role === 'staff') {
                         // Staff: NEVER redirect to settings, go directly to permitted area
                         const permissions = userData.permissions || [];
+                        let redirectUrl = 'dashboard.html';
+
                         if (permissions.includes('billing')) {
-                            window.location.href = 'billing.html';
+                            redirectUrl = 'billing.html';
                         } else if (permissions.includes('orders')) {
-                            window.location.href = 'orders.html';
-                        } else {
-                            window.location.href = 'dashboard.html';
+                            redirectUrl = 'orders.html';
                         }
+
+                        redirectToTarget(resolvePreferredTarget(redirectUrl, userData));
                     } else if (userData.role === 'owner') {
                         // Owner: Check if restaurant is configured
                         const restaurantDoc = await db.collection('restaurants')
                             .doc(userData.restaurantId || user.uid).get();
+                        const restaurantConfigured = restaurantDoc.exists && !!restaurantDoc.data().name;
+                        const redirectUrl = restaurantConfigured ? 'dashboard.html' : 'settings.html?setup=true';
                         
-                        if (!restaurantDoc.exists || !restaurantDoc.data().name) {
-                            window.location.href = 'settings.html?setup=true';
-                        } else {
-                            window.location.href = 'dashboard.html';
-                        }
+                        redirectToTarget(resolvePreferredTarget(redirectUrl, userData, { restaurantConfigured }));
                     } else {
-                        window.location.href = 'dashboard.html';
+                        redirectToTarget('dashboard.html');
                     }
                 } else {
                     // Fallback for missing user profile
-                    window.location.href = 'dashboard.html';
+                    redirectToTarget('dashboard.html');
                 }
             } catch (error) {
                 console.error("Auto-redirect error:", error);
-                window.location.href = 'dashboard.html';
+                redirectToTarget('dashboard.html');
             }
         }
     });
@@ -118,17 +171,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else if (permissions.includes('orders')) {
                         redirectUrl = 'orders.html';
                     }
+
+                    redirectUrl = resolvePreferredTarget(redirectUrl, userData);
                 } else if (userData.role === 'owner') {
                     // Owner logic: Only force setup if business details are missing
                     const restaurantDoc = await db.collection('restaurants').doc(userData.restaurantId || user.uid).get();
+                    const restaurantConfigured = restaurantDoc.exists && !!restaurantDoc.data().name;
                     
-                    if (!restaurantDoc.exists || !restaurantDoc.data().name) {
+                    if (!restaurantConfigured) {
                         redirectUrl = 'settings.html?setup=true';
+                    } else {
+                        redirectUrl = resolvePreferredTarget(redirectUrl, userData, { restaurantConfigured: true });
                     }
+                } else {
+                    redirectUrl = resolvePreferredTarget(redirectUrl, userData);
                 }
 
                 showMessage('Login successful! Redirecting...', 'success');
-                setTimeout(() => window.location.href = redirectUrl, 1000);
+                setTimeout(() => redirectToTarget(redirectUrl), 1000);
                 
             } catch (error) {
                 console.error("Login error:", error);
@@ -185,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(() => {
                     showMessage(`Account created! Your staff join code: ${joinCode}`, 'success');
-                    setTimeout(() => window.location.href = 'settings.html?setup=true', 2500);
+                    setTimeout(() => redirectToTarget('settings.html?setup=true'), 2500);
                 })
                 .catch(error => {
                     showMessage(error.message, 'error');

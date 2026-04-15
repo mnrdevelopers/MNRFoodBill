@@ -6,7 +6,7 @@
 //   Images                 → Cache First
 //   Firebase / CDN URLs    → Network Only (never cache dynamic data)
 
-const CACHE_VERSION = 'v4.0.0';
+const CACHE_VERSION = 'v4.1.0';
 const SHELL_CACHE   = `mnr-shell-${CACHE_VERSION}`;
 const STATIC_CACHE  = `mnr-static-${CACHE_VERSION}`;
 const IMAGE_CACHE   = `mnr-images-v1`;
@@ -40,6 +40,7 @@ const STATIC_ASSETS = [
   BASE + 'css/styles.css',
   BASE + 'firebase-config.js',
   BASE + 'js/layout.js',
+  BASE + 'js/app-shell.js',
   BASE + 'js/auth.js',
   BASE + 'js/billing.js',
   BASE + 'js/dashboard.js',

@@ -2,7 +2,7 @@
   "name": "MNRFoodBill POS",
   "short_name": "MNRFoodBill",
   "description": "Professional Food Billing & Restaurant Management System",
-  "start_url": "./dashboard.html?pwa=true",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
@@ -418,13 +418,13 @@
       "name": "New Bill",
       "short_name": "Bill",
       "description": "Create new bill",
-      "url": "./billing.html"
+      "url": "./index.html#billing.html"
     },
     {
       "name": "Orders",
       "short_name": "Orders",
       "description": "View orders",
-      "url": "./orders.html"
+      "url": "./index.html#orders.html"
     }
   ]
 }

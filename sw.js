@@ -1,12 +1,12 @@
-// sw.js — MNRFoodBill Service Worker v3.4.0
-// iOS PWA Fix: Use self.location to detect BASE dynamically, never hardcode paths.
+// sw.js — MNRFoodBill Service Worker v4.0.0
+// iOS PWA Production Fix — bullet-proof loading on all platforms
 // Strategy:
-//   App Shell (HTML pages) → Network First with Cache Fallback (offline safe)
-//   Static Assets (JS/CSS) → Stale While Revalidate (fast + always fresh)
-//   Images                 → Cache First (fast, long-lived)
+//   App Shell (HTML pages) → Network First with Cache Fallback
+//   Static Assets (JS/CSS) → Stale While Revalidate
+//   Images                 → Cache First
 //   Firebase / CDN URLs    → Network Only (never cache dynamic data)
 
-const CACHE_VERSION = 'v3.4.0';
+const CACHE_VERSION = 'v4.0.0';
 const SHELL_CACHE   = `mnr-shell-${CACHE_VERSION}`;
 const STATIC_CACHE  = `mnr-static-${CACHE_VERSION}`;
 const IMAGE_CACHE   = `mnr-images-v1`;
@@ -27,6 +27,9 @@ const SHELL_ASSETS = [
   BASE + 'settings.html',
   BASE + 'staff.html',
   BASE + 'tables.html',
+  BASE + 'contact.html',
+  BASE + 'privacy.html',
+  BASE + 'terms.html',
   BASE + 'components/header.html',
   BASE + 'components/sidebar.html',
   BASE + 'manifest.json',
@@ -46,6 +49,11 @@ const STATIC_ASSETS = [
   BASE + 'js/print.js',
   BASE + 'js/order-counter.js',
   BASE + 'js/pwa-install.js',
+  BASE + 'js/products.js',
+  BASE + 'js/staff.js',
+  BASE + 'js/table-responsive.js',
+  BASE + 'js/preload-auth.js',
+  BASE + 'js/storage.js',
   BASE + 'icons/icon-192x192.png',
 ];
 
@@ -124,6 +132,9 @@ self.addEventListener('fetch', event => {
   // Skip browser extensions
   if (url.protocol === 'chrome-extension:' || url.protocol === 'moz-extension:') return;
 
+  // Skip blob: and data: URIs
+  if (url.protocol === 'blob:' || url.protocol === 'data:') return;
+
   // Skip Firebase, CDN, and API calls — always network
   if (NO_CACHE_PATTERNS.some(p => request.url.includes(p))) return;
 
@@ -163,11 +174,11 @@ async function networkFirstWithCache(request, cacheName) {
 
   try {
     const networkResponse = await fetch(request, { cache: 'no-cache' });
-    if (networkResponse.ok) {
+    if (networkResponse && networkResponse.ok) {
       cache.put(request, networkResponse.clone()); // Update cache silently
     }
     return networkResponse;
-  } catch {
+  } catch (err) {
     const cached = await cache.match(request);
     if (cached) {
       console.log('[SW] Offline — serving from cache:', request.url);
@@ -189,18 +200,40 @@ async function networkFirstWithCache(request, cacheName) {
 }
 
 // ── Strategy: Stale While Revalidate ─────────────────────────────────────
+// FIXED: never returns null — always returns a valid Response
 async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
 
-  // Fetch update in background regardless
-  const networkFetch = fetch(request).then(response => {
-    if (response.ok) cache.put(request, response.clone());
-    return response;
-  }).catch(() => null);
+  // Start network fetch in background regardless
+  const networkPromise = fetch(request)
+    .then(response => {
+      if (response && response.ok) {
+        cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(err => {
+      console.warn('[SW] SWR network fail:', request.url, err.message);
+      return null; // Will be handled below
+    });
 
-  // Return cached immediately if available, otherwise wait for network
-  return cached || networkFetch;
+  // Return cached copy immediately if we have one
+  if (cached) {
+    return cached;
+  }
+
+  // No cache — must wait for network
+  const networkResponse = await networkPromise;
+  if (networkResponse) {
+    return networkResponse;
+  }
+
+  // Both cache and network failed — return a proper error response
+  return new Response('Resource unavailable offline.', {
+    status: 503,
+    headers: { 'Content-Type': 'text/plain' },
+  });
 }
 
 // ── Strategy: Cache First ─────────────────────────────────────────────────
@@ -211,11 +244,25 @@ async function cacheFirst(request, cacheName) {
 
   try {
     const response = await fetch(request);
-    if (response.ok || response.type === 'opaque') {
+    if (response && (response.ok || response.type === 'opaque')) {
       cache.put(request, response.clone());
     }
     return response;
-  } catch {
+  } catch (err) {
+    // Return a transparent 1x1 pixel for failed image requests
+    if (request.destination === 'image') {
+      return new Response(
+        new Uint8Array([
+          0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00,
+          0x01, 0x00, 0x80, 0x00, 0x00, 0xFF, 0xFF, 0xFF,
+          0x00, 0x00, 0x00, 0x21, 0xF9, 0x04, 0x01, 0x00,
+          0x00, 0x00, 0x00, 0x2C, 0x00, 0x00, 0x00, 0x00,
+          0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x02, 0x44,
+          0x01, 0x00, 0x3B
+        ]),
+        { status: 200, headers: { 'Content-Type': 'image/gif' } }
+      );
+    }
     return new Response('', { status: 404, statusText: 'Not Found' });
   }
 }

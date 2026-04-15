@@ -26,35 +26,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// PWA Logic: Service Worker Registration & Install Prompt
+// PWA Logic: Install Prompt handling only
+// NOTE: Service Worker registration is handled by the inline script in the HTML page.
+// Do NOT register SW here — duplicate registrations cause iOS PWA crashes.
 function initPWA() {
-    // Register service worker (do NOT unregister existing ones — that breaks offline caching)
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => {
-                console.log('Service Worker registered with scope:', reg.scope);
-                
-                reg.onupdatefound = () => {
-                    const installingWorker = reg.installing;
-                    installingWorker.onstatechange = () => {
-                        if (installingWorker.state === 'installed') {
-                            if (navigator.serviceWorker.controller) {
-                                console.log('New content available, please refresh.');
-                                showUpdateNotification();
-                            } else {
-                                console.log('Content is cached for offline use.');
-                            }
-                        }
-                    };
-                };
-            })
-            .catch(err => {
-                console.error('Service Worker registration failed:', err);
-                disablePWAFeatures();
-            });
-    }
-
-    // Handle Install Prompt
+    // Handle Install Prompt (Android/Chrome only)
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
